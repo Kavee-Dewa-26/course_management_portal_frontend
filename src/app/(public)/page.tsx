@@ -1,6 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
@@ -15,31 +16,32 @@ import { FEATURED_COURSES } from "@/lib/mock/courses";
 import { avatarUrl } from "@/lib/kit";
 
 const FEATURES = [
-  { ico: "layers", title: "Structured Course Plans", body: "Multi-module roadmaps with clear topic ordering — no guesswork on what to learn next." },
+  { ico: "layers", title: "Structured Course Plans", body: "Multi-module roadmaps with clear topic ordering. No guesswork on what to learn next." },
   { ico: "trending-up", title: "Track Your Progress", body: "Module-level completion shown across every course so you always know where you stand." },
   { ico: "shield-check", title: "Verified Materials", body: "Lessons, code labs and project briefs curated by working software and data engineers." },
-  { ico: "terminal", title: "Hands-on Labs", body: "Browser-based notebooks and sandboxes — write real code and run real queries from lesson one." },
-  { ico: "video", title: "Lecture Recordings", body: "Watch on demand — every lesson stays available throughout your subscription." },
+  { ico: "terminal", title: "Hands-on Labs", body: "Browser-based notebooks and sandboxes. Write real code and run real queries from lesson one." },
+  { ico: "video", title: "Lecture Recordings", body: "Watch on demand. Every lesson stays available throughout your subscription." },
   { ico: "smartphone", title: "Learn on Any Device", body: "The platform works across desktop, tablet and phone with no install required." },
 ];
 
 const STEPS = [
-  { n: "01", title: "Create Your Account", body: "Sign up in under a minute — no credit card required.", active: true },
-  { n: "02", title: "Pick Your Course Plan", body: "Browse module-by-module tracks built around your engineering goals." },
-  { n: "03", title: "Start Learning", body: "Watch lessons, complete labs and track progress across every module." },
+  { n: "01", title: "Create Your Account", body: "Submit your registration and wait for admin approval. Once approved you can sign in and get started.", ico: "user-plus" },
+  { n: "02", title: "Pick Your Course Plan", body: "Browse module-by-module tracks built around your engineering goals.", ico: "layers" },
+  { n: "03", title: "Start Learning", body: "Watch lessons, complete labs and track progress across every module.", ico: "play-circle" },
 ];
 
 const FAQS = [
   { q: "Do I need a CS degree to start?", a: "No. Foundation courses assume only basic familiarity with a programming language. Our SQL and analytics tracks have no prerequisites at all." },
   { q: "How long does each course take?", a: "Most modules are designed for 5–12 hours of focused study, plus labs. A full programme typically takes 3–6 months at part-time pace." },
-  { q: "Can I switch courses later?", a: "Yes. You can request any published course at any time. Your progress is saved per-module — switching tracks never resets your work." },
-  { q: "What about the labs — do I need to install anything?", a: "No. Every lab runs in your browser. Notebooks, terminals and databases are spun up on demand and persist between sessions." },
+  { q: "Can I switch courses later?", a: "Yes. You can request any published course at any time. Your progress is saved per-module. Switching tracks never resets your work." },
+  { q: "What about the labs? Do I need to install anything?", a: "No. Every lab runs in your browser. Notebooks, terminals and databases are spun up on demand and persist between sessions." },
 ];
 
 export default function PublicHomePage() {
   const router = useRouter();
   const goLogin = () => router.push("/login");
   const goRegister = () => router.push("/register");
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
     <div className="public">
@@ -56,7 +58,7 @@ export default function PublicHomePage() {
               on <span className="accent">your schedule</span>.
             </h1>
             <p>
-              Multi-module course programmes in software, ML and analytics — real instructor
+              Multi-module course programmes in software, ML and analytics. Real instructor
               lectures, browser-based labs, and progress tracking that keep you focused from
               your first commit to your final project.
             </p>
@@ -129,7 +131,7 @@ export default function PublicHomePage() {
             <h2 className="section-title section-title--center">
               Everything you need to <span className="accent">level up</span>
               <br />
-              and ship — in one place.
+              and ship, all in one place.
             </h2>
           </div>
           <div className="feature-grid">
@@ -154,26 +156,29 @@ export default function PublicHomePage() {
             How <span className="accent">EduPath</span> works.
           </h2>
           <p className="section-sub">
-            Three simple steps — sign up, choose your plan, start learning at your own pace.
+            Three simple steps: sign up, choose your plan, start learning at your own pace.
           </p>
-          <div className="process-grid">
-            <div className="steps">
-              {STEPS.map((s) => (
-                <div key={s.n} className={"step" + (s.active ? " active" : "")}>
-                  <div className="num">{s.n}</div>
-                  <div>
-                    <h4>{s.title}</h4>
-                    <p>{s.body}</p>
+          <div className="step-cards">
+            {STEPS.map((s, i) => (
+              <div key={s.n} style={{ display: "contents" }}>
+                <div className="step-card">
+                  <div className="step-card-top">
+                    <span className="step-card-icon">
+                      <Icon name={s.ico} size={18} />
+                    </span>
+                    <span className="step-card-num">{s.n}</span>
                   </div>
+                  <h4 className="step-card-title">{s.title}</h4>
+                  <p className="step-card-body">{s.body}</p>
+                  <span className="step-card-badge">Step {i + 1}</span>
                 </div>
-              ))}
-            </div>
-            <div className="process-img">
-              <img
-                src="https://images.unsplash.com/photo-1488998427799-e3362cec87c3?w=800&q=80"
-                alt=""
-              />
-            </div>
+                {i < STEPS.length - 1 && (
+                  <div className="step-card-arrow" aria-hidden="true">
+                    <span />
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -243,17 +248,24 @@ export default function PublicHomePage() {
             </h2>
           </div>
           <div className="faq-list">
-            {FAQS.map((f, i) => (
-              <details key={f.q} className="faq" open={i === 0}>
-                <summary>
-                  <span className="ico">
-                    <Icon name={i === 0 ? "minus" : "plus"} size={18} />
-                  </span>
-                  {f.q}
-                </summary>
-                <div className="body">{f.a}</div>
-              </details>
-            ))}
+            {FAQS.map((f, i) => {
+              const isOpen = openFaq === i;
+              return (
+                <div key={f.q} className={`faq${isOpen ? " open" : ""}`}>
+                  <button
+                    className="faq-summary"
+                    onClick={() => setOpenFaq(isOpen ? null : i)}
+                    aria-expanded={isOpen}
+                  >
+                    <span className="ico">
+                      <Icon name={isOpen ? "minus" : "plus"} size={18} />
+                    </span>
+                    {f.q}
+                  </button>
+                  {isOpen && <div className="body">{f.a}</div>}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>

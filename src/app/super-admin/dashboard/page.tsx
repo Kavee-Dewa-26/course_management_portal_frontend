@@ -84,12 +84,15 @@ export default function SuperAdminDashboardPage() {
               <th>Role</th>
               <th>Last seen</th>
               <th>Status</th>
-              <th style={{ textAlign: "right" }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {ADMINS_SEED.map((a) => (
-              <tr key={a.email}>
+              <tr
+                key={a.email}
+                style={{ cursor: "pointer" }}
+                onClick={() => router.push(`/super-admin/admins/${a.id}`)}
+              >
                 <td>
                   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                     <Avatar src={avatarUrl(a.avatar)} size="sm" name={a.name} />
@@ -113,14 +116,6 @@ export default function SuperAdminDashboardPage() {
                   {a.status === "active" && <Badge tone="success">Active</Badge>}
                   {a.status === "invited" && <Badge tone="warning">Invited</Badge>}
                   {a.status === "suspended" && <Badge tone="error">Suspended</Badge>}
-                </td>
-                <td style={{ textAlign: "right" }}>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    icon="more-horizontal"
-                    onClick={() => router.push(`/super-admin/admins/${a.id}`)}
-                  />
                 </td>
               </tr>
             ))}

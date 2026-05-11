@@ -62,7 +62,7 @@ export default function UpgradeAdminPage() {
       <div className="settings-card">
         <h2>Upgrade to Super Admin</h2>
         <p className="settings-sub">
-          Super Admins have full platform access — they can manage all administrators, upgrade
+          Super Admins have full platform access. They can manage all administrators, upgrade
           roles, and control all platform settings.
         </p>
 

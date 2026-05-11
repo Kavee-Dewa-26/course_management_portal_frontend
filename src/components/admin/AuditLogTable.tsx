@@ -26,7 +26,7 @@ export function AuditLogTable() {
         <div>
           <h1>Audit Log</h1>
           <div className="greeting">
-            Every administrative action — sign-ins, approvals, content edits, role changes.
+            Every administrative action: sign-ins, approvals, content edits, role changes.
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>

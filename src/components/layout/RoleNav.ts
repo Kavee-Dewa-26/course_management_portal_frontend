@@ -19,6 +19,7 @@ export const STUDENT_NAV: NavItem[] = [
   { group: "Main" },
   { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/dashboard" },
   { id: "courses", label: "My Courses", ico: "book-open", href: "/my-courses" },
+  { id: "browse", label: "Browse Courses", ico: "search", href: "/browse-courses" },
   { id: "profile", label: "Profile", ico: "user", href: "/profile" },
   { group: "Account" },
   { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },

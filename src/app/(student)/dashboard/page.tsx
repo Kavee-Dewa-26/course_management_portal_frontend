@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/Icon";
 import {
   STUDENT_ENROLLED_NOT_STARTED,
   STUDENT_IN_PROGRESS,
+  STUDENT_PENDING_COURSES,
   type CourseSummary,
 } from "@/lib/mock/courses";
 import { coverGradient } from "@/lib/kit";
@@ -23,8 +24,16 @@ export default function StudentDashboardPage() {
         <div>
           <h1>Welcome back, {STUDENT.name.split(" ")[0]}.</h1>
           <div className="greeting">
-            You&apos;ve completed <b style={{ color: "#152A24" }}>3 lessons</b> this week — keep
+            You&apos;ve completed <b style={{ color: "#152A24" }}>3 lessons</b> this week, keep
             it up.
+            {STUDENT_PENDING_COURSES.length > 0 && (
+              <span
+                style={{ marginLeft: 12, color: "var(--color-warning)", fontWeight: 500, cursor: "pointer" }}
+                onClick={() => router.push("/my-courses")}
+              >
+                · {STUDENT_PENDING_COURSES.length} enrollment{STUDENT_PENDING_COURSES.length > 1 ? "s" : ""} pending approval
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -103,9 +112,9 @@ export default function StudentDashboardPage() {
           variant="ghost"
           size="sm"
           iconAfter="arrow-right"
-          onClick={() => router.push("/my-courses")}
+          onClick={() => router.push("/browse-courses")}
         >
-          Browse catalog
+          Browse courses
         </Button>
       </div>
       <div className="my-grid">

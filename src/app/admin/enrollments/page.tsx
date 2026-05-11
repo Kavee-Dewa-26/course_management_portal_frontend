@@ -25,11 +25,19 @@ export default function AdminEnrollmentsPage() {
   const Q = useApprovalQueue(ENROLLMENTS_SEED, "Enrollment");
   const dispatch = useAppDispatch();
   const [statuses, setStatuses] = useState<ApprovalStatus[]>(["pending", "approved", "rejected"]);
+  const [query, setQuery] = useState("");
   const pending = Q.rows.filter((r) => r.status === "pending").length;
-  const visibleRows = useMemo(
-    () => Q.rows.filter((r) => statuses.includes(r.status)),
-    [Q.rows, statuses],
-  );
+  const visibleRows = useMemo(() => {
+    const q = query.toLowerCase();
+    return Q.rows.filter(
+      (r) =>
+        statuses.includes(r.status) &&
+        (q === "" ||
+          r.name.toLowerCase().includes(q) ||
+          r.email.toLowerCase().includes(q) ||
+          r.course.toLowerCase().includes(q)),
+    );
+  }, [Q.rows, statuses, query]);
 
   const handleExport = () => {
     const headers = ["Student", "Email", "Course", "Requested", "Status"];
@@ -47,7 +55,7 @@ export default function AdminEnrollmentsPage() {
           </h1>
           <div className="greeting">
             <b style={{ color: "#152A24" }}>{pending}</b> awaiting approval. The learner already
-            has an account — approving unlocks course materials.
+            has an account. Approving unlocks course materials.
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -80,6 +88,17 @@ export default function AdminEnrollmentsPage() {
         </div>
         <div className="flow-step">
           <i>3</i> Studying <small>Course materials unlocked</small>
+        </div>
+      </div>
+
+      <div className="audit-toolbar">
+        <div className="audit-search">
+          <Icon name="search" size={16} />
+          <input
+            placeholder="Search by student, email or course..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
         </div>
       </div>
 

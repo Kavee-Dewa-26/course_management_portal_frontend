@@ -13,7 +13,7 @@ export function RowActions({ status, onApprove, onReject }: Props) {
   if (status !== "pending") {
     return (
       <span className="muted" style={{ fontFamily: "var(--font-body)", fontSize: 12 }}>
-        —
+        -
       </span>
     );
   }

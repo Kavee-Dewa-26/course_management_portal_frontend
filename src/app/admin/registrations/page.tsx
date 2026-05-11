@@ -25,11 +25,19 @@ export default function AdminRegistrationsPage() {
   const Q = useApprovalQueue(REGISTRATIONS_SEED, "Registration");
   const dispatch = useAppDispatch();
   const [statuses, setStatuses] = useState<ApprovalStatus[]>(["pending", "approved", "rejected"]);
+  const [query, setQuery] = useState("");
   const pending = Q.rows.filter((r) => r.status === "pending").length;
-  const visibleRows = useMemo(
-    () => Q.rows.filter((r) => statuses.includes(r.status)),
-    [Q.rows, statuses],
-  );
+  const visibleRows = useMemo(() => {
+    const q = query.toLowerCase();
+    return Q.rows.filter(
+      (r) =>
+        statuses.includes(r.status) &&
+        (q === "" ||
+          r.name.toLowerCase().includes(q) ||
+          r.email.toLowerCase().includes(q) ||
+          r.country.toLowerCase().includes(q)),
+    );
+  }, [Q.rows, statuses, query]);
 
   const handleExport = () => {
     const headers = ["Name", "Email", "Country", "Submitted", "Status"];
@@ -77,6 +85,17 @@ export default function AdminRegistrationsPage() {
         </div>
         <div className="flow-step">
           <i>3</i> Studying <small>Course materials unlocked</small>
+        </div>
+      </div>
+
+      <div className="audit-toolbar">
+        <div className="audit-search">
+          <Icon name="search" size={16} />
+          <input
+            placeholder="Search by name, email or country..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
         </div>
       </div>
 

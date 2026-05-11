@@ -31,7 +31,7 @@ export const FEATURED_COURSES: CourseSummary[] = [
     time: "10h 20m",
     lessons: "20 lessons",
     title: "Applied Machine Learning",
-    desc: "From regression to fine-tuning — hands-on with Python, scikit-learn and PyTorch.",
+    desc: "From regression to fine-tuning, hands-on with Python, scikit-learn and PyTorch.",
   },
   {
     id: "sql-for-analytics",
@@ -41,7 +41,7 @@ export const FEATURED_COURSES: CourseSummary[] = [
     time: "6h 50m",
     lessons: "14 lessons",
     title: "SQL for Analytics",
-    desc: "Window functions, joins, query plans — patterns you'll use every day on the job.",
+    desc: "Window functions, joins, query plans. Patterns you will use every day on the job.",
   },
   {
     id: "dashboards-storytelling",
@@ -52,6 +52,26 @@ export const FEATURED_COURSES: CourseSummary[] = [
     lessons: "12 lessons",
     title: "Dashboards & Storytelling",
     desc: "Turn raw data into clear, opinionated dashboards stakeholders actually use.",
+  },
+  {
+    id: "cloud-architecture",
+    kind: "gen",
+    emblem: "layers",
+    tag: "Cloud",
+    time: "7h 30m",
+    lessons: "15 lessons",
+    title: "Cloud Architecture",
+    desc: "Design scalable cloud systems on AWS and Azure with infrastructure-as-code and CI/CD pipelines.",
+  },
+  {
+    id: "python-fundamentals",
+    kind: "math",
+    emblem: "terminal",
+    tag: "Programming",
+    time: "4h 20m",
+    lessons: "10 lessons",
+    title: "Python Fundamentals",
+    desc: "Core Python for engineers: data structures, functions, OOP and writing clean, readable code.",
   },
 ];
 
@@ -75,6 +95,18 @@ export const STUDENT_IN_PROGRESS: CourseSummary[] = [
     time: "10h 20m",
     lessons: "20 lessons",
     progress: 28,
+  },
+];
+
+export const STUDENT_PENDING_COURSES: CourseSummary[] = [
+  {
+    id: "cloud-architecture",
+    kind: "gen",
+    emblem: "layers",
+    tag: "Cloud",
+    title: "Cloud Architecture",
+    time: "7h 30m",
+    lessons: "15 lessons",
   },
 ];
 

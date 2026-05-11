@@ -240,7 +240,8 @@ code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
 .section-title--center { text-align: center; }
 .section-title .accent { color: #BCE955; }
 .section-sub { font-family: var(--font-body); font-size: 17px; color: #41574A; max-width: 640px; line-height: 1.5; margin: 16px 0 0; }
-.section--dark .section-title { color: #fff; }
+.section--dark .section-title, .section--deep .section-title { color: #fff; }
+.section--deep .section-sub { color: rgba(255,255,255,0.6); }
 .section--dark .section-sub { color: rgba(255, 255, 255, 0.7); }
 
 .hero { padding: 140px 24px 96px; }
@@ -287,6 +288,19 @@ code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
 .step .num { font-family: var(--font-heading); font-weight: 700; font-size: 36px; color: #BCE955; line-height: 1; min-width: 56px; }
 .step h4 { font-family: var(--font-heading); font-weight: 600; font-size: 18px; color: #fff; margin: 0 0 6px; }
 .step p { font-family: var(--font-body); font-size: 14px; line-height: 1.5; color: rgba(255, 255, 255, 0.7); margin: 0; }
+/* Step cards (How it works) */
+.step-cards { display: flex; align-items: stretch; gap: 0; margin-top: 48px; }
+.step-card { flex: 1; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 28px 24px 24px; display: flex; flex-direction: column; gap: 0; position: relative; overflow: hidden; }
+.step-card-arrow { flex-shrink: 0; width: 32px; display: flex; align-items: center; justify-content: center; align-self: center; }
+.step-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.step-card-icon { width: 36px; height: 36px; border-radius: 9999px; background: rgba(188,233,85,0.15); color: #BCE955; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.step-card-num { font-family: var(--font-heading); font-weight: 700; font-size: 72px; line-height: 1; color: rgba(188,233,85,0.12); letter-spacing: -0.04em; }
+.step-card-title { font-family: var(--font-heading); font-weight: 700; font-size: 20px; color: #fff; margin: 0 0 10px; line-height: 1.2; }
+.step-card-body { font-family: var(--font-body); font-size: 14px; line-height: 1.6; color: rgba(255,255,255,0.65); margin: 0; flex: 1; }
+.step-card-badge { display: inline-block; margin-top: 20px; background: rgba(188,233,85,0.15); color: #BCE955; font-family: var(--font-body); font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 9999px; align-self: flex-start; border: 1px solid rgba(188,233,85,0.25); }
+.step-card-arrow span { display: block; width: 28px; height: 2px; background: repeating-linear-gradient(90deg, #BCE955 0, #BCE955 5px, transparent 5px, transparent 10px); position: relative; }
+.step-card-arrow span::after { content: ""; position: absolute; right: -6px; top: -4px; border: 5px solid transparent; border-left-color: #BCE955; }
+@media (max-width: 768px) { .step-cards { flex-direction: column; gap: 16px; } .step-card-arrow { transform: rotate(90deg); } }
 .process-img { border-radius: 20px; overflow: hidden; aspect-ratio: 4/5; background: linear-gradient(135deg, #2a5d3a, #41574A); }
 .process-img img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -315,11 +329,10 @@ code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
 
 .faq-list { margin-top: 40px; display: flex; flex-direction: column; gap: 12px; max-width: 800px; margin-left: auto; margin-right: auto; }
 .faq { background: #fff; border: 1px solid #E5E5E5; border-radius: 14px; overflow: hidden; }
-.faq summary { font-family: var(--font-heading); font-weight: 600; font-size: 16px; color: #152A24; padding: 18px 20px; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 14px; }
-.faq summary::-webkit-details-marker { display: none; }
-.faq summary .ico { color: #41574A; transition: color 150ms; }
-.faq[open] summary .ico { color: #BCE955; }
-.faq[open] summary { border-bottom: 1px solid #E5E5E5; padding-bottom: 16px; }
+.faq-summary { width: 100%; background: transparent; border: none; font-family: var(--font-heading); font-weight: 600; font-size: 16px; color: #152A24; padding: 18px 20px; cursor: pointer; display: flex; align-items: center; gap: 14px; text-align: left; }
+.faq-summary .ico { color: #41574A; transition: color 150ms; flex-shrink: 0; }
+.faq.open .faq-summary .ico { color: #BCE955; }
+.faq.open .faq-summary { border-bottom: 1px solid #E5E5E5; padding-bottom: 16px; }
 .faq .body { padding: 16px 20px 20px 54px; font-family: var(--font-body); font-size: 14px; line-height: 1.7; color: #41574A; }
 
 .final-cta { text-align: center; padding: 96px 24px; position: relative; overflow: hidden; }
@@ -896,6 +909,18 @@ svg.lucide { stroke-width: 1.75; }
 .dark .perm-card,
 .dark .attach-item,
 .dark .faq { background: var(--color-surface); border-color: var(--color-stroke); }
+.dark .faq-summary { color: #fff; }
+.dark .faq-summary .ico { color: rgba(255,255,255,0.5); }
+.dark .faq.open .faq-summary .ico { color: var(--color-accent); }
+.dark .faq.open .faq-summary { border-bottom-color: var(--color-stroke); }
+.dark .faq .body { color: rgba(255,255,255,0.65); }
+.dark .flow-step { color: rgba(255,255,255,0.55); }
+.dark .flow-step.active { color: #fff; }
+.dark .flow-step small { color: rgba(255,255,255,0.4); }
+.dark .flow-step i { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
+.dark .flow-step.active i { background: var(--color-accent); color: var(--color-primary); }
+.dark .flow-step.done i { background: var(--color-primary); color: var(--color-accent); }
+.dark .flow-arrow { color: rgba(255,255,255,0.25); }
 .dark .activity .row { border-bottom-color: rgba(255, 255, 255, 0.06); }
 .dark .activity .row .ico { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.7); }
 .dark .activity .row .body .title { color: #fff; }
@@ -943,6 +968,11 @@ svg.lucide { stroke-width: 1.75; }
 .dark .viewer-actions { border-top-color: var(--color-stroke); }
 .dark .my-card .progress-cap .bar { background: rgba(255, 255, 255, 0.08); }
 .dark .my-card .progress-cap .pct { color: rgba(255, 255, 255, 0.7); }
+.dark .course-card { background: var(--color-surface); border-color: var(--color-stroke); }
+.dark .course-card h3 { color: #fff; }
+.dark .course-card .meta { color: rgba(255, 255, 255, 0.55); }
+.dark .course-card p { color: rgba(255, 255, 255, 0.6); }
+.dark .course-card .cover .tag { background: rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.8); }
 
 /* Tree (course editor) */
 .dark .tree-head { border-bottom-color: var(--color-stroke); }

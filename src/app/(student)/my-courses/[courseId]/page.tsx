@@ -129,7 +129,7 @@ export default function StudentCourseViewerPage() {
         <p className="desc">
           REST is still the default contract for most service-to-service traffic on the web. In
           this lesson we&apos;ll cover resource modelling, HTTP verb semantics, status codes you
-          actually need, and idempotency — with worked examples from a real production codebase.
+          actually need, and idempotency, with worked examples from a real production codebase.
         </p>
         <div className="attachments">
           <h3>Lesson materials</h3>

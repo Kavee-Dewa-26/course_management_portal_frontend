@@ -25,7 +25,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EduPath — Course Management Portal",
+  title: "EduPath | Course Management Portal",
   description:
     "Engineering & data skills, on your schedule. Multi-module course programmes in software, ML and analytics.",
   icons: { icon: "/assets/logo-mark.svg" },

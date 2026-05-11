@@ -33,7 +33,7 @@ export function AuthSplit({ children }: Props) {
         </div>
         <div className="quote" style={{ position: "relative" }}>
           <p className="text">
-            &ldquo;Coming back to studying after years felt impossible — until EduPath structured
+            &ldquo;Coming back to studying after years felt impossible, until EduPath structured
             it for me.&rdquo;
           </p>
           <div className="who">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FilterPopover } from "@/components/ui/FilterPopover";
+import { Icon } from "@/components/ui/Icon";
 import { RowMenu } from "@/components/ui/RowMenu";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
@@ -21,11 +22,16 @@ export default function AdminCoursesPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const [statuses, setStatuses] = useState<StatusKey[]>(["published", "draft"]);
+  const [query, setQuery] = useState("");
 
-  const courses = useMemo(
-    () => ADMIN_COURSES_SEED.filter((c) => statuses.includes(c.status)),
-    [statuses],
-  );
+  const courses = useMemo(() => {
+    const q = query.toLowerCase();
+    return ADMIN_COURSES_SEED.filter(
+      (c) =>
+        statuses.includes(c.status) &&
+        (q === "" || c.title.toLowerCase().includes(q) || c.subject.toLowerCase().includes(q)),
+    );
+  }, [statuses, query]);
   const drafts = courses.filter((c) => c.status === "draft").length;
 
   const flash = (title: string, message?: string) =>
@@ -49,6 +55,17 @@ export default function AdminCoursesPage() {
           <Button icon="plus" onClick={() => router.push("/admin/courses/new")}>
             Add course
           </Button>
+        </div>
+      </div>
+
+      <div className="audit-toolbar">
+        <div className="audit-search">
+          <Icon name="search" size={16} />
+          <input
+            placeholder="Search by title or subject..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
         </div>
       </div>
 
@@ -117,8 +134,8 @@ export default function AdminCoursesPage() {
               <tr>
                 <td colSpan={7}>
                   <div className="empty">
-                    <h3>No courses match this filter</h3>
-                    <p>Adjust the status filter to see more.</p>
+                    <h3>No courses found</h3>
+                    <p>Try a different search term or adjust the status filter.</p>
                   </div>
                 </td>
               </tr>

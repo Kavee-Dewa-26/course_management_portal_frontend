@@ -54,7 +54,7 @@ export function RegisterForm() {
         <p className="sub" style={{ textAlign: "center" }}>
           Thanks{pending.name !== "there" ? `, ${pending.name.split(" ")[0]}` : ""}. An
           administrator is reviewing your sign-up. We&apos;ll email <b>{pending.email}</b> as soon
-          as you&apos;re approved — usually within <b>24 hours</b>.
+          as you&apos;re approved, usually within <b>24 hours</b>.
         </p>
 
         <ol className="pending-steps">

@@ -29,7 +29,7 @@ export function InviteAdminForm({ onCancel, onSubmit }: Props) {
       <h2>Invite a new administrator</h2>
       <p className="settings-sub">
         We&apos;ll email a one-time sign-in link to the address below. The invite expires in 7 days
-        — you can resend or revoke it from this page.
+        You can resend or revoke it from this page.
       </p>
       <div className="form-grid two">
         <Input
