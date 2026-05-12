@@ -3,7 +3,7 @@ import { RegisterForm } from "@/components/auth/RegisterForm";
 
 export default function RegisterPage() {
   return (
-    <AuthSplit>
+    <AuthSplit variant="register">
       <RegisterForm />
     </AuthSplit>
   );

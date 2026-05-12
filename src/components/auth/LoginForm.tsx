@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
+import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
@@ -47,6 +48,35 @@ export function LoginForm() {
   const [role, setRoleKey] = useState<RoleKey>("student");
   const [email, setEmail] = useState("priya@example.com");
   const [pw, setPw] = useState("••••••••");
+  const [emailError, setEmailError] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [formError, setFormError] = useState("");
+
+  const clearErrors = () => {
+    setEmailError("");
+    setPwError("");
+    setFormError("");
+  };
+
+  const validate = () => {
+    let valid = true;
+    if (!email.trim()) {
+      setEmailError("Email is required.");
+      valid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setEmailError("Enter a valid email address.");
+      valid = false;
+    } else {
+      setEmailError("");
+    }
+    if (!pw.trim()) {
+      setPwError("Password is required.");
+      valid = false;
+    } else {
+      setPwError("");
+    }
+    return valid;
+  };
 
   const completeSignIn = (provider: "password" | "google") => {
     const cfg = ROLE_CONFIG[role];
@@ -64,6 +94,8 @@ export function LoginForm() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    clearErrors();
+    if (!validate()) return;
     completeSignIn("password");
   };
 
@@ -90,7 +122,29 @@ export function LoginForm() {
       <button type="button" className="btn--google" onClick={() => completeSignIn("google")}>
         <GoogleIcon /> Continue with Google
       </button>
+
       <div className="auth-divider">or</div>
+
+      {formError && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+            background: "var(--color-error-bg)",
+            border: "1px solid rgba(220,38,38,0.25)",
+            borderRadius: 10,
+            padding: "12px 14px",
+            marginBottom: 12,
+            fontFamily: "var(--font-body)",
+            fontSize: 13,
+            color: "#DC2626",
+          }}
+        >
+          <Icon name="alert-circle" size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+          {formError}
+        </div>
+      )}
 
       <form onSubmit={onSubmit}>
         <Input
@@ -98,14 +152,16 @@ export function LoginForm() {
           type="email"
           placeholder="you@example.com"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          error={emailError}
+          onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(""); }}
         />
         <Input
           label="Password"
           type="password"
           placeholder="••••••••"
           value={pw}
-          onChange={(e) => setPw(e.target.value)}
+          error={pwError}
+          onChange={(e) => { setPw(e.target.value); if (pwError) setPwError(""); }}
         />
         <div
           style={{
