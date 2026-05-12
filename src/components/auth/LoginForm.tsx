@@ -123,32 +123,6 @@ export function LoginForm() {
         <GoogleIcon /> Continue with Google
       </button>
 
-      {/* DEV ONLY — remove before production */}
-      <button
-        type="button"
-        onClick={() => completeSignIn("password")}
-        style={{
-          width: "100%",
-          marginTop: 10,
-          padding: "10px 0",
-          borderRadius: 10,
-          border: "1.5px dashed rgba(188,233,85,0.6)",
-          background: "rgba(188,233,85,0.06)",
-          color: "var(--color-body-green)",
-          fontFamily: "var(--font-body)",
-          fontSize: 13,
-          fontWeight: 600,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-        }}
-      >
-        <Icon name="zap" size={14} />
-        Dev: Sign in as {ROLE_CONFIG[role].label}
-      </button>
-
       <div className="auth-divider">or</div>
 
       {formError && (

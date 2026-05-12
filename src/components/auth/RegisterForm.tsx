@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
@@ -168,11 +167,6 @@ export function RegisterForm() {
     <>
       <h3>Create your account</h3>
       <p className="sub">It only takes a minute. No credit card required.</p>
-      <button type="button" className="btn--google" onClick={() => submit("google")}>
-        <GoogleIcon /> Continue with Google
-      </button>
-      <div className="auth-divider">or</div>
-
       <form onSubmit={onSubmit}>
         <div className="form-grid two" style={{ marginBottom: 0 }}>
           <Input
