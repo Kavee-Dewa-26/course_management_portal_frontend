@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/Input";
 import { SUPER_PERMISSIONS } from "@/lib/mock/admins";
 
 export interface InvitePayload {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
+  password: string;
   perms: string[];
 }
 
@@ -17,26 +19,39 @@ interface Props {
 }
 
 export function InviteAdminForm({ onCancel, onSubmit }: Props) {
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = () => {
-    onSubmit({ name, email, perms: SUPER_PERMISSIONS.map((p) => p.id) });
+    onSubmit({
+      firstName,
+      lastName,
+      email,
+      password,
+      perms: SUPER_PERMISSIONS.map((p) => p.id),
+    });
   };
 
   return (
     <div className="settings-card">
-      <h2>Invite a new administrator</h2>
+      <h2>Create admin account</h2>
       <p className="settings-sub">
-        We&apos;ll email a one-time sign-in link to the address below. The invite expires in 7 days
-        You can resend or revoke it from this page.
+        The account is active immediately. The admin must change their password on first sign-in.
       </p>
       <div className="form-grid two">
         <Input
-          label="Full name"
-          placeholder="e.g. Sahan Wijeratne"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          label="First name"
+          placeholder="e.g. Sahan"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+        />
+        <Input
+          label="Last name"
+          placeholder="e.g. Wijeratne"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
         />
         <Input
           label="Email"
@@ -45,13 +60,20 @@ export function InviteAdminForm({ onCancel, onSubmit }: Props) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
+        <Input
+          label="Initial password"
+          type="password"
+          placeholder="Temporary password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
       </div>
       <div className="form-actions">
         <Button variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
-        <Button icon="send" onClick={handleSubmit}>
-          Send invite
+        <Button icon="user-plus" onClick={handleSubmit}>
+          Create account
         </Button>
       </div>
     </div>

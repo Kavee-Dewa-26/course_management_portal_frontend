@@ -31,11 +31,6 @@ export function FloatingNav({ initialActive = "home", onSignUp }: Props) {
   const handleNav = (id: string, target: string) => {
     setActive(id);
 
-    if (id === "courses") {
-      router.push("/courses");
-      return;
-    }
-
     if (id === "home") {
       if (pathname === "/") {
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -45,7 +40,7 @@ export function FloatingNav({ initialActive = "home", onSignUp }: Props) {
       return;
     }
 
-    // About (#why) or Contact (#faq)
+    // Scroll to section on home page (About, Courses, Contact)
     if (pathname === "/") {
       const el = document.getElementById(target);
       if (el) {

@@ -1026,3 +1026,41 @@ svg.lucide { stroke-width: 1.75; }
 
 /* Continue card already dark — keep as-is */
 .dark .continue { background: var(--color-surface-2); }
+
+/* Queue card counts — large number + "PENDING" label */
+.dark .queue-card .queue-count { border-left-color: var(--color-stroke); }
+.dark .queue-card .queue-count b { color: #fff; }
+.dark .queue-card .queue-count span { color: rgba(255, 255, 255, 0.55); }
+
+/* KPI trend colours need brightening against dark background */
+.dark .kpi-trend { color: #4ade80; }
+.dark .kpi-trend.warn { color: #fbbf24; }
+
+/* Hero badge (public page) */
+.dark .hero-badge { background: var(--color-surface); }
+.dark .hero-badge .num { color: #fff; }
+.dark .hero-badge .lab { color: rgba(255, 255, 255, 0.6); }
+
+/* Stats section numbers + labels (public page) */
+.dark .stats .stat .num { color: #fff; }
+.dark .stats .stat .lab { color: #fff; }
+.dark .stats .stat .sub { color: rgba(255, 255, 255, 0.6); }
+
+/* Generic section subtitle used on light-background sections */
+.dark .section-sub { color: rgba(255, 255, 255, 0.7); }
+
+/* Feature card icon background */
+.dark .feature-card .ico { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.7); }
+
+/* QA shortcut cards */
+.dark .qa-label { color: #fff; }
+.dark .qa-ico { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.7); }
+
+/* Stub / coming-soon cards */
+.dark .stub-card { background: var(--color-surface); border-color: var(--color-stroke); }
+
+/* Course viewer sidebar */
+.dark .semester-head { color: rgba(255, 255, 255, 0.6); }
+.dark .subject { color: rgba(255, 255, 255, 0.6); }
+.dark .viewer-side .head .pct { color: rgba(255, 255, 255, 0.6); }
+.dark .viewer-main .desc { color: rgba(255, 255, 255, 0.7); }
