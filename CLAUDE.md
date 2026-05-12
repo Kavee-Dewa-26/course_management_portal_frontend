@@ -12,6 +12,54 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Path alias: `@/*` → `src/*` (set in `tsconfig.json`). The `src/ui_structure/**` tree is excluded from the TS compile.
 
+## Branch Strategy
+
+### Naming convention
+```
+feature/<short-description>   e.g. feature/auth-login-token-storage
+```
+
+### Rules — follow these strictly
+
+1. **Always ask permission before creating a new branch.** Never create a branch silently.
+
+2. **One feature = one branch.** Even within the same sprint, if two features are distinct enough to be reviewed separately, they get separate branches.
+
+3. **Before switching to a new branch:** if there are any uncommitted changes on the current branch:
+   - Commit and push the changes
+   - Create a PR
+   - Wait for the user to review and merge before starting the next branch
+
+4. **Never work directly on `main`.** All changes go through feature branches and PRs.
+
+5. **Sprint files live at `_sprints/v01/sprint-{N}.md`** — check the relevant sprint file before starting work to know which branches are expected.
+
+6. **PR before merge** — never merge a branch yourself. Always create a PR and let the user review and approve it.
+
+### Workflow per feature
+
+```
+Ask permission to create branch
+  ↓
+git checkout -b feature/<name>
+  ↓
+Implement feature
+  ↓
+npm run type-check  (must pass)
+  ↓
+git add <specific files>
+git commit -m "feat(<scope>): ..."
+git push -u origin feature/<name>
+  ↓
+gh pr create ...
+  ↓
+Wait for user to merge
+  ↓
+git checkout main && git pull
+  ↓
+Ask permission for next branch
+```
+
 ## High-level architecture
 
 This is `slp-web` / EduPath — the Next.js 14 (App Router) frontend for a multi-role Course Management Portal. It is the **presentation layer only**: the long-term plan is to call `slp-backend` over REST (RTK Query + Firebase Auth ID token), but the current code is a UI-first build running off in-memory mocks under `src/lib/mock/`. There is no real auth, no API client, and no Firebase wiring yet — the `infrastructure/`, `domain/`, and `application/api/` directories exist as empty placeholders for the layers described in the blueprint.

@@ -1,4 +1,4 @@
-.claude/
+.claude/settings.local.json
 node_modules/
 .next/
 out/
@@ -6,6 +6,7 @@ build/
 dist/
 .env*.local
 .env.local
+.env
 *.log
 npm-debug.log*
 .DS_Store
