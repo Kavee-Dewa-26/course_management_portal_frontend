@@ -2,470 +2,298 @@
 **Version:** v01
 **Date:** 2026-05-12
 **Status:** Active
-**Author:** EduPath Frontend Team
 
 ---
 
 ## 1. Overview
 
-EduPath (`slp-web`) is a fully built Next.js 14 App Router frontend currently running entirely on in-memory mock data under `src/lib/mock/`. This spec defines all work required to replace every mock with real API calls to `slp-backend` (REST, base path `/api/v1`), including all necessary UI updates so forms, tables, and components correctly reflect real data shapes, error states, and field names from the backend.
+EduPath (`slp-web`) is a fully built Next.js 14 App Router frontend running entirely on in-memory mock data under `src/lib/mock/`. This spec covers replacing every mock with real API calls to `slp-backend` (REST, base `/api/v1`), along with all UI updates needed so forms, tables, and components correctly reflect real data shapes, error states, and field names from the backend.
 
-**Signup integration is already complete** and merged to `main` on branch `feature/signup-api-integration`.
+**Signup is already integrated** and merged to `main` (`feature/signup-api-integration`). This spec covers everything from login onwards.
 
 ---
 
 ## 2. Scope
 
 ### In scope
-- Firebase Auth SDK setup and login integration for all three roles (student, admin, super_admin)
+- Firebase Auth SDK setup and login for all three roles (student, admin, super_admin)
 - Token storage, auto-refresh, and attaching Bearer token to every authenticated request
-- Route guards for all role-gated pages
-- All API integrations listed in Section 5
-- UI updates required per endpoint (field names, error states, pagination, real data shapes)
+- Route guards protecting all role-gated pages
+- All 56 API endpoint integrations (see Section 5)
+- UI updates per endpoint — field names, pagination, error states, real data shapes
+- Replacing all `src/lib/mock/` imports with real API responses
 - Inline and form-level error handling for every API error code
-- Replacing all mock data imports with real API responses
 
 ### Out of scope
 - Backend development
-- Push notifications (beyond in-app)
-- Real-time / WebSocket features
+- Push / email notifications (beyond in-app display)
+- Unit and integration tests
+- `src/ui_structure/` design handoff (reference only)
 - Firebase Cloud Messaging
-- Unit or integration tests (test scaffolding exists but is empty)
-- `src/ui_structure/` design handoff files (reference only, never imported)
 
 ---
 
 ## 3. Functional Requirements
 
-| ID | Requirement | Priority | Sprint |
-|----|-------------|----------|--------|
-| FR-001 | Firebase SDK initialised with env config from backend team | MUST | 1 |
-| FR-002 | Login with email + password via Firebase Auth for all roles | MUST | 1 |
-| FR-003 | Firebase ID token stored in Redux and attached to all API requests | MUST | 1 |
-| FR-004 | Token auto-refreshes before 1h expiry via `onIdTokenChanged` | MUST | 1 |
-| FR-005 | Route guards protect `/admin/*`, `/super-admin/*`, `/(student)/*` | MUST | 1 |
-| FR-006 | Logout calls Firebase `signOut` + `POST /auth/logout` + clears session | MUST | 1 |
-| FR-007 | Password reset flow via `POST /auth/password-reset` | SHOULD | 2 |
-| FR-008 | Failed login attempts tracked via `POST /auth/track-failure` | SHOULD | 1 |
-| FR-009 | Admin can list, approve, reject, and bulk-approve student registrations | MUST | 2 |
-| FR-010 | All users can view and edit their own profile via `GET/PATCH /me` | MUST | 2 |
-| FR-011 | All users can change their password via `POST /me/change-password` | MUST | 2 |
-| FR-012 | Public course catalog loads from API (published only) | MUST | 3 |
-| FR-013 | Course detail page loads real semester/subject/lesson tree | MUST | 3 |
-| FR-014 | Student can enroll in a published course | MUST | 4 |
-| FR-015 | Student can view and withdraw pending enrollments | MUST | 4 |
-| FR-016 | Admin can approve and reject enrollment requests | MUST | 4 |
-| FR-017 | Admin can create, edit, publish, unpublish, archive, delete courses | MUST | 5 |
-| FR-018 | Admin can manage semesters and subjects within a course | MUST | 6 |
-| FR-019 | Admin can manage lessons within a subject | MUST | 6 |
-| FR-020 | Admin can upload, download, and delete PDF/DOC attachments on subjects | MUST | 6 |
-| FR-021 | Student can mark a subject complete (manual and auto at 90% video) | MUST | 7 |
-| FR-022 | Student last-accessed subject is tracked for resume learning | MUST | 7 |
-| FR-023 | Course progress percentage loads from API and updates in real time | MUST | 7 |
-| FR-024 | Admin can view per-student progress for any course | SHOULD | 7 |
-| FR-025 | All roles see real in-app notifications with unread badge count | MUST | 8 |
-| FR-026 | Notifications can be marked read individually or all at once | MUST | 8 |
-| FR-027 | Admin can list, suspend, and reactivate student accounts | MUST | 8 |
-| FR-028 | Super admin can list, create, suspend, reactivate, delete admins | MUST | 8 |
-| FR-029 | Super admin can promote a student to admin role | SHOULD | 8 |
-| FR-030 | Audit log loads from API with date range and category filters | SHOULD | 8 |
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-001 | Firebase SDK initialised with env config keys from backend team | MUST |
+| FR-002 | Login with email + password via Firebase Auth for all roles | MUST |
+| FR-003 | Firebase ID token stored in Redux and attached to all API requests as Bearer | MUST |
+| FR-004 | Token auto-refreshes before 1h expiry via `onIdTokenChanged` | MUST |
+| FR-005 | Route guards protect `/admin/*`, `/super-admin/*`, `/(student)/*` by role | MUST |
+| FR-006 | Logout calls Firebase `signOut` + `POST /auth/logout` + clears Redux session | MUST |
+| FR-007 | Failed login attempts tracked via `POST /auth/track-failure` (locks after 10 attempts) | SHOULD |
+| FR-008 | Password reset flow via `POST /auth/password-reset` from login page | SHOULD |
+| FR-009 | Admin can list, approve, reject, and bulk-approve student registrations | MUST |
+| FR-010 | All users can view and edit their profile via `GET /me` and `PATCH /me` | MUST |
+| FR-011 | All users can change password via `POST /me/change-password` | MUST |
+| FR-012 | Public course catalog loads from API (published courses only for public/student) | MUST |
+| FR-013 | Course detail loads real semester → subject → lesson → attachment tree | MUST |
+| FR-014 | Student can enroll in a published course; button reflects pending/approved state | MUST |
+| FR-015 | Student can list and withdraw pending enrollments | MUST |
+| FR-016 | Admin can approve and reject enrollment requests with optional reason | MUST |
+| FR-017 | Admin can create, edit, publish, unpublish, archive, and delete courses | MUST |
+| FR-018 | Admin can manage semesters and subjects within a course | MUST |
+| FR-019 | Admin can manage lessons within a subject | MUST |
+| FR-020 | Admin can upload (PDF/DOC/DOCX ≤25MB), download (signed URL), and delete attachments | MUST |
+| FR-021 | Student can mark a subject complete manually; auto-complete fires at 90% video playback | MUST |
+| FR-022 | Subject last-accessed timestamp tracked to power "Continue learning" resume | MUST |
+| FR-023 | Course progress percentage loads from API and updates after marking complete | MUST |
+| FR-024 | Admin can view per-student progress table for any course | SHOULD |
+| FR-025 | Notification bell shows real unread count; list shows real notifications | MUST |
+| FR-026 | Notifications can be marked read individually or all at once | MUST |
+| FR-027 | Admin can list, suspend, and reactivate student accounts | MUST |
+| FR-028 | Super admin can list, create, suspend, reactivate, and delete admin accounts | MUST |
+| FR-029 | Super admin can promote a student account to admin role (dual-role) | SHOULD |
+| FR-030 | Audit log loads from API with date range, category, and search filters | SHOULD |
 
 ---
 
 ## 4. UI / UX Requirements
 
-### 4.1 Authentication & Session
+### Pages & Components Affected
 
-| Component | Current state | Required change |
-|---|---|---|
-| `LoginForm` | Mock role toggle + instant sign-in | Remove role toggle; real Firebase login; inline errors per error code |
-| `LoginForm` | No loading state | Disable button + show "Signing in…" during request |
-| All layouts | No auth check | Add `onAuthStateChanged` check; loading skeleton while auth resolves |
-| `UserMenu` | Mock logout | Real `signOut` + API logout call |
-| All pages | No redirect on 401 | Catch 401 from any API call → redirect to `/login` |
+**Authentication**
+- `src/components/auth/LoginForm.tsx` — remove mock role toggle; add real Firebase login; inline field errors per error code; loading state on submit; redirect by role from `GET /me` response
+- All layout files (`admin/layout.tsx`, `super-admin/layout.tsx`, `(student)/layout.tsx`) — add `onAuthStateChanged` check with loading skeleton; redirect unauthenticated users to `/login`
+- `src/components/layout/UserMenu.tsx` — real logout (Firebase `signOut` + API call)
 
-### 4.2 Registration Queue
+**Registration Queue**
+- `src/app/admin/registrations/page.tsx` + super-admin mirror — replace mock list with paginated API; add real timestamps; real total count in header; reject modal needs optional reason textarea; bulk-approve partial failure toast
 
-| Component | Current state | Required change |
-|---|---|---|
-| `RegistrationsPage` | Mock list | Paginated API list; real timestamps; real total count in header |
-| Approve button | Mock state update | Real API call; success toast; remove from pending list |
-| Reject button | No reason field | Add optional reason textarea in confirm dialog |
-| Bulk approve | Mock | Real endpoint; partial failure handling in toast |
-| Empty state | Static | Show when all registrations are processed |
+**Profile**
+- `src/app/(student)/profile/page.tsx` and admin profile areas — pre-fill from `GET /me`; save only changed fields via `PATCH /me`; disable Save button when no changes detected
 
-### 4.3 User Profile
+**Course Catalog**
+- `src/components/ui/CourseCover.tsx` — accept `imageUrl` prop; render `<img>` when present, fall back to gradient
+- `src/app/(public)/courses/page.tsx` — paginated API list; search sends `?q=`; add next/prev pagination controls
+- `src/app/(public)/courses/[courseId]/page.tsx` — real semester/subject tree; real lesson list
 
-| Component | Current state | Required change |
-|---|---|---|
-| Profile page | Mock data | Load from `GET /me`; pre-fill edit form |
-| Edit form | No save | `PATCH /me` on submit; show changed fields only |
-| Save button | Always enabled | Disable when no changes detected |
-| Password section | Not functional | `POST /me/change-password`; show/hide toggle |
+**Enrollments**
+- Enroll button on course detail — POST; show "Pending approval" after; disabled if already enrolled
+- `src/app/(student)/my-courses/page.tsx` — real enrollment cards with state badges (Pending / Approved / Rejected / Withdrawn); withdrawal only on `pending` state; show rejection reason
 
-### 4.4 Course Catalog
+**Course Management (Admin)**
+- `src/app/admin/courses/page.tsx` — real course list with state, updatedAt, enrollment count; pagination
+- Course editor pages — create form POSTs; edit PATCHes; conditional publish/unpublish/archive buttons based on current `state`
 
-| Component | Current state | Required change |
-|---|---|---|
-| `CourseCover` | Always gradient | Use `coverImageUrl` from API; fall back to gradient if null |
-| Course cards | Mock metadata | Real title, description, semesterCount, publishedAt |
-| Search bar | No API call | Send `?q=` param; debounce 300ms |
-| Course list | No pagination | Add next/prev using `nextCursor` |
-| Course detail | Mock semesters | Real semester/subject tree from API |
+**Course Structure Editor**
+- Semester/subject tree — real CRUD; inline name editing; sort order field
+- Lesson form (new component needed) — title, video URL (any provider), optional description
+- Attachment upload — `multipart/form-data`; file type + size validation before upload; progress indicator; download opens signed URL in new tab
 
-### 4.5 Enrollments
+**Progress**
+- Course viewer — progress bar uses real `completionPercent`; "Mark Complete" button → POST → "Completed ✓"; sidebar shows checkmark on completed subjects
+- `src/app/(student)/dashboard/page.tsx` — "Continue learning" navigates to real `lastAccessedSubjectId`
 
-| Component | Current state | Required change |
-|---|---|---|
-| Enroll button | No action | POST enroll; disable after; show "Pending approval" |
-| My courses page | Mock data | Real enrollments with state badges |
-| Enrollment state badge | Not shown | Show Pending / Approved / Rejected / Withdrawn |
-| Withdraw button | No action | Only on `pending` enrollments; confirm before withdraw |
-| Rejection reason | Not shown | Display reason string below rejected enrollment card |
+**Notifications**
+- `NotificationBell` — real unread count badge
+- `src/app/(student)/notifications/page.tsx` — real list; mark read on click; "Mark all read" button
 
-### 4.6 Course Management (Admin)
+**User & Admin Management**
+- Students page — real API list with search, status filter, pagination; suspend/reactivate use real UIDs
+- Admins page (super admin) — replace `ADMINS_SEED` mock; create form wired to real endpoint; delete calls API
 
-| Component | Current state | Required change |
-|---|---|---|
-| Course list table | Mock rows | Real data with state, updatedAt, enrollment count |
-| State badge | Hardcoded | Reflect actual `state` from API (draft/published/archived) |
-| Create course form | No submit | POST; redirect to editor on success; title uniqueness error |
-| Publish button | No validation | Show only on `draft`; handle `422` errors inline |
-| Delete confirm | Generic message | Mention 30-day soft-delete recovery |
+**Audit Log**
+- `src/components/admin/AuditLogTable.tsx` — replace mock data; date range dropdown sends ISO `from`/`to` params; category chips send `category` param; add pagination
 
-### 4.7 Course Structure Editor
+### New Components Needed
+- `src/infrastructure/firebase/firebaseConfig.ts` — Firebase app initialisation
+- `src/infrastructure/firebase/getToken.ts` — always-fresh token helper
+- `src/infrastructure/api/request.ts` — base fetch wrapper that attaches Bearer token and handles 401
+- Lesson form component for subject editor
+- Pagination component (next/prev using `nextCursor`)
 
-| Component | Current state | Required change |
-|---|---|---|
-| Semester tree | Mock semesters | Load from `GET /courses/:id`; real CRUD |
-| Subject form | Mock | Real POST/PATCH; YouTube URL validation |
-| Lesson form | Not wired | New form: title, video URL (any provider), description |
-| Sort order | Manual input | Positive integer; controls display order |
-
-### 4.8 Attachments
-
-| Component | Current state | Required change |
-|---|---|---|
-| Attachment list | Mock | Real from subject API response |
-| Upload area | No action | `multipart/form-data` POST; file type + size validation |
-| Download button | No action | Fetch signed URL → open in new tab; 15min expiry |
-| File type display | Static | Real `mimeType` and `sizeBytes` from API |
-
-### 4.9 Progress
-
-| Component | Current state | Required change |
-|---|---|---|
-| Progress bar | Hardcoded % | Real `completionPercent` from API |
-| "Mark Complete" | No action | POST; update button to "Completed ✓" |
-| Subject sidebar | No completion state | Checkmark on completed subjects |
-| "Continue learning" | Mock link | Navigate to real `lastAccessedSubjectId` |
-
-### 4.10 Notifications
-
-| Component | Current state | Required change |
-|---|---|---|
-| Bell badge | Hardcoded count | Real unread count from API |
-| Notification list | Mock | Real list from API; real categories and timestamps |
-| Mark read on click | No action | `POST /me/notifications/:id/read` |
-| "Mark all read" | No action | `POST /me/notifications/read-all` |
-
-### 4.11 User & Admin Management
-
-| Component | Current state | Required change |
-|---|---|---|
-| Student list | Mock | Real API with search, status filter, pagination |
-| Suspend/Reactivate | Mock state | Real endpoint with UID from API |
-| Admin list | Mock `ADMINS_SEED` | Real API |
-| Create admin form | Wired to mock | Real `POST /super-admin/admins` with `initialPassword` field |
-| Delete admin | Removes from local array | Real `DELETE /super-admin/admins/:uid` |
-
-### 4.12 Audit Log
-
-| Component | Current state | Required change |
-|---|---|---|
-| Log table | Mock `AUDIT_SEED` | Real API data |
-| Date range dropdown | Non-functional | Sends `from`/`to` ISO params derived from selected range |
-| Category chips | Filters mock array | Sends `category` param to API |
-| Pagination | None | Add using `nextCursor`; show total in header |
+### State Changes
+- `sessionSlice` — add real `uid`, `role`, `roles`, `status`, `firstName`, `lastName`, `profilePhotoUrl`; remove hardcoded mock user seeding
+- `uiSlice` — no changes needed
+- New loading/error states per page (replace static mock renders with loading skeletons + error boundaries)
 
 ---
 
-## 5. API Integration Summary
+## 5. API / Data Requirements
 
-| Feature | Method + Path | Auth | UI Component |
-|---|---|---|---|
-| Login | Firebase SDK | — | `LoginForm` |
-| Get own profile | `GET /me` | Bearer | All profile pages |
-| Update profile | `PATCH /me` | Bearer | Profile edit form |
-| Change password | `POST /me/change-password` | Bearer | Profile settings |
-| Logout | `POST /auth/logout` | Bearer | `UserMenu` |
-| Password reset | `POST /auth/password-reset` | None | Login page |
-| Track login failures | `POST /auth/track-failure` | None | `LoginForm` |
-| List registrations | `GET /admin/registrations` | Admin | Registrations page |
-| Approve registration | `POST /admin/registrations/:id/approve` | Admin | Registrations page |
-| Reject registration | `POST /admin/registrations/:id/reject` | Admin | Registrations page |
-| Bulk approve | `POST /admin/registrations/bulk-approve` | Admin | Registrations page |
-| List courses (public) | `GET /courses` | Optional | Public catalog |
-| Get course | `GET /courses/:id` | Optional | Course detail |
-| Create course | `POST /courses` | Admin | Admin course editor |
-| Update course | `PATCH /courses/:id` | Admin | Admin course editor |
-| Publish course | `POST /courses/:id/publish` | Admin | Admin course editor |
-| Unpublish course | `POST /courses/:id/unpublish` | Admin | Admin course editor |
-| Archive course | `POST /courses/:id/archive` | Admin | Admin course editor |
-| Delete course | `DELETE /courses/:id` | Admin | Admin course list |
-| Create semester | `POST /courses/:id/semesters` | Admin | Course tree editor |
-| Update semester | `PATCH /semesters/:id` | Admin | Course tree editor |
-| Delete semester | `DELETE /semesters/:id` | Admin | Course tree editor |
-| Create subject | `POST /semesters/:id/subjects` | Admin | Course tree editor |
-| Update subject | `PATCH /subjects/:id` | Admin | Course tree editor |
-| Delete subject | `DELETE /subjects/:id` | Admin | Course tree editor |
-| List lessons | `GET /subjects/:id/lessons` | Student/Admin | Course viewer |
-| Create lesson | `POST /subjects/:id/lessons` | Admin | Subject editor |
-| Update lesson | `PATCH /lessons/:id` | Admin | Subject editor |
-| Delete lesson | `DELETE /lessons/:id` | Admin | Subject editor |
-| Upload attachment | `POST /subjects/:id/attachments` | Admin | Subject editor |
-| Get download URL | `GET /attachments/:id/download-url` | Student/Admin | Course viewer |
-| Delete attachment | `DELETE /attachments/:id` | Admin | Subject editor |
-| Enroll in course | `POST /courses/:id/enroll` | Student | Course detail |
-| List my enrollments | `GET /me/enrollments` | Student | My courses |
-| Withdraw enrollment | `POST /enrollments/:id/withdraw` | Student | My courses |
-| List enrollment queue | `GET /admin/enrollments` | Admin | Enrollments page |
-| Approve enrollment | `POST /admin/enrollments/:id/approve` | Admin | Enrollments page |
-| Reject enrollment | `POST /admin/enrollments/:id/reject` | Admin | Enrollments page |
-| Mark subject complete | `POST /progress/subjects/:id/complete` | Student | Course viewer |
-| Track subject access | `POST /progress/subjects/:id/access` | Student | Course viewer |
-| Get course progress | `GET /me/progress/courses/:courseId` | Student | Course viewer, Dashboard |
-| Get subject progress | `GET /me/progress/subjects/:subjectId` | Student | Course viewer |
-| Admin course progress | `GET /admin/progress/courses/:courseId` | Admin | Admin course detail |
-| List notifications | `GET /me/notifications` | All | Notifications page, Bell |
-| Mark notification read | `POST /me/notifications/:id/read` | All | Notification item |
-| Mark all read | `POST /me/notifications/read-all` | All | Notifications page |
-| List users | `GET /users` | Admin | Students page |
-| Get user | `GET /users/:uid` | Admin | Student detail |
-| Suspend user | `POST /users/:uid/suspend` | Admin | Students page |
-| Reactivate user | `POST /users/:uid/reactivate` | Admin | Students page |
-| List admins | `GET /super-admin/admins` | Super Admin | Admins page |
-| Create admin | `POST /super-admin/admins` | Super Admin | Admins page |
-| Get admin | `GET /super-admin/admins/:uid` | Super Admin | Admin detail |
-| Suspend admin | `POST /super-admin/admins/:uid/suspend` | Super Admin | Admins page |
-| Reactivate admin | `POST /super-admin/admins/:uid/reactivate` | Super Admin | Admins page |
-| Delete admin | `DELETE /super-admin/admins/:uid` | Super Admin | Admins page |
-| Promote to admin | `POST /super-admin/users/:uid/make-admin` | Super Admin | Admin detail |
-| Get audit log | `GET /audit-log` | Admin/Super Admin | Audit log page |
+### Endpoints Consumed
 
----
-
-## 6. Error Handling Requirements
-
-All API errors must be handled visibly — no silent failures.
-
-| Error code | HTTP | Where to show |
+| Feature Area | Endpoint | Auth Required |
 |---|---|---|
-| `VALIDATION_ERROR` | 400 | Inline under affected field(s) using `details` map |
+| Login | Firebase `signInWithEmailAndPassword` | — |
+| Get profile | `GET /me` | Bearer |
+| Update profile | `PATCH /me` | Bearer |
+| Change password | `POST /me/change-password` | Bearer |
+| Logout | `POST /auth/logout` | Bearer |
+| Password reset | `POST /auth/password-reset` | None |
+| Track failure | `POST /auth/track-failure` | None |
+| List registrations | `GET /admin/registrations` | Admin |
+| Approve registration | `POST /admin/registrations/:id/approve` | Admin |
+| Reject registration | `POST /admin/registrations/:id/reject` | Admin |
+| Bulk approve | `POST /admin/registrations/bulk-approve` | Admin |
+| List courses | `GET /courses` | Optional |
+| Get course | `GET /courses/:id` | Optional |
+| Create course | `POST /courses` | Admin |
+| Update course | `PATCH /courses/:id` | Admin |
+| Publish/Unpublish/Archive | `POST /courses/:id/{action}` | Admin |
+| Delete course | `DELETE /courses/:id` | Admin |
+| Semester CRUD | `POST`, `PATCH`, `DELETE /semesters` | Admin |
+| Subject CRUD | `POST`, `PATCH`, `DELETE /subjects` | Admin |
+| Lesson CRUD | `GET`, `POST`, `PATCH`, `DELETE /lessons` | Student/Admin |
+| Upload attachment | `POST /subjects/:id/attachments` | Admin |
+| Download attachment | `GET /attachments/:id/download-url` | Student/Admin |
+| Delete attachment | `DELETE /attachments/:id` | Admin |
+| Enroll | `POST /courses/:id/enroll` | Student |
+| List enrollments | `GET /me/enrollments` | Student |
+| Withdraw | `POST /enrollments/:id/withdraw` | Student |
+| Enrollment queue | `GET /admin/enrollments` | Admin |
+| Approve/Reject enrollment | `POST /admin/enrollments/:id/{action}` | Admin |
+| Mark complete | `POST /progress/subjects/:id/complete` | Student |
+| Track access | `POST /progress/subjects/:id/access` | Student |
+| Course progress | `GET /me/progress/courses/:courseId` | Student |
+| Subject progress | `GET /me/progress/subjects/:subjectId` | Student |
+| Admin progress | `GET /admin/progress/courses/:courseId` | Admin |
+| Notifications | `GET /me/notifications` | All |
+| Mark read | `POST /me/notifications/:id/read` | All |
+| Mark all read | `POST /me/notifications/read-all` | All |
+| List users | `GET /users` | Admin |
+| Get user | `GET /users/:uid` | Admin |
+| Suspend/Reactivate user | `POST /users/:uid/{action}` | Admin |
+| List admins | `GET /super-admin/admins` | Super Admin |
+| Create admin | `POST /super-admin/admins` | Super Admin |
+| Suspend/Reactivate admin | `POST /super-admin/admins/:uid/{action}` | Super Admin |
+| Delete admin | `DELETE /super-admin/admins/:uid` | Super Admin |
+| Promote to admin | `POST /super-admin/users/:uid/make-admin` | Super Admin |
+| Audit log | `GET /audit-log` | Admin/Super Admin |
+
+### Key Request / Response Shapes
+
+**Login → Get Profile**
+```json
+// GET /me response
+{
+  "uid": "firebase-uid",
+  "email": "user@example.com",
+  "role": "student",
+  "roles": ["student"],
+  "status": "approved",
+  "firstName": "Viruli",
+  "lastName": "Weerasinghe",
+  "profilePhotoUrl": null,
+  "createdAt": "2026-05-01T08:00:00.000Z"
+}
+```
+
+**Create Course**
+```json
+// POST /courses body
+{ "title": "...", "description": "...", "coverImageUrl": "https://..." }
+// Response: full course object, state: "draft"
+```
+
+**Enroll**
+```json
+// POST /courses/:id/enroll — no body
+// Response
+{ "id": "enr-uid_courseId", "courseId": "...", "state": "pending", "createdAt": "..." }
+```
+
+**Mark Complete**
+```json
+// POST /progress/subjects/:id/complete
+{ "courseId": "course-abc", "semesterId": "sem-001" }
+// Response
+{ "subjectId": "...", "state": "completed", "completedAt": "...", "completionPercent": 40.0 }
+```
+
+**Paginated list shape (all list endpoints)**
+```json
+{ "items": [...], "nextCursor": "abc123" | null, "total": 47 }
+```
+
+**Error envelope (all errors)**
+```json
+{
+  "error": { "code": "EMAIL_EXISTS", "message": "...", "details": { "field": ["msg"] } },
+  "requestId": "uuid"
+}
+```
+
+### Error States to Handle
+
+| Code | HTTP | UI Treatment |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | Inline per field using `details` map |
 | `INVALID_YOUTUBE_ID` | 400 | Inline on YouTube URL field |
-| `FILE_TOO_LARGE` | 400 | Inline on file upload area |
-| `MISSING_TOKEN` / `TOKEN_EXPIRED` / `TOKEN_REVOKED` | 401 | Redirect to `/login` with toast |
+| `FILE_TOO_LARGE` | 400 | Inline on upload area |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | Inline on upload area |
+| `TOKEN_EXPIRED` / `TOKEN_REVOKED` | 401 | Redirect to `/login` |
 | `FORBIDDEN` | 403 | Toast "You don't have permission" |
-| `ENROLLMENT_REQUIRED` | 403 | Toast or inline prompt to enroll |
+| `ENROLLMENT_REQUIRED` | 403 | Inline prompt to enroll |
 | `*_NOT_FOUND` | 404 | Toast + redirect or empty state |
-| `EMAIL_EXISTS` | 409 | Inline on email field |
-| `COURSE_TITLE_EXISTS` | 409 | Inline on title field |
-| `ENROLLMENT_EXISTS` | 409 | Enroll button disabled with "Already enrolled" |
+| `EMAIL_EXISTS` / `COURSE_TITLE_EXISTS` | 409 | Inline on relevant field |
+| `ENROLLMENT_EXISTS` | 409 | Enroll button → "Already enrolled" |
 | `INVALID_STATE` | 409 | Toast with server message |
 | `ALREADY_SUSPENDED` / `ALREADY_ACTIVE` | 409 | Toast |
-| `INVALID_ROLE` | 409 | Toast "Only students can be promoted" |
 | `NO_SEMESTERS` / `EMPTY_SEMESTER` | 422 | Toast with actionable message |
-| `COURSE_NOT_PUBLISHED` | 422 | Toast |
-| `RESUBMIT_TOO_EARLY` | 429 | Toast with 24h cooldown message |
-| `RATE_LIMIT_EXCEEDED` | 429 | Toast with retry guidance |
-| `UNSUPPORTED_MEDIA_TYPE` | 415 | Inline on file upload |
+| `RESUBMIT_TOO_EARLY` | 429 | Toast with 24h wait message |
 | `INTERNAL_ERROR` | 500 | Toast "Something went wrong. Try again." |
-| Network error | — | Toast "Could not reach the server" |
+| Network failure | — | Toast "Could not reach the server" |
 
 ---
 
-## 7. Data Models (Frontend Types)
+## 6. Acceptance Criteria
 
-These types replace all mock interfaces. Define in `src/domain/` when implemented.
-
-```typescript
-// Auth / Session
-interface SessionUser {
-  uid: string;
-  email: string;
-  role: 'student' | 'admin' | 'super_admin';
-  roles: string[];
-  status: 'pending_approval' | 'approved' | 'rejected' | 'suspended';
-  firstName: string;
-  lastName: string;
-  profilePhotoUrl: string | null;
-}
-
-// Courses
-interface Course {
-  id: string;
-  title: string;
-  description: string;
-  coverImageUrl: string | null;
-  state: 'draft' | 'published' | 'archived';
-  semesterCount: number;
-  createdByName: string;
-  publishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  semesters?: Semester[];
-}
-
-interface Semester {
-  id: string;
-  courseId: string;
-  name: string;
-  sortOrder: number;
-  subjectCount: number;
-  subjects?: Subject[];
-}
-
-interface Subject {
-  id: string;
-  semesterId: string;
-  title: string;
-  description: string;
-  youtubeVideoId: string;
-  sortOrder: number;
-  attachments: Attachment[];
-}
-
-interface Lesson {
-  id: string;
-  subjectId: string;
-  courseId: string;
-  semesterId: string;
-  title: string;
-  description: string | null;
-  url: string;
-  order: number;
-}
-
-interface Attachment {
-  id: string;
-  subjectId: string;
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  uploadedAt: string;
-}
-
-// Enrollments
-interface Enrollment {
-  id: string;
-  courseId: string;
-  courseTitle: string;
-  state: 'pending' | 'approved' | 'rejected' | 'withdrawn';
-  approvedAt?: string;
-  rejectedAt?: string;
-  reason?: string;
-  createdAt: string;
-}
-
-// Progress
-interface CourseProgress {
-  courseId: string;
-  totalSubjects: number;
-  completedCount: number;
-  completionPercent: number;
-  lastAccessedSubjectId: string | null;
-}
-
-// Notifications
-interface Notification {
-  id: string;
-  category: string;
-  title: string;
-  body: string;
-  payload: Record<string, unknown>;
-  readAt: string | null;
-  createdAt: string;
-}
-
-// Pagination
-interface PagedResponse<T> {
-  items: T[];
-  nextCursor: string | null;
-  total?: number;
-}
-```
+- [ ] Student, admin, and super admin can log in with real credentials and are redirected to their correct dashboard
+- [ ] Wrong password and unknown email show inline errors on the correct field
+- [ ] Suspended account shows a form-level banner, not an inline field error
+- [ ] Accessing any role-gated page without auth redirects to `/login`
+- [ ] Token auto-refreshes silently; user is never unexpectedly logged out mid-session
+- [ ] Logout clears the session and redirects to `/login`
+- [ ] Admin registration queue shows real pending registrations with real timestamps
+- [ ] Approving a registration enables that student to sign in
+- [ ] Student profile pre-fills from API; edits save only changed fields
+- [ ] Public catalog shows only published courses with real cover images
+- [ ] Course detail shows real semester/subject/lesson tree
+- [ ] Enroll button shows "Pending approval" after submission; disabled if already enrolled
+- [ ] Admin approves enrollment → student sees approved badge on their course
+- [ ] Admin can create → add semesters → add subjects → publish a course end-to-end
+- [ ] Publishing with no subjects returns a clear `422` error message in the UI
+- [ ] Admin can upload a PDF attachment; student with approved enrollment can download it
+- [ ] Student without enrollment cannot download attachments (403 handled gracefully)
+- [ ] Progress bar shows real percentage; updates immediately after marking a subject complete
+- [ ] "Continue learning" navigates to the real last-accessed subject
+- [ ] Notification bell badge shows real unread count; decrements when notifications are read
+- [ ] Admin can suspend and reactivate a student; suspended student cannot log in
+- [ ] Super admin can create, suspend, and delete an admin account
+- [ ] Audit log shows real entries; date range and category filters work correctly
 
 ---
 
-## 8. Environment & Setup Requirements
-
-```bash
-# Install Firebase
-npm install firebase
-
-# Required env variables (get from backend team)
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-
-# Already configured
-NEXT_PUBLIC_API_BASE_URL=http://<backend-ip>:<port>/api/v1
-NEXT_PUBLIC_API_PREFIX=/api/v1
-```
-
-CORS is already solved via Next.js rewrite proxy in `next.config.mjs`.
-
----
-
-## 9. Acceptance Criteria
-
-### Authentication
-- [ ] Student, admin, and super admin can log in with real credentials
-- [ ] Wrong password shows inline error on password field
-- [ ] Suspended account shows form-level banner
-- [ ] Token attaches to every API request automatically
-- [ ] Token refreshes silently before 1h expiry
-- [ ] Accessing `/admin` without auth redirects to `/login`
-- [ ] Logout clears session and redirects to `/login`
-
-### Registration & Approval
-- [ ] Admin sees real pending registrations list with actual names and timestamps
-- [ ] Approving a registration allows that student to log in
-- [ ] Rejecting with a reason is stored and sent to student
-- [ ] Bulk approve handles partial failures gracefully
-
-### Courses & Enrollment
-- [ ] Public catalog shows only published courses
-- [ ] Course detail shows full semester/subject/lesson tree
-- [ ] Student can enroll; button reflects pending/approved/rejected state
-- [ ] Admin can approve or reject enrollment with optional reason
-- [ ] Enrolled student can access course content; unenrolled cannot
-
-### Course Management
-- [ ] Admin can create course → add semesters → add subjects → publish
-- [ ] Publishing fails with clear message if no subjects exist
-- [ ] Admin can upload PDF/DOC attachments; student can download
-- [ ] Student cannot download attachments without an approved enrollment
-
-### Progress
-- [ ] Marking a subject complete updates progress bar immediately
-- [ ] Returning to a course resumes from `lastAccessedSubjectId`
-- [ ] Progress bar shows real percentage, not hardcoded value
-
-### Notifications & Management
-- [ ] Bell badge shows real unread count
-- [ ] Notifications marked read on click; count decrements
-- [ ] Admin can suspend/reactivate student accounts
-- [ ] Super admin can create/suspend/delete admin accounts
-
----
-
-## 10. Open Questions
+## 7. Open Questions
 
 | # | Question | Owner | Status |
 |---|---|---|---|
-| 1 | Firebase project config keys — when will these be shared? | Backend team | Blocking Sprint 1 |
-| 2 | Does `POST /auth/login` endpoint exist, or is login purely via Firebase SDK? | Backend team | Answered: Firebase SDK only |
-| 3 | Cover image upload — is there a separate endpoint, or is `coverImageUrl` a manual URL entry? | Backend team | Open |
-| 4 | Dual-role admin (promoted student) — which dashboard do they land on after login? | Product | Open |
-| 5 | Audit log `actor` field — `actorUid` or `actor.uid` in response? (API doc inconsistency) | Backend team | Open |
+| 1 | Firebase project config keys — when will these be shared with the frontend team? | Backend team | **Blocking Sprint 1** |
+| 2 | Course cover image — is there a dedicated upload endpoint, or is `coverImageUrl` a manually entered URL? | Backend team | Open |
+| 3 | Dual-role admin (promoted from student) — which dashboard do they land on after login? | Product | Open |
+| 4 | Audit log response field: is it `actor.uid` (nested) or `actorUid` (flat)? API doc shows inconsistency between sections 15 and 17 | Backend team | Open |
+| 5 | `POST /auth/track-failure` — should frontend call this after every Firebase `auth/wrong-password` error, or only after confirmed server-side failures? | Backend team | Open |
