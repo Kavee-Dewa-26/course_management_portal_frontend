@@ -12,7 +12,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
 import { FloatingNav } from "@/components/layout/FloatingNav";
-import { FEATURED_COURSES } from "@/lib/mock/courses";
+import { useCourses } from "@/application/hooks/useCourses";
 import { avatarUrl } from "@/lib/kit";
 
 const FEATURES = [
@@ -42,6 +42,7 @@ export default function PublicHomePage() {
   const goLogin = () => router.push("/login");
   const goRegister = () => router.push("/register");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const featured = useCourses({ limit: 4, authenticated: false });
 
   return (
     <div className="public">
@@ -210,26 +211,39 @@ export default function PublicHomePage() {
             </Button>
           </div>
           <div className="course-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-            {FEATURED_COURSES.map((c) => (
+            {featured.loading && featured.items.length === 0 && (
+              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 40, color: "var(--color-body-green)" }}>
+                <Icon name="loader" size={22} />
+                <p style={{ marginTop: 10, fontFamily: "var(--font-body)" }}>Loading courses…</p>
+              </div>
+            )}
+            {!featured.loading && featured.items.length === 0 && (
+              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 40, color: "var(--color-body-green)", fontFamily: "var(--font-body)" }}>
+                No published courses yet.
+              </div>
+            )}
+            {featured.items.map((c) => (
               <article
-                key={c.title}
+                key={c.id}
                 className="course-card"
                 onClick={() => router.push(`/courses/${c.id}`)}
               >
-                <CourseCover kind={c.kind} emblem={c.emblem} tag={c.tag} />
+                <CourseCover imageUrl={c.coverImageUrl} alt={c.title} />
                 <div className="body">
                   <div className="meta">
                     <span>
-                      <Icon name="clock" size={12} />
-                      {c.time}
-                    </span>
-                    <span>
                       <Icon name="layers" size={12} />
-                      {c.lessons}
+                      {c.semesterCount} {c.semesterCount === 1 ? "module" : "modules"}
                     </span>
+                    {c.createdByName && (
+                      <span>
+                        <Icon name="user" size={12} />
+                        {c.createdByName}
+                      </span>
+                    )}
                   </div>
                   <h3>{c.title}</h3>
-                  <p>{c.desc}</p>
+                  <p>{c.description}</p>
                   <ArrowLink>Learn More</ArrowLink>
                 </div>
               </article>

@@ -2,19 +2,46 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { CourseCover } from "@/components/ui/CourseCover";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
 import { FloatingNav } from "@/components/layout/FloatingNav";
-import { COURSE_VIEWER_SEMESTERS, FEATURED_COURSES } from "@/lib/mock/courses";
+import { useCourse } from "@/application/hooks/useCourses";
 
 export default function PublicCourseDetailPage() {
   const router = useRouter();
   const params = useParams<{ courseId: string }>();
-  const course =
-    FEATURED_COURSES.find((c) => c.id === params.courseId) ?? FEATURED_COURSES[0];
+  const { course, loading, error } = useCourse(params.courseId, false);
+
+  useEffect(() => {
+    if (error?.status === 404) {
+      router.replace("/courses");
+    }
+  }, [error, router]);
+
+  if (loading) {
+    return (
+      <div className="public">
+        <FloatingNav initialActive="courses" onSignUp={() => router.push("/register")} />
+        <section className="section section--dark" style={{ paddingTop: 120, paddingBottom: 64 }}>
+          <div className="container-x" style={{ textAlign: "center", color: "rgba(255,255,255,0.7)" }}>
+            <Icon name="loader" size={28} />
+            <p style={{ marginTop: 16, fontFamily: "var(--font-body)" }}>Loading course…</p>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return null; // 404 redirect handled in useEffect
+  }
+
+  const totalSubjects =
+    course.semesters?.reduce((sum, s) => sum + (s.subjectCount ?? s.subjects?.length ?? 0), 0) ?? 0;
 
   return (
     <div className="public">
@@ -31,7 +58,7 @@ export default function PublicCourseDetailPage() {
           }}
         >
           <div>
-            <Eyebrow dark>{course.tag}</Eyebrow>
+            <Eyebrow dark>Course</Eyebrow>
             <h1
               style={{
                 color: "#fff",
@@ -54,7 +81,7 @@ export default function PublicCourseDetailPage() {
                 margin: "0 0 28px",
               }}
             >
-              {course.desc}
+              {course.description}
             </p>
             <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
               <Link href="/login" className="btn btn--primary btn--lg">
@@ -75,11 +102,18 @@ export default function PublicCourseDetailPage() {
               }}
             >
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <Icon name="clock" size={14} /> {course.time}
+                <Icon name="layers" size={14} /> {course.semesterCount} {course.semesterCount === 1 ? "module" : "modules"}
               </span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <Icon name="layers" size={14} /> {course.lessons}
-              </span>
+              {totalSubjects > 0 && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Icon name="play-circle" size={14} /> {totalSubjects} {totalSubjects === 1 ? "subject" : "subjects"}
+                </span>
+              )}
+              {course.createdByName && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Icon name="user" size={14} /> {course.createdByName}
+                </span>
+              )}
             </div>
           </div>
           <div
@@ -91,7 +125,7 @@ export default function PublicCourseDetailPage() {
               boxShadow: "0 20px 25px -5px rgba(0,0,0,0.3)",
             }}
           >
-            <CourseCover kind={course.kind} emblem={course.emblem} />
+            <CourseCover imageUrl={course.coverImageUrl} alt={course.title} />
           </div>
         </div>
       </section>
@@ -102,63 +136,71 @@ export default function PublicCourseDetailPage() {
           <h2 className="section-title">
             What you&apos;ll <span className="accent">learn</span>.
           </h2>
-          <div style={{ marginTop: 32, display: "grid", gap: 16 }}>
-            {COURSE_VIEWER_SEMESTERS.map((sem) => (
-              <div
-                key={sem.id}
-                style={{
-                  background: "#fff",
-                  border: "1px solid #E5E5E5",
-                  borderRadius: 16,
-                  padding: 20,
-                  boxShadow: "0 1px 3px 0 rgba(21,42,36,0.08)",
-                }}
-              >
+          {course.semesters && course.semesters.length > 0 ? (
+            <div style={{ marginTop: 32, display: "grid", gap: 16 }}>
+              {course.semesters.map((sem) => (
                 <div
+                  key={sem.id}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 12,
+                    background: "#fff",
+                    border: "1px solid #E5E5E5",
+                    borderRadius: 16,
+                    padding: 20,
+                    boxShadow: "0 1px 3px 0 rgba(21,42,36,0.08)",
                   }}
                 >
-                  <h3
+                  <div
                     style={{
-                      margin: 0,
-                      fontFamily: "var(--font-heading)",
-                      fontSize: 18,
-                      fontWeight: 600,
-                      color: "#152A24",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 12,
                     }}
                   >
-                    {sem.title}
-                  </h3>
-                  <Badge tone="archive">{sem.subjects.length} subjects</Badge>
-                </div>
-                <div style={{ display: "grid", gap: 6 }}>
-                  {sem.subjects.map((s) => (
-                    <div
-                      key={s.id}
+                    <h3
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        background: "#FAFAFA",
-                        fontFamily: "var(--font-body)",
-                        fontSize: 14,
-                        color: "#41574A",
+                        margin: 0,
+                        fontFamily: "var(--font-heading)",
+                        fontSize: 18,
+                        fontWeight: 600,
+                        color: "#152A24",
                       }}
                     >
-                      <Icon name="play-circle" size={14} />
-                      {s.title}
-                    </div>
-                  ))}
+                      {sem.name}
+                    </h3>
+                    <Badge tone="archive">
+                      {sem.subjects?.length ?? sem.subjectCount ?? 0} subjects
+                    </Badge>
+                  </div>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {sem.subjects?.map((s) => (
+                      <div
+                        key={s.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "8px 12px",
+                          borderRadius: 8,
+                          background: "#FAFAFA",
+                          fontFamily: "var(--font-body)",
+                          fontSize: 14,
+                          color: "#41574A",
+                        }}
+                      >
+                        <Icon name="play-circle" size={14} />
+                        {s.title}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ marginTop: 24, color: "var(--color-body-green)", fontFamily: "var(--font-body)" }}>
+              The course curriculum is being prepared. Check back soon.
+            </p>
+          )}
         </div>
       </section>
 

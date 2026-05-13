@@ -65,13 +65,13 @@
 ---
 
 ## Checklist
-- [ ] Replace `FEATURED_COURSES` mock on landing page with `GET /courses?limit=4`
-- [ ] Replace courses list mock with paginated `GET /courses` on `/courses` page
-- [ ] Add search input wired to `?q=` param
-- [ ] Course detail loads from `GET /courses/:id`
-- [ ] Course viewer sidebar uses real semester/subject tree
-- [ ] Cover image: use API URL or fall back to gradient component
-- [ ] Student dashboard loads enrollments from `GET /me/enrollments`
+- [x] Replace `FEATURED_COURSES` mock on landing page with `GET /courses?limit=4`
+- [x] Replace courses list mock with paginated `GET /courses` on `/courses` page
+- [x] Add search input wired to `?q=` param (300ms debounce)
+- [x] Course detail loads from `GET /courses/:id`
+- [x] Course viewer sidebar uses real semester/subject tree
+- [x] Cover image: use API URL or fall back to gradient component
+- [ ] Student dashboard loads enrollments from `GET /me/enrollments` *(deferred to Sprint 4)*
 - [ ] Test public course catalog without auth
 - [ ] Test course detail page with enrolled student
 - [ ] Test 404 on non-existent course
