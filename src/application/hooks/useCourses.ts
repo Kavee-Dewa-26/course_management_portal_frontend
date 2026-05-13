@@ -8,41 +8,33 @@ import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 export interface CourseSummary {
   id: string;
   title: string;
-  description: string;
-  coverImageUrl: string | null;
   state: "draft" | "published" | "archived";
   semesterCount: number;
   createdBy?: string;
-  createdByName?: string;
   publishedAt: string | null;
+  deletedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export interface Attachment {
-  id: string;
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  uploadedAt?: string;
-}
-
+/** SubjectView returned inside the GET /courses/:id semester tree. */
 export interface Subject {
   id: string;
   title: string;
-  description: string;
-  youtubeVideoId?: string;
-  url?: string;
-  sortOrder?: number;
-  attachments?: Attachment[];
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
+/** SemesterView returned inside the GET /courses/:id tree. */
 export interface Semester {
   id: string;
-  name: string;
-  sortOrder?: number;
-  subjectCount?: number;
+  title: string;
+  order: number;
+  subjectCount: number;
   subjects?: Subject[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CourseDetail extends CourseSummary {

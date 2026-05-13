@@ -72,18 +72,7 @@ export default function PublicCourseDetailPage() {
             >
               {course.title}
             </h1>
-            <p
-              style={{
-                color: "rgba(255,255,255,0.8)",
-                fontSize: 17,
-                lineHeight: 1.5,
-                maxWidth: 540,
-                margin: "0 0 28px",
-              }}
-            >
-              {course.description}
-            </p>
-            <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 28 }}>
               <Link href="/login" className="btn btn--primary btn--lg">
                 Sign in to enroll <Icon name="arrow-right" size={18} style={{ marginLeft: 4 }} />
               </Link>
@@ -109,9 +98,9 @@ export default function PublicCourseDetailPage() {
                   <Icon name="play-circle" size={14} /> {totalSubjects} {totalSubjects === 1 ? "subject" : "subjects"}
                 </span>
               )}
-              {course.createdByName && (
+              {course.publishedAt && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <Icon name="user" size={14} /> {course.createdByName}
+                  <Icon name="calendar" size={14} /> Published {new Date(course.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                 </span>
               )}
             </div>
@@ -125,7 +114,7 @@ export default function PublicCourseDetailPage() {
               boxShadow: "0 20px 25px -5px rgba(0,0,0,0.3)",
             }}
           >
-            <CourseCover imageUrl={course.coverImageUrl} alt={course.title} />
+            <CourseCover alt={course.title} />
           </div>
         </div>
       </section>
@@ -166,7 +155,7 @@ export default function PublicCourseDetailPage() {
                         color: "#152A24",
                       }}
                     >
-                      {sem.name}
+                      {sem.title}
                     </h3>
                     <Badge tone="archive">
                       {sem.subjects?.length ?? sem.subjectCount ?? 0} subjects

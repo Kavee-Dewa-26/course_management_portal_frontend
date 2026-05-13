@@ -228,22 +228,15 @@ export default function PublicHomePage() {
                 className="course-card"
                 onClick={() => router.push(`/courses/${c.id}`)}
               >
-                <CourseCover imageUrl={c.coverImageUrl} alt={c.title} />
+                <CourseCover alt={c.title} />
                 <div className="body">
                   <div className="meta">
                     <span>
                       <Icon name="layers" size={12} />
                       {c.semesterCount} {c.semesterCount === 1 ? "module" : "modules"}
                     </span>
-                    {c.createdByName && (
-                      <span>
-                        <Icon name="user" size={12} />
-                        {c.createdByName}
-                      </span>
-                    )}
                   </div>
                   <h3>{c.title}</h3>
-                  <p>{c.description}</p>
                   <ArrowLink>Learn More</ArrowLink>
                 </div>
               </article>

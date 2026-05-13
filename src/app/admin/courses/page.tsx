@@ -123,19 +123,6 @@ export default function AdminCoursesPage() {
                     <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {c.title}
                     </div>
-                    {c.description && (
-                      <div style={{
-                        fontFamily: "var(--font-body)",
-                        fontSize: 12,
-                        color: "#41574A",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: 340,
-                      }}>
-                        {c.description}
-                      </div>
-                    )}
                   </td>
                   <td className="muted" style={{ whiteSpace: "nowrap" }}>
                     {c.semesterCount} {c.semesterCount === 1 ? "module" : "modules"}
