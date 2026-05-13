@@ -98,14 +98,14 @@
 ---
 
 ## Checklist
-- [ ] Admin course list from `GET /courses` with state filter
-- [ ] Pagination on course list
-- [ ] Create course form → `POST /courses`
-- [ ] Edit course metadata → `PATCH /courses/:id`
-- [ ] Publish action → `POST /courses/:id/publish`
-- [ ] Unpublish action → `POST /courses/:id/unpublish`
-- [ ] Archive action → `POST /courses/:id/archive`
-- [ ] Delete course → `DELETE /courses/:id`
-- [ ] Conditional action buttons based on course state
-- [ ] Handle publish validation errors (no semesters, empty semester)
+- [x] Admin course list from `GET /courses` with state filter *(done in Sprint 3)*
+- [x] Pagination on course list *(done in Sprint 3)*
+- [x] Create course form → `POST /courses`
+- [x] Edit course metadata → `PATCH /courses/:id`
+- [x] Publish action → `POST /courses/:id/publish` *(done in Sprint 3)*
+- [x] Unpublish action → `POST /courses/:id/unpublish` *(done in Sprint 3)*
+- [x] Archive action → `POST /courses/:id/archive` *(done in Sprint 3)*
+- [x] Delete course → `DELETE /courses/:id` *(done in Sprint 3)*
+- [x] Conditional action buttons based on course state *(done in Sprint 3)*
+- [x] Handle publish validation errors (no semesters, empty semester) *(done in Sprint 3)*
 - [ ] Test create → publish → unpublish → archive → delete full lifecycle
