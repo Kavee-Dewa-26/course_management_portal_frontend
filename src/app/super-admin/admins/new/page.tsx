@@ -19,12 +19,13 @@ export default function NewAdminPage() {
       </div>
       <InviteAdminForm
         onCancel={() => router.push("/super-admin/admins")}
-        onSubmit={({ name, email }) => {
+        onSubmit={({ firstName, lastName, email }) => {
+          const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
           dispatch(
             pushToast({
               tone: "success",
-              title: "Invite emailed",
-              message: `A sign-in link has been sent to ${email}. ${name} can sign in once they accept.`,
+              title: "Admin created",
+              message: `${fullName || email} can sign in immediately.`,
             }),
           );
           setTimeout(() => router.push("/super-admin/admins"), 600);

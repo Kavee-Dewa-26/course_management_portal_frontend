@@ -3,51 +3,30 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 import { Button } from "@/components/ui/Button";
-import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
+import { auth } from "@/infrastructure/firebase/auth";
+import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
-import { setRole, setUser } from "@/application/slices/sessionSlice";
-import { ADMIN, STUDENT, SUPERADMIN } from "@/lib/mock/users";
-import { cn } from "@/lib/cn";
+import { setUser, type SessionUser, type Role } from "@/application/slices/sessionSlice";
 
-type RoleKey = "student" | "admin" | "super_admin";
-
-const ROLE_CONFIG: Record<
-  RoleKey,
-  { label: string; ico: string; user: typeof STUDENT; dashboard: string; greeting: string }
-> = {
-  student: {
-    label: "Student",
-    ico: "user",
-    user: STUDENT,
-    dashboard: "/dashboard",
-    greeting: "Welcome back",
-  },
-  admin: {
-    label: "Admin",
-    ico: "shield",
-    user: ADMIN,
-    dashboard: "/admin/dashboard",
-    greeting: "Signed in as admin",
-  },
-  super_admin: {
-    label: "Super Admin",
-    ico: "shield-check",
-    user: SUPERADMIN,
-    dashboard: "/super-admin/dashboard",
-    greeting: "Signed in as super admin",
-  },
+const DASHBOARD_BY_ROLE: Record<Role, string> = {
+  student: "/dashboard",
+  admin: "/admin/dashboard",
+  super_admin: "/super-admin/dashboard",
 };
 
 export function LoginForm() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const [role, setRoleKey] = useState<RoleKey>("student");
-  const [email, setEmail] = useState("priya@example.com");
-  const [pw, setPw] = useState("••••••••");
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [pwError, setPwError] = useState("");
   const [formError, setFormError] = useState("");
@@ -66,64 +45,81 @@ export function LoginForm() {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setEmailError("Enter a valid email address.");
       valid = false;
-    } else {
-      setEmailError("");
     }
-    if (!pw.trim()) {
+    if (!pw) {
       setPwError("Password is required.");
       valid = false;
-    } else {
-      setPwError("");
     }
     return valid;
   };
 
-  const completeSignIn = (provider: "password" | "google") => {
-    const cfg = ROLE_CONFIG[role];
-    dispatch(setUser(cfg.user));
-    dispatch(setRole(role));
-    dispatch(
-      pushToast({
-        tone: "success",
-        title: `${cfg.greeting}, ${cfg.user.name.split(" ")[0]}`,
-        message: provider === "google" ? "Signed in with Google." : "Loading your dashboard…",
-      }),
-    );
-    setTimeout(() => router.push(cfg.dashboard), 500);
-  };
-
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearErrors();
     if (!validate()) return;
-    completeSignIn("password");
+
+    setLoading(true);
+    try {
+      // Step 1: Firebase auth
+      await signInWithEmailAndPassword(auth, email.trim(), pw);
+
+      // Step 2: Get profile from backend
+      const me = await apiRequest<SessionUser>("/me");
+
+      // Step 3: Store and redirect
+      dispatch(setUser(me));
+      dispatch(
+        pushToast({
+          tone: "success",
+          title: `Welcome back, ${me.firstName}`,
+          message: "Loading your dashboard…",
+        }),
+      );
+      router.push(DASHBOARD_BY_ROLE[me.role]);
+    } catch (err: unknown) {
+      if (err instanceof FirebaseError) {
+        switch (err.code) {
+          case "auth/invalid-credential":
+          case "auth/wrong-password":
+            setPwError("Incorrect password. Please try again.");
+            break;
+          case "auth/user-not-found":
+          case "auth/invalid-email":
+            setEmailError("No account found with this email.");
+            break;
+          case "auth/user-disabled":
+            setFormError("Your account has been suspended. Please contact support.");
+            break;
+          case "auth/too-many-requests":
+            setFormError("Too many failed attempts. Please wait a moment and try again.");
+            break;
+          case "auth/network-request-failed":
+            setFormError("Could not reach Firebase. Check your connection and try again.");
+            break;
+          default:
+            setFormError(err.message || "Sign in failed. Please try again.");
+        }
+      } else if (err instanceof ApiRequestError) {
+        if (err.status === 403) {
+          setFormError("Your account is not approved yet. Please wait for admin approval.");
+        } else if (err.status === 401) {
+          setFormError("Authentication failed. Please try again.");
+        } else {
+          setFormError(err.message || "Could not load your profile.");
+        }
+        await auth.signOut();
+      } else {
+        setFormError("Something went wrong. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <>
       <h3>Sign in to your account</h3>
-      <p className="sub">Pick the role you&apos;re signing in as, then continue.</p>
-
-      <div className="role-segment" role="radiogroup" aria-label="Sign in as">
-        {(Object.keys(ROLE_CONFIG) as RoleKey[]).map((k) => (
-          <label key={k} className={cn(role === k && "active")}>
-            <input
-              type="radio"
-              name="role"
-              value={k}
-              checked={role === k}
-              onChange={() => setRoleKey(k)}
-            />
-            {ROLE_CONFIG[k].label}
-          </label>
-        ))}
-      </div>
-
-      <button type="button" className="btn--google" onClick={() => completeSignIn("google")}>
-        <GoogleIcon /> Continue with Google
-      </button>
-
-      <div className="auth-divider">or</div>
+      <p className="sub">Enter your credentials to continue.</p>
 
       {formError && (
         <div
@@ -157,11 +153,21 @@ export function LoginForm() {
         />
         <Input
           label="Password"
-          type="password"
+          type={showPw ? "text" : "password"}
           placeholder="••••••••"
           value={pw}
           error={pwError}
           onChange={(e) => { setPw(e.target.value); if (pwError) setPwError(""); }}
+          rightSlot={
+            <button
+              type="button"
+              onClick={() => setShowPw((v) => !v)}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--color-body-green)", display: "flex" }}
+              aria-label={showPw ? "Hide password" : "Show password"}
+            >
+              <Icon name={showPw ? "eye-off" : "eye"} size={16} />
+            </button>
+          }
         />
         <div
           style={{
@@ -181,8 +187,8 @@ export function LoginForm() {
           </a>
         </div>
         <div style={{ marginTop: 22 }}>
-          <Button full size="lg" type="submit">
-            Sign In as {ROLE_CONFIG[role].label}
+          <Button full size="lg" type="submit" disabled={loading}>
+            {loading ? "Signing in…" : "Sign In"}
           </Button>
         </div>
       </form>

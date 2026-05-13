@@ -96,20 +96,20 @@
 ---
 
 ## Checklist
-- [ ] Install `firebase` package
-- [ ] Create Firebase config and auth initialisation
-- [ ] Update `sessionSlice` to store real token and user profile
-- [ ] Replace mock login with Firebase `signInWithEmailAndPassword`
-- [ ] Call `GET /me` after login to get role
-- [ ] Store token, attach to all API requests via base request helper
-- [ ] Set up `onIdTokenChanged` listener for auto-refresh
-- [ ] Implement logout (`signOut` + `POST /auth/logout` + clear session)
-- [ ] Remove role toggle from `LoginForm`
-- [ ] Add login inline errors
-- [ ] Add route guard to admin layout
-- [ ] Add route guard to super-admin layout
-- [ ] Add route guard to student layout
-- [ ] Test login as admin → redirects to `/admin/dashboard`
-- [ ] Test login as super admin → redirects to `/super-admin/dashboard`
-- [ ] Test login as student (approved) → redirects to `/dashboard`
-- [ ] Test accessing `/admin` without auth → redirects to `/login`
+- [x] Install `firebase` package
+- [x] Create Firebase config and auth initialisation
+- [x] Update `sessionSlice` to store real token and user profile
+- [x] Replace mock login with Firebase `signInWithEmailAndPassword`
+- [x] Call `GET /me` after login to get role
+- [x] Store token, attach to all API requests via base request helper
+- [x] Set up `onIdTokenChanged` listener for auto-refresh
+- [x] Implement logout (`signOut` + `POST /auth/logout` + clear session)
+- [x] Remove role toggle from `LoginForm`
+- [x] Add login inline errors
+- [ ] Add route guard to admin layout (Branch 2)
+- [ ] Add route guard to super-admin layout (Branch 2)
+- [ ] Add route guard to student layout (Branch 2)
+- [ ] Test login as admin → redirects to `/admin/dashboard` (needs Firebase keys + admin account)
+- [ ] Test login as super admin → redirects to `/super-admin/dashboard` (needs Firebase keys + super admin account)
+- [ ] Test login as student (approved) → redirects to `/dashboard` (needs Firebase keys + approved student)
+- [ ] Test accessing `/admin` without auth → redirects to `/login` (Branch 2)
