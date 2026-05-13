@@ -71,14 +71,9 @@ export default function BrowseCourseDetailPage() {
         }}
       >
         <div style={{ position: "relative", zIndex: 1 }}>
-          <h1 style={{ color: "#fff", margin: "8px 0 10px", fontSize: 28, fontFamily: "var(--font-heading)" }}>
+          <h1 style={{ color: "#fff", margin: "8px 0 20px", fontSize: 28, fontFamily: "var(--font-heading)" }}>
             {course.title}
           </h1>
-          {course.description && (
-            <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 15, margin: "0 0 20px", lineHeight: 1.5, maxWidth: 520 }}>
-              {course.description}
-            </p>
-          )}
           <div style={{ display: "flex", gap: 20, color: "rgba(255,255,255,0.65)", fontSize: 13, fontFamily: "var(--font-body)", marginBottom: 24, flexWrap: "wrap" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Icon name="layers" size={14} /> {course.semesterCount} {course.semesterCount === 1 ? "module" : "modules"}
@@ -88,9 +83,9 @@ export default function BrowseCourseDetailPage() {
                 <Icon name="play-circle" size={14} /> {totalSubjects} {totalSubjects === 1 ? "subject" : "subjects"}
               </span>
             )}
-            {course.createdByName && (
+            {course.publishedAt && (
               <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Icon name="user" size={14} /> {course.createdByName}
+                <Icon name="calendar" size={14} /> Published {new Date(course.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
               </span>
             )}
           </div>
@@ -128,7 +123,7 @@ export default function BrowseCourseDetailPage() {
         </div>
 
         <div style={{ width: 140, borderRadius: 14, overflow: "hidden", flexShrink: 0, position: "relative" }}>
-          <CourseCover imageUrl={course.coverImageUrl} alt={course.title} />
+          <CourseCover alt={course.title} />
         </div>
       </div>
 
@@ -149,7 +144,7 @@ export default function BrowseCourseDetailPage() {
                 }}
               >
                 <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-primary)", marginBottom: 10, fontFamily: "var(--font-heading)" }}>
-                  {sem.name}
+                  {sem.title}
                 </div>
                 <div style={{ display: "grid", gap: 6 }}>
                   {sem.subjects?.map((s) => (

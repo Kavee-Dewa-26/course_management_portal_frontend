@@ -37,9 +37,10 @@ function formatDate(value: string | undefined): string {
 }
 
 function statusBadge(r: RegistrationItem) {
-  if (isApproved(r.status)) return <Badge tone="success">Approved</Badge>;
-  if (isRejected(r.status)) return <Badge tone="error">Rejected</Badge>;
-  // Default — backend filter is status=pending so any non-resolved row is pending
+  const s = r.state ?? r.status;
+  if (isApproved(s)) return <Badge tone="success">Approved</Badge>;
+  if (isRejected(s)) return <Badge tone="error">Rejected</Badge>;
+  // Default — backend filter is state=pending so any non-resolved row is pending
   return <Badge tone="warning">Pending</Badge>;
 }
 
@@ -49,8 +50,8 @@ export default function AdminRegistrationsPage() {
 
   // Top counts from the currently visible page.
   const pendingCount  = Q.items.filter(Q.isRowPending).length;
-  const approvedCount = Q.items.filter((r) => isApproved(r.status)).length;
-  const rejectedCount = Q.items.filter((r) => isRejected(r.status)).length;
+  const approvedCount = Q.items.filter((r) => isApproved(r.state ?? r.status)).length;
+  const rejectedCount = Q.items.filter((r) => isRejected(r.state ?? r.status)).length;
 
   const pendingSelectedCount = [...Q.selected].filter((id) => {
     const row = Q.items.find((r) => r.id === id);
@@ -238,7 +239,7 @@ export default function AdminRegistrationsPage() {
                     </td>
                     <td>{statusBadge(r)}</td>
                     <td className="muted" style={{ whiteSpace: "nowrap" }}>
-                      {formatDate(r.submittedAt ?? r.createdAt)}
+                      {formatDate(r.createdAt ?? (r as unknown as { submittedAt?: string }).submittedAt)}
                     </td>
                     <td style={{ textAlign: "right" }}>
                       {pending && (

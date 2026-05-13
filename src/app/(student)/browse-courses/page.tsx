@@ -71,7 +71,7 @@ export default function BrowseCoursesPage() {
                   style={{ cursor: "pointer" }}
                   onClick={() => router.push(`/browse-courses/${c.id}`)}
                 >
-                  <CourseCover imageUrl={c.coverImageUrl} alt={c.title} />
+                  <CourseCover alt={c.title} />
                   <div className="body">
                     <div className="meta">
                       <span>
@@ -80,11 +80,6 @@ export default function BrowseCoursesPage() {
                       </span>
                     </div>
                     <h3>{c.title}</h3>
-                    {c.description && (
-                      <p style={{ fontSize: 12, color: "var(--color-body-green)", margin: "4px 0 8px", lineHeight: 1.5 }}>
-                        {c.description}
-                      </p>
-                    )}
                     <div style={{ marginTop: "auto" }}>
                       {status === "enrolled" && <Badge tone="success">Enrolled</Badge>}
                       {status === "pending" && <Badge tone="warning">Pending Approval</Badge>}

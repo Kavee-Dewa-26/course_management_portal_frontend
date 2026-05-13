@@ -13,10 +13,19 @@ export interface RegistrationItem {
   firstName: string;
   lastName: string;
   email: string;
+  /** API v1.2: renamed from `status` */
+  state?: string;
+  /** Kept for backward-compat in case server still sends the old name. */
   status?: string;
-  submittedAt?: string;
+  reason?: string | null;
   createdAt?: string;
+  updatedAt?: string;
   [key: string]: unknown;
+}
+
+/** Read either `state` (new) or `status` (legacy) from a registration row. */
+function getRegState(r: RegistrationItem): string | undefined {
+  return r.state ?? r.status;
 }
 
 interface PagedResponse {
@@ -44,7 +53,8 @@ export const isApproved = (s: string | null | undefined) => norm(s).includes("ap
 export const isRejected = (s: string | null | undefined) => norm(s).includes("rejected");
 
 function getSubmittedAt(r: RegistrationItem): string | undefined {
-  return r.submittedAt ?? r.createdAt;
+  // API v1.2 uses createdAt; older versions may still send submittedAt
+  return r.createdAt ?? (r as unknown as { submittedAt?: string }).submittedAt;
 }
 
 function getTimestamp(r: RegistrationItem): number {
@@ -123,8 +133,9 @@ export function useRegistrationQueue() {
   const visibleItems = sortedFiltered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   const isRowPending = (r: RegistrationItem) => {
-    if (isApproved(r.status)) return false;
-    if (isRejected(r.status)) return false;
+    const s = getRegState(r);
+    if (isApproved(s)) return false;
+    if (isRejected(s)) return false;
     return true;
   };
 
@@ -147,8 +158,8 @@ export function useRegistrationQueue() {
 
   const refresh = () => fetchAll(search);
 
-  const updateStatus = (id: string, newStatus: string) => {
-    setAllItems((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
+  const updateStatus = (id: string, newState: string) => {
+    setAllItems((prev) => prev.map((r) => (r.id === id ? { ...r, state: newState, status: newState } : r)));
   };
 
   const approve = async (id: string) => {
@@ -187,7 +198,7 @@ export function useRegistrationQueue() {
         { method: "POST", body: { ids } },
       );
       setAllItems((prev) =>
-        prev.map((r) => (result.approved.includes(r.id) ? { ...r, status: "approved" } : r)),
+        prev.map((r) => (result.approved.includes(r.id) ? { ...r, state: "approved", status: "approved" } : r)),
       );
       setSelected(new Set());
       const approvedCount = result.approved.length;
