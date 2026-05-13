@@ -76,9 +76,10 @@ export function useRegistrationQueue() {
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Fetch the ENTIRE queue across all pages, so sort/filter applies globally.
+  // Fetch the ENTIRE queue across all pages — search/filter happens client-side
+  // because the backend does not support a `q` parameter on this endpoint.
   const fetchAll = useCallback(
-    async (q: string) => {
+    async () => {
       setLoading(true);
       try {
         const collected: RegistrationItem[] = [];
@@ -88,7 +89,6 @@ export function useRegistrationQueue() {
 
         do {
           const params = new URLSearchParams({ limit: String(FETCH_PAGE_SIZE), status: "pending" });
-          if (q) params.append("q", q);
           if (cursor) params.append("cursor", cursor);
           const data: PagedResponse = await apiRequest<PagedResponse>(`/admin/registrations?${params}`);
           collected.push(...(data.items ?? []));
@@ -113,19 +113,30 @@ export function useRegistrationQueue() {
 
   useEffect(() => {
     if (!user || !auth.currentUser) return;
-    const timer = setTimeout(() => fetchAll(search), search ? 300 : 0);
-    return () => clearTimeout(timer);
-  }, [search, fetchAll, user]);
+    fetchAll();
+  }, [fetchAll, user]);
 
-  // Sort all items newest first, then apply date filter.
+  // Reset to page 0 whenever search or date filter changes.
+  useEffect(() => {
+    setPage(0);
+  }, [search, dateRange]);
+
+  // Sort newest first, apply date filter, then client-side search filter.
   const sortedFiltered = useMemo(() => {
     let arr = [...allItems].sort((a, b) => getTimestamp(b) - getTimestamp(a));
     if (dateRange !== "all") {
       const cutoff = Date.now() - DATE_RANGE_MS[dateRange];
       arr = arr.filter((r) => getTimestamp(r) >= cutoff);
     }
+    const q = search.trim().toLowerCase();
+    if (q) {
+      arr = arr.filter((r) =>
+        `${r.firstName ?? ""} ${r.lastName ?? ""}`.toLowerCase().includes(q) ||
+        (r.email ?? "").toLowerCase().includes(q),
+      );
+    }
     return arr;
-  }, [allItems, dateRange]);
+  }, [allItems, dateRange, search]);
 
   // Client-side pagination — slice the sorted/filtered list.
   const totalPages = Math.max(1, Math.ceil(sortedFiltered.length / PAGE_SIZE));
@@ -156,7 +167,7 @@ export function useRegistrationQueue() {
     visibleItems.filter(isRowPending).length > 0 &&
     visibleItems.filter(isRowPending).every((r) => selected.has(r.id));
 
-  const refresh = () => fetchAll(search);
+  const refresh = () => fetchAll();
 
   const updateStatus = (id: string, newState: string) => {
     setAllItems((prev) => prev.map((r) => (r.id === id ? { ...r, state: newState, status: newState } : r)));

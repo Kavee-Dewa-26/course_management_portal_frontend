@@ -228,7 +228,7 @@ export default function PublicHomePage() {
                 className="course-card"
                 onClick={() => router.push(`/courses/${c.id}`)}
               >
-                <CourseCover alt={c.title} />
+                <CourseCover title={c.title} alt={c.title} />
                 <div className="body">
                   <div className="meta">
                     <span>

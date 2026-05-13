@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAppDispatch } from "./useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
 import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
+
+const FETCH_PAGE_SIZE = 100;
+const MAX_PAGES = 20;
 
 export interface CourseSummary {
   id: string;
@@ -59,80 +62,89 @@ interface UseCoursesOptions {
 }
 
 /**
- * List courses with pagination + debounced search.
- * - `GET /courses?limit=...&q=...&cursor=...&state=...`
- * - Public catalog can pass `authenticated: false` to skip the Bearer token.
+ * List courses with client-side search and pagination.
+ *
+ * Backend does not currently support `?q=` on `/courses`, so we fetch all
+ * pages and filter client-side. Same pattern as `useRegistrationQueue`.
  */
 export function useCourses({
-  limit = 20,
+  limit = 25,
   state,
   enabled = true,
   authenticated = true,
 }: UseCoursesOptions = {}) {
   const dispatch = useAppDispatch();
 
-  const [items, setItems] = useState<CourseSummary[]>([]);
+  const [allItems, setAllItems] = useState<CourseSummary[]>([]);
   const [loading, setLoading] = useState(false);
-  const [total, setTotal] = useState(0);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [cursorStack, setCursorStack] = useState<string[]>([]);
-  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const [totalFetched, setTotalFetched] = useState(0);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
 
-  const fetchPage = useCallback(
-    async (q: string, cur?: string) => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({ limit: String(limit) });
-        if (q) params.append("q", q);
-        if (cur) params.append("cursor", cur);
+  /** Fetch the entire course list across all backend pages. */
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const collected: CourseSummary[] = [];
+      let cursor: string | undefined = undefined;
+      let totalCount = 0;
+      let pageNo = 0;
+
+      do {
+        const params = new URLSearchParams({ limit: String(FETCH_PAGE_SIZE) });
+        if (cursor) params.append("cursor", cursor);
         if (state) params.append("state", state);
-        const data = await apiRequest<PagedResponse>(`/courses?${params}`, {
-          auth: authenticated,
-        });
-        setItems(data.items ?? []);
-        setNextCursor(data.nextCursor);
-        setTotal(data.total ?? 0);
-      } catch (err) {
-        if (err instanceof ApiRequestError && err.status === 401) {
-          // 401 handled globally by apiRequest (signOut + redirect)
-          return;
-        }
-        dispatch(pushToast({ tone: "warning", title: "Failed to load courses" }));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [dispatch, limit, state, authenticated],
-  );
+        const data: PagedResponse = await apiRequest<PagedResponse>(
+          `/courses?${params}`,
+          { auth: authenticated },
+        );
+        collected.push(...(data.items ?? []));
+        totalCount = data.total ?? collected.length;
+        cursor = data.nextCursor ?? undefined;
+        pageNo += 1;
+      } while (cursor && pageNo < MAX_PAGES);
+
+      setAllItems(collected);
+      setTotalFetched(totalCount);
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.status === 401) return;
+      dispatch(pushToast({ tone: "warning", title: "Failed to load courses" }));
+    } finally {
+      setLoading(false);
+    }
+  }, [dispatch, state, authenticated]);
 
   useEffect(() => {
     if (!enabled) return;
-    const timer = setTimeout(() => fetchPage(search, cursor), search ? 300 : 0);
-    return () => clearTimeout(timer);
-  }, [search, cursor, fetchPage, enabled]);
+    fetchAll();
+  }, [fetchAll, enabled]);
 
-  const nextPage = () => {
-    if (!nextCursor) return;
-    setCursorStack((s) => [...s, cursor ?? ""]);
-    setCursor(nextCursor);
-  };
+  // Reset to page 0 when search changes
+  useEffect(() => {
+    setPage(0);
+  }, [search]);
 
-  const prevPage = () => {
-    const stack = [...cursorStack];
-    const prev = stack.pop();
-    setCursorStack(stack);
-    setCursor(prev || undefined);
-  };
+  // Client-side filter by title (debounced via the 300ms search-handler typing).
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return allItems;
+    return allItems.filter((c) => c.title.toLowerCase().includes(q));
+  }, [allItems, search]);
 
-  const refresh = () => fetchPage(search, cursor);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / limit));
+  const safePage = Math.min(page, totalPages - 1);
+  const items = filtered.slice(safePage * limit, (safePage + 1) * limit);
+
+  const nextPage = () => setPage((p) => Math.min(totalPages - 1, p + 1));
+  const prevPage = () => setPage((p) => Math.max(0, p - 1));
+  const refresh = () => fetchAll();
 
   /** POST /courses/:id/publish */
   const publish = useCallback(
     async (id: string) => {
       try {
         await apiRequest(`/courses/${id}/publish`, { method: "POST" });
-        await fetchPage(search, cursor);
+        await fetchAll();
         dispatch(pushToast({ tone: "success", title: "Course published" }));
       } catch (err) {
         if (err instanceof ApiRequestError) {
@@ -146,7 +158,7 @@ export function useCourses({
         }
       }
     },
-    [dispatch, fetchPage, search, cursor],
+    [dispatch, fetchAll],
   );
 
   /** POST /courses/:id/unpublish */
@@ -154,7 +166,7 @@ export function useCourses({
     async (id: string) => {
       try {
         await apiRequest(`/courses/${id}/unpublish`, { method: "POST" });
-        await fetchPage(search, cursor);
+        await fetchAll();
         dispatch(pushToast({ tone: "success", title: "Course unpublished" }));
       } catch (err) {
         if (err instanceof ApiRequestError && err.status === 409) {
@@ -164,7 +176,7 @@ export function useCourses({
         }
       }
     },
-    [dispatch, fetchPage, search, cursor],
+    [dispatch, fetchAll],
   );
 
   /** POST /courses/:id/archive */
@@ -172,7 +184,7 @@ export function useCourses({
     async (id: string) => {
       try {
         await apiRequest(`/courses/${id}/archive`, { method: "POST" });
-        await fetchPage(search, cursor);
+        await fetchAll();
         dispatch(pushToast({ tone: "success", title: "Course archived" }));
       } catch (err) {
         if (err instanceof ApiRequestError && err.status === 409) {
@@ -182,7 +194,7 @@ export function useCourses({
         }
       }
     },
-    [dispatch, fetchPage, search, cursor],
+    [dispatch, fetchAll],
   );
 
   /** DELETE /courses/:id (soft delete, recoverable 30d) */
@@ -190,7 +202,7 @@ export function useCourses({
     async (id: string) => {
       try {
         await apiRequest(`/courses/${id}`, { method: "DELETE" });
-        await fetchPage(search, cursor);
+        await fetchAll();
         dispatch(pushToast({ tone: "success", title: "Course deleted" }));
       } catch (err) {
         if (err instanceof ApiRequestError && err.status === 404) {
@@ -200,19 +212,22 @@ export function useCourses({
         }
       }
     },
-    [dispatch, fetchPage, search, cursor],
+    [dispatch, fetchAll],
   );
 
   return {
     items,
     loading,
-    total,
+    total: filtered.length,
+    totalAll: totalFetched,
+    page: safePage,
+    totalPages,
     search,
     setSearch,
     nextPage,
     prevPage,
-    hasNext: !!nextCursor,
-    hasPrev: cursorStack.length > 0,
+    hasNext: safePage < totalPages - 1,
+    hasPrev: safePage > 0,
     refresh,
     publish,
     unpublish,
