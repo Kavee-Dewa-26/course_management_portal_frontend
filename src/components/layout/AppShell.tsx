@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
 import { Sidebar } from "./Sidebar";
 import { TopNav } from "./TopNav";
 import { Toaster } from "@/components/ui/Toaster";
@@ -9,6 +10,9 @@ import type { NavItem } from "./RoleNav";
 import type { NotificationItem } from "@/lib/mock/notifications";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
+import { clearSession } from "@/application/slices/sessionSlice";
+import { auth } from "@/infrastructure/firebase/auth";
+import { apiRequest } from "@/infrastructure/api/request";
 
 interface Props {
   navItems: NavItem[];
@@ -35,10 +39,16 @@ export function AppShell({
   const dispatch = useAppDispatch();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const onLogout = () => {
-    localStorage.removeItem("theme");
-    dispatch(pushToast({ tone: "success", title: "Signed out" }));
-    setTimeout(() => router.push("/"), 600);
+  const onLogout = async () => {
+    try {
+      // Best-effort revoke refresh tokens server-side; ignore failure.
+      await apiRequest("/auth/logout", { method: "POST" }).catch(() => null);
+    } finally {
+      await signOut(auth).catch(() => null);
+      dispatch(clearSession());
+      dispatch(pushToast({ tone: "success", title: "Signed out" }));
+      router.push("/login");
+    }
   };
 
   const onNotificationClick = (n: NotificationItem) => {
