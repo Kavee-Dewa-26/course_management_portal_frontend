@@ -37,6 +37,14 @@ export function FirebaseAuthListener({ children }: { children: React.ReactNode }
         // Fetch profile on every token change. Cheap, and keeps user data fresh
         // in case role/status was updated server-side (e.g. promotion to admin).
         const me = await apiRequest<SessionUser>("/me");
+
+        // Block non-approved users from accessing the app silently.
+        if (me.status !== "approved") {
+          await auth.signOut();
+          dispatch(clearSession());
+          return;
+        }
+
         dispatch(setUser(me));
       } catch (err) {
         // If /me fails (e.g. account suspended, network), sign out cleanly.

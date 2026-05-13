@@ -28,6 +28,7 @@ export function AuthGuard({ allowedRoles, children }: Props) {
 
   const hasAccess = useMemo(() => {
     if (!user) return false;
+    if (user.status !== "approved") return false;
     const userRoles = user.roles?.length ? user.roles : [user.role];
     return userRoles.some((r) => allowedRoles.includes(r as Role));
   }, [user, allowedRoles]);
