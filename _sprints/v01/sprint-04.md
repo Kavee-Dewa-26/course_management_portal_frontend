@@ -63,9 +63,9 @@
 - [x] My courses page → `GET /me/enrollments`
 - [x] Withdraw → `POST /enrollments/:id/withdraw`
 - [x] Handle `409`, `422`, `429` enrollment errors inline
-- [ ] Admin enrollment queue → `GET /admin/enrollments` *(Branch 2)*
-- [ ] Admin approve → `POST /admin/enrollments/:id/approve` *(Branch 2)*
-- [ ] Admin reject with reason → `POST /admin/enrollments/:id/reject` *(Branch 2)*
-- [ ] Pagination on enrollment queue *(Branch 2)*
+- [x] Admin enrollment queue → `GET /admin/enrollments`
+- [x] Admin approve → `POST /admin/enrollments/:id/approve`
+- [x] Admin reject with reason → `POST /admin/enrollments/:id/reject`
+- [x] Pagination on enrollment queue
 - [ ] Test full flow: student enrolls → admin approves → student sees approved state
 - [ ] Test rejection flow → student sees rejected badge + reason

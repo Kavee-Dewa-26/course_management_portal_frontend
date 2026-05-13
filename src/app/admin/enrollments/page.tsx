@@ -1,50 +1,47 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { FilterPopover } from "@/components/ui/FilterPopover";
 import { Icon } from "@/components/ui/Icon";
-import { QueueBulkbar } from "@/components/enrollment/QueueBulkbar";
-import { RowActions } from "@/components/enrollment/RowActions";
-import { StatusBadge } from "@/components/enrollment/StatusBadge";
-import { useApprovalQueue, type ApprovalStatus } from "@/application/hooks/useApprovalQueue";
-import { ENROLLMENTS_SEED } from "@/lib/mock/registrations";
-import { avatarUrl } from "@/lib/kit";
-import { downloadCsv } from "@/lib/csv";
-import { useAppDispatch } from "@/application/hooks/useAppDispatch";
-import { pushToast } from "@/application/slices/uiSlice";
+import { RowMenu } from "@/components/ui/RowMenu";
+import { RejectModal } from "@/components/enrollment/RejectModal";
+import {
+  useAdminEnrollmentQueue,
+  isApproved,
+  isRejected,
+  type EnrollmentItem,
+} from "@/application/hooks/useAdminEnrollmentQueue";
+import { useCourses } from "@/application/hooks/useCourses";
 
-const STATUS_OPTIONS = [
-  { value: "pending" as const, label: "Pending" },
-  { value: "approved" as const, label: "Approved" },
-  { value: "rejected" as const, label: "Rejected" },
-];
+function formatDate(iso: string | undefined | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function stateBadge(r: EnrollmentItem) {
+  if (isApproved(r.state)) return <Badge tone="success">Approved</Badge>;
+  if (isRejected(r.state)) return <Badge tone="error">Rejected</Badge>;
+  return <Badge tone="warning">Pending</Badge>;
+}
 
 export default function AdminEnrollmentsPage() {
-  const Q = useApprovalQueue(ENROLLMENTS_SEED, "Enrollment");
-  const dispatch = useAppDispatch();
-  const [statuses, setStatuses] = useState<ApprovalStatus[]>(["pending", "approved", "rejected"]);
-  const [query, setQuery] = useState("");
-  const pending = Q.rows.filter((r) => r.status === "pending").length;
-  const visibleRows = useMemo(() => {
-    const q = query.toLowerCase();
-    return Q.rows.filter(
-      (r) =>
-        statuses.includes(r.status) &&
-        (q === "" ||
-          r.name.toLowerCase().includes(q) ||
-          r.email.toLowerCase().includes(q) ||
-          r.course.toLowerCase().includes(q)),
-    );
-  }, [Q.rows, statuses, query]);
+  const Q = useAdminEnrollmentQueue();
+  const C = useCourses({ limit: 100 });
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; label: string } | null>(null);
 
-  const handleExport = () => {
-    const headers = ["Student", "Email", "Course", "Requested", "Status"];
-    const rows = visibleRows.map((r) => [r.name, r.email, r.course, r.date, r.status]);
-    downloadCsv("enrollments.csv", headers, rows);
-    dispatch(pushToast({ tone: "success", title: "CSV downloaded" }));
-  };
+  // Index course titles by id for quick lookup.
+  const courseTitle = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of C.items) map.set(c.id, c.title);
+    return map;
+  }, [C.items]);
 
   return (
     <div className="page">
@@ -54,84 +51,63 @@ export default function AdminEnrollmentsPage() {
             Enrollments <span className="page-sub">· course-access approvals</span>
           </h1>
           <div className="greeting">
-            <b style={{ color: "#152A24" }}>{pending}</b> awaiting approval. The learner already
-            has an account. Approving unlocks course materials.
+            <b style={{ color: "#152A24" }}>{Q.total}</b> total ·{" "}
+            <b style={{ color: "#152A24" }}>{Q.pendingCount}</b> pending on this page.
+            Approving unlocks course materials for the student.
           </div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <FilterPopover
-            options={STATUS_OPTIONS}
-            selected={statuses}
-            onChange={(next) => setStatuses(next)}
-          />
-          <Button variant="secondary" icon="download" onClick={handleExport}>
-            Export CSV
-          </Button>
-        </div>
+        <Button variant="secondary" icon="refresh-cw" onClick={Q.refresh}>
+          Refresh
+        </Button>
       </div>
 
+      {/* Flow strip */}
       <div className="flow-strip">
         <div className="flow-step done">
-          <i>
-            <Icon name="check" size={12} />
-          </i>{" "}
-          Sign-up <small>Approved</small>
+          <i><Icon name="check" size={12} /></i> Sign-up <small>Approved</small>
         </div>
-        <div className="flow-arrow">
-          <Icon name="arrow-right" size={14} />
-        </div>
+        <div className="flow-arrow"><Icon name="arrow-right" size={14} /></div>
         <div className="flow-step active">
           <i>2</i> Course request <small>Awaits admin approval</small>
         </div>
-        <div className="flow-arrow">
-          <Icon name="arrow-right" size={14} />
-        </div>
+        <div className="flow-arrow"><Icon name="arrow-right" size={14} /></div>
         <div className="flow-step">
           <i>3</i> Studying <small>Course materials unlocked</small>
         </div>
       </div>
 
+      {/* Search */}
       <div className="audit-toolbar">
         <div className="audit-search">
           <Icon name="search" size={16} />
           <input
-            placeholder="Search by student, email or course..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by student name, email or course..."
+            value={Q.search}
+            onChange={(e) => Q.setSearch(e.target.value)}
           />
         </div>
       </div>
 
       <div className="tbl-card">
-        <div className="tbl-bar">
-          <span className="live">
-            <i />
-            Live · auto-refresh every 30s
-          </span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <span className="badge badge--warning">{pending} Pending</span>
-            <span className="badge badge--success">
-              {Q.rows.filter((r) => r.status === "approved").length} Approved
-            </span>
-            <span className="badge badge--error">
-              {Q.rows.filter((r) => r.status === "rejected").length} Rejected
-            </span>
+        <div className="tbl-bar" style={{ flexWrap: "wrap" }}>
+          <span className="live"><i />Live data</span>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <span className="badge badge--warning">{Q.pendingCount} Pending</span>
+            <span className="badge badge--success">{Q.approvedCount} Approved</span>
+            <span className="badge badge--error">{Q.rejectedCount} Rejected</span>
           </div>
         </div>
-        {Q.selected.size > 0 && (
-          <QueueBulkbar
-            selectedCount={Q.selected.size}
-            onApprove={() => Q.approve([...Q.selected])}
-            onReject={() => Q.reject([...Q.selected])}
-            onCancel={() => Q.toggleAll()}
-          />
-        )}
-        <table className="tbl">
+
+        <table className="tbl" style={{ tableLayout: "fixed", width: "100%" }}>
+          <colgroup>
+            <col style={{ width: "35%" }} />
+            <col style={{ width: "30%" }} />
+            <col style={{ minWidth: 130 }} />
+            <col style={{ minWidth: 100 }} />
+            <col style={{ width: 60 }} />
+          </colgroup>
           <thead>
             <tr>
-              <th style={{ width: 40 }}>
-                <input type="checkbox" checked={Q.allChecked} onChange={Q.toggleAll} />
-              </th>
               <th>Student</th>
               <th>Course</th>
               <th>Requested</th>
@@ -140,49 +116,110 @@ export default function AdminEnrollmentsPage() {
             </tr>
           </thead>
           <tbody>
-            {visibleRows.map((r) => (
-              <tr key={r.id}>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={Q.selected.has(r.id)}
-                    onChange={() => Q.toggle(r.id)}
-                  />
-                </td>
-                <td>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    <Avatar src={avatarUrl(r.avatar)} size="sm" name={r.name} />
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{r.name}</div>
-                      <div
-                        style={{
-                          fontFamily: "var(--font-body)",
-                          fontSize: 12,
-                          color: "#41574A",
-                        }}
-                      >
-                        {r.email}
-                      </div>
-                    </div>
+            {Q.loading && Q.items.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ textAlign: "center", padding: 40 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--color-muted)" }}>
+                    <Icon name="loader" size={18} />
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 14 }}>Loading…</span>
                   </div>
                 </td>
-                <td>{r.course}</td>
-                <td className="muted">{r.date}</td>
-                <td>
-                  <StatusBadge status={r.status} />
-                </td>
-                <td style={{ textAlign: "right" }}>
-                  <RowActions
-                    status={r.status}
-                    onApprove={() => Q.approve([r.id])}
-                    onReject={() => Q.reject([r.id])}
-                  />
+              </tr>
+            )}
+            {!Q.loading && Q.items.length === 0 && (
+              <tr>
+                <td colSpan={5}>
+                  <div className="empty">
+                    <h3>No enrollments found</h3>
+                    <p>{Q.search ? "Try a different search term." : "No pending enrollments right now."}</p>
+                  </div>
                 </td>
               </tr>
-            ))}
+            )}
+            {Q.items.map((r) => {
+              const pending = Q.isRowPending(r);
+              const title = courseTitle.get(r.courseId);
+              const label = title ?? r.courseId;
+              return (
+                <tr key={r.id}>
+                  <td style={{ maxWidth: 280 }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                      <Avatar
+                        size="sm"
+                        name={r.student ? `${r.student.firstName} ${r.student.lastName}` : r.studentUid}
+                        src={r.student?.profilePhotoUrl ?? undefined}
+                      />
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        {r.student ? (
+                          <>
+                            <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {r.student.firstName} {r.student.lastName}
+                            </div>
+                            <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#41574A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {r.student.email}
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--color-muted)" }}>
+                            {r.studentUid.slice(0, 14)}…
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ maxWidth: 240 }}>
+                    <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={label}>
+                      {title ?? (
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--color-muted)" }}>
+                          {r.courseId}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="muted" style={{ whiteSpace: "nowrap" }}>{formatDate(r.createdAt)}</td>
+                  <td>{stateBadge(r)}</td>
+                  <td style={{ textAlign: "right" }}>
+                    {pending ? (
+                      <RowMenu
+                        ariaLabel={`Actions for enrollment ${r.id}`}
+                        items={[
+                          { label: "Approve", ico: "check-circle", onClick: () => Q.approve(r.id) },
+                          { label: "Reject",  ico: "x-circle",     onClick: () => setRejectTarget({ id: r.id, label }), danger: true },
+                        ]}
+                      />
+                    ) : null}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+
+        {(Q.hasNext || Q.hasPrev) && (
+          <div style={{
+            display: "flex", justifyContent: "flex-end", gap: 8,
+            padding: "12px 16px",
+            borderTop: "1px solid var(--color-stroke)",
+          }}>
+            <Button size="sm" variant="secondary" icon="chevron-left" disabled={!Q.hasPrev} onClick={Q.prevPage}>
+              Previous
+            </Button>
+            <Button size="sm" variant="secondary" iconAfter="chevron-right" disabled={!Q.hasNext} onClick={Q.nextPage}>
+              Next
+            </Button>
+          </div>
+        )}
       </div>
+
+      <RejectModal
+        open={!!rejectTarget}
+        name={rejectTarget?.label ?? ""}
+        onConfirm={(reason) => {
+          if (rejectTarget) Q.reject(rejectTarget.id, reason);
+          setRejectTarget(null);
+        }}
+        onCancel={() => setRejectTarget(null)}
+      />
     </div>
   );
 }
