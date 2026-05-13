@@ -1,11 +1,13 @@
 "use client";
 
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { ADMIN_NAV } from "@/components/layout/RoleNav";
+import { ADMIN_NAV, isLink } from "@/components/layout/RoleNav";
 import { ADMIN_NOTIFS } from "@/lib/mock/notifications";
 import { useSessionUser } from "@/application/hooks/useSessionUser";
+import { useAppSelector } from "@/application/hooks/useAppSelector";
 
 const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
   { test: /^\/admin\/dashboard/, title: "Admin Dashboard" },
@@ -26,10 +28,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname() ?? "";
   const title = TITLE_MAP.find((m) => m.test.test(pathname))?.title ?? "Admin";
   const user = useSessionUser();
+  const pendingRegistrations = useAppSelector((s) => s.ui.pendingRegistrations);
+  const pendingEnrollments = useAppSelector((s) => s.ui.pendingEnrollments);
+
+  // Inject live counts into nav items.
+  const navItems = useMemo(
+    () =>
+      ADMIN_NAV.map((item) => {
+        if (!isLink(item)) return item;
+        if (item.id === "registrations") return { ...item, count: pendingRegistrations };
+        if (item.id === "enrollments") return { ...item, count: pendingEnrollments };
+        return item;
+      }),
+    [pendingRegistrations, pendingEnrollments],
+  );
+
   return (
     <AuthGuard allowedRoles={["admin", "super_admin"]}>
       <AppShell
-        navItems={ADMIN_NAV}
+        navItems={navItems}
         user={user}
         roleLabel="Administrator"
         title={title}
