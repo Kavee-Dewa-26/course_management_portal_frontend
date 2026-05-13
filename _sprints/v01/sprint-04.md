@@ -58,14 +58,14 @@
 ---
 
 ## Checklist
-- [ ] Enroll button → `POST /courses/:id/enroll`
-- [ ] Enroll button shows correct state based on existing enrollment
-- [ ] My courses page → `GET /me/enrollments`
-- [ ] Withdraw → `POST /enrollments/:id/withdraw`
-- [ ] Handle `409`, `422`, `429` enrollment errors inline
-- [ ] Admin enrollment queue → `GET /admin/enrollments`
-- [ ] Admin approve → `POST /admin/enrollments/:id/approve`
-- [ ] Admin reject with reason → `POST /admin/enrollments/:id/reject`
-- [ ] Pagination on enrollment queue
+- [x] Enroll button → `POST /courses/:id/enroll`
+- [x] Enroll button shows correct state based on existing enrollment
+- [x] My courses page → `GET /me/enrollments`
+- [x] Withdraw → `POST /enrollments/:id/withdraw`
+- [x] Handle `409`, `422`, `429` enrollment errors inline
+- [ ] Admin enrollment queue → `GET /admin/enrollments` *(Branch 2)*
+- [ ] Admin approve → `POST /admin/enrollments/:id/approve` *(Branch 2)*
+- [ ] Admin reject with reason → `POST /admin/enrollments/:id/reject` *(Branch 2)*
+- [ ] Pagination on enrollment queue *(Branch 2)*
 - [ ] Test full flow: student enrolls → admin approves → student sees approved state
 - [ ] Test rejection flow → student sees rejected badge + reason

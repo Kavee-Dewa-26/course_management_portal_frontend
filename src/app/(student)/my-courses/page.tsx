@@ -1,21 +1,142 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CourseCover } from "@/components/ui/CourseCover";
 import { Icon } from "@/components/ui/Icon";
-import {
-  STUDENT_ENROLLED_NOT_STARTED,
-  STUDENT_IN_PROGRESS,
-  STUDENT_PENDING_COURSES,
-  type CourseSummary,
-} from "@/lib/mock/courses";
+import { useEnrollments, type Enrollment } from "@/application/hooks/useEnrollments";
+import { useCourses, type CourseSummary } from "@/application/hooks/useCourses";
 
-const ENROLLED: CourseSummary[] = [...STUDENT_IN_PROGRESS, ...STUDENT_ENROLLED_NOT_STARTED];
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function stateBadge(state: Enrollment["state"]) {
+  if (state === "approved") return <Badge tone="success">Approved</Badge>;
+  if (state === "pending") return <Badge tone="warning">Pending Approval</Badge>;
+  if (state === "rejected") return <Badge tone="error">Rejected</Badge>;
+  return <Badge tone="archive">Withdrawn</Badge>;
+}
 
 export default function MyCoursesPage() {
   const router = useRouter();
+  const E = useEnrollments();
+  const C = useCourses({ limit: 100 });
+  const [showWithdrawn, setShowWithdrawn] = useState(false);
+  const [toWithdraw, setToWithdraw] = useState<Enrollment | null>(null);
+
+  // Index courses by id for quick title lookup.
+  const courseById = useMemo(() => {
+    const map = new Map<string, CourseSummary>();
+    for (const c of C.items) map.set(c.id, c);
+    return map;
+  }, [C.items]);
+
+  // Filter + group.
+  const visible = useMemo(() => {
+    return E.items.filter((e) => showWithdrawn || e.state !== "withdrawn");
+  }, [E.items, showWithdrawn]);
+
+  const approved = visible.filter((e) => e.state === "approved");
+  const pending  = visible.filter((e) => e.state === "pending");
+  const rejected = visible.filter((e) => e.state === "rejected");
+  const withdrawn = visible.filter((e) => e.state === "withdrawn");
+
+  const loading = E.loading || C.loading;
+
+  const onConfirmWithdraw = async () => {
+    if (!toWithdraw) return;
+    await E.withdraw(toWithdraw.id);
+    setToWithdraw(null);
+  };
+
+  const renderCard = (e: Enrollment) => {
+    const course = courseById.get(e.courseId);
+    const title = course?.title ?? "Course no longer available";
+    const semCount = course?.semesterCount ?? 0;
+
+    return (
+      <article
+        key={e.id}
+        className="course-card my-card"
+        style={{
+          cursor: e.state === "approved" ? "pointer" : "default",
+          opacity: e.state === "withdrawn" || e.state === "rejected" ? 0.7 : 1,
+        }}
+        onClick={() => {
+          if (e.state === "approved") router.push(`/my-courses/${e.courseId}`);
+        }}
+      >
+        <div style={{ position: "relative" }}>
+          <CourseCover title={title} alt={title} />
+          {e.state !== "approved" && (
+            <div style={{
+              position: "absolute", inset: 0,
+              background: "rgba(21,42,36,0.45)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              pointerEvents: "none",
+            }}>
+              {stateBadge(e.state)}
+            </div>
+          )}
+        </div>
+        <div className="body">
+          <div className="meta">
+            <span><Icon name="layers" size={12} />{semCount} {semCount === 1 ? "module" : "modules"}</span>
+            <span><Icon name="calendar" size={12} />Requested {formatDate(e.createdAt)}</span>
+          </div>
+          <h3>{title}</h3>
+
+          {e.state === "approved" && (
+            <div style={{ marginTop: 8 }}>
+              <Badge tone="success">Approved</Badge>
+            </div>
+          )}
+
+          {e.state === "pending" && (
+            <>
+              <p style={{ fontSize: 12, color: "var(--color-body-green)", fontFamily: "var(--font-body)", margin: "4px 0 12px" }}>
+                Awaiting admin approval. You will be notified once approved.
+              </p>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={(ev) => { ev.stopPropagation(); setToWithdraw(e); }}
+              >
+                Withdraw request
+              </Button>
+            </>
+          )}
+
+          {e.state === "rejected" && (
+            <p style={{ fontSize: 12, color: "var(--color-body-green)", fontFamily: "var(--font-body)", margin: "8px 0 0" }}>
+              {e.reason
+                ? <><b>Reason:</b> {e.reason}</>
+                : "Your request was not approved."}
+            </p>
+          )}
+
+          {e.state === "approved" && (
+            <div style={{ marginTop: 12 }}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={(ev) => { ev.stopPropagation(); setToWithdraw(e); }}
+              >
+                Withdraw
+              </Button>
+            </div>
+          )}
+        </div>
+      </article>
+    );
+  };
 
   return (
     <div className="page">
@@ -23,8 +144,9 @@ export default function MyCoursesPage() {
         <div>
           <h1>My Courses</h1>
           <div className="greeting">
-            <b style={{ color: "var(--color-primary)" }}>{ENROLLED.length}</b> enrolled,{" "}
-            {STUDENT_IN_PROGRESS.length} in progress.
+            <b style={{ color: "var(--color-primary)" }}>{approved.length}</b> enrolled ·{" "}
+            <b style={{ color: "var(--color-primary)" }}>{pending.length}</b> pending
+            {rejected.length > 0 && <> · {rejected.length} rejected</>}
           </div>
         </div>
         <Button
@@ -36,77 +158,90 @@ export default function MyCoursesPage() {
         </Button>
       </div>
 
-      {/* Enrolled courses */}
-      <div className="my-grid">
-        {ENROLLED.map((c) => (
-          <article
-            key={c.id}
-            className="course-card my-card"
-            onClick={() => router.push(`/my-courses/${c.id}`)}
-          >
-            <CourseCover kind={c.kind} emblem={c.emblem} tag={c.tag} />
-            <div className="body">
-              <div className="meta">
-                <span><Icon name="clock" size={12} />{c.time}</span>
-                <span><Icon name="layers" size={12} />{c.lessons}</span>
-              </div>
-              <h3>{c.title}</h3>
-            </div>
-            <div className="progress-cap">
-              <div className="bar">
-                <i style={{ width: (c.progress ?? 0) + "%" }} />
-              </div>
-              <span className="pct">{c.progress ?? 0}%</span>
-            </div>
-          </article>
-        ))}
-      </div>
+      {loading && E.items.length === 0 && (
+        <div style={{ textAlign: "center", padding: 48, color: "var(--color-body-green)" }}>
+          <Icon name="loader" size={22} style={{ opacity: 0.4 }} />
+          <p style={{ marginTop: 10, fontFamily: "var(--font-body)" }}>Loading your enrollments…</p>
+        </div>
+      )}
 
-      {/* Pending approval */}
-      {STUDENT_PENDING_COURSES.length > 0 && (
+      {!loading && E.items.length === 0 && (
+        <div className="empty" style={{ padding: "48px 16px" }}>
+          <h3>No enrollments yet</h3>
+          <p>Browse the catalog and request enrollment in your first course.</p>
+          <div style={{ marginTop: 16 }}>
+            <Button icon="search" onClick={() => router.push("/browse-courses")}>
+              Browse Courses
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {approved.length > 0 && (
+        <>
+          <div className="section-h" style={{ marginTop: 12 }}>
+            <h3>Enrolled</h3>
+            <Badge tone="success">{approved.length}</Badge>
+          </div>
+          <div className="my-grid">{approved.map(renderCard)}</div>
+        </>
+      )}
+
+      {pending.length > 0 && (
         <>
           <div className="section-h" style={{ marginTop: 32 }}>
             <h3>Pending Approval</h3>
-            <Badge tone="warning">{STUDENT_PENDING_COURSES.length} awaiting</Badge>
+            <Badge tone="warning">{pending.length} awaiting</Badge>
           </div>
-          <div className="my-grid">
-            {STUDENT_PENDING_COURSES.map((c) => (
-              <article
-                key={c.id}
-                className="course-card my-card"
-                style={{ opacity: 0.75, cursor: "default" }}
-              >
-                <div style={{ position: "relative" }}>
-                  <CourseCover kind={c.kind} emblem={c.emblem} tag={c.tag} />
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background: "rgba(21,42,36,0.45)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      pointerEvents: "none",
-                    }}
-                  >
-                    <Badge tone="warning">Pending Approval</Badge>
-                  </div>
-                </div>
-                <div className="body">
-                  <div className="meta">
-                    <span><Icon name="clock" size={12} />{c.time}</span>
-                    <span><Icon name="layers" size={12} />{c.lessons}</span>
-                  </div>
-                  <h3>{c.title}</h3>
-                  <p style={{ fontSize: 12, color: "var(--color-body-green)", fontFamily: "var(--font-body)", margin: "4px 0 0" }}>
-                    Awaiting admin approval. You will be notified once approved.
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
+          <div className="my-grid">{pending.map(renderCard)}</div>
         </>
       )}
+
+      {rejected.length > 0 && (
+        <>
+          <div className="section-h" style={{ marginTop: 32 }}>
+            <h3>Rejected</h3>
+            <Badge tone="error">{rejected.length}</Badge>
+          </div>
+          <div className="my-grid">{rejected.map(renderCard)}</div>
+        </>
+      )}
+
+      {E.items.some((e) => e.state === "withdrawn") && (
+        <div style={{ marginTop: 32 }}>
+          <button
+            onClick={() => setShowWithdrawn((v) => !v)}
+            style={{
+              background: "none",
+              border: "1px solid var(--color-stroke)",
+              borderRadius: 8,
+              padding: "8px 16px",
+              cursor: "pointer",
+              fontFamily: "var(--font-body)",
+              fontSize: 13,
+            }}
+          >
+            {showWithdrawn ? "Hide" : "Show"} withdrawn enrollments
+          </button>
+          {showWithdrawn && withdrawn.length > 0 && (
+            <div className="my-grid" style={{ marginTop: 16 }}>{withdrawn.map(renderCard)}</div>
+          )}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!toWithdraw}
+        title={toWithdraw ? `Withdraw enrollment?` : ""}
+        message={
+          toWithdraw?.state === "approved"
+            ? "You will lose access to this course immediately. You can request enrollment again later."
+            : "Cancel your pending enrollment request? You can re-request later."
+        }
+        confirmLabel="Withdraw"
+        destructive
+        onConfirm={onConfirmWithdraw}
+        onCancel={() => setToWithdraw(null)}
+      />
     </div>
   );
 }

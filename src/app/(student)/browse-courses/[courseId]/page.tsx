@@ -1,21 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { CourseCover } from "@/components/ui/CourseCover";
 import { Icon } from "@/components/ui/Icon";
 import { useCourse } from "@/application/hooks/useCourses";
-import { useEnrollmentRequests } from "@/application/hooks/useEnrollmentRequests";
-import { useAppDispatch } from "@/application/hooks/useAppDispatch";
-import { pushToast } from "@/application/slices/uiSlice";
+import { useEnrollments } from "@/application/hooks/useEnrollments";
 
 export default function BrowseCourseDetailPage() {
   const router = useRouter();
   const params = useParams<{ courseId: string }>();
-  const dispatch = useAppDispatch();
-  const { getStatus, requestEnrollment } = useEnrollmentRequests();
+  const { getStatus, getEnrollmentForCourse, enroll } = useEnrollments();
+  const [enrolling, setEnrolling] = useState(false);
 
   const { course, loading, error } = useCourse(params.courseId);
 
@@ -39,18 +37,14 @@ export default function BrowseCourseDetailPage() {
   if (!course) return null;
 
   const status = getStatus(course.id);
+  const existingEnrollment = getEnrollmentForCourse(course.id);
   const totalSubjects =
     course.semesters?.reduce((sum, s) => sum + (s.subjectCount ?? s.subjects?.length ?? 0), 0) ?? 0;
 
-  const handleRequest = () => {
-    requestEnrollment(course.id);
-    dispatch(
-      pushToast({
-        tone: "success",
-        title: "Enrollment requested",
-        message: `Your request for ${course.title} is awaiting admin approval.`,
-      }),
-    );
+  const handleRequest = async () => {
+    setEnrolling(true);
+    await enroll(course.id);
+    setEnrolling(false);
   };
 
   return (
@@ -93,8 +87,8 @@ export default function BrowseCourseDetailPage() {
           {/* CTA based on status */}
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             {status === "available" && (
-              <Button icon="clipboard-list" onClick={handleRequest}>
-                Request Enrollment
+              <Button icon="clipboard-list" onClick={handleRequest} disabled={enrolling}>
+                {enrolling ? "Requesting…" : "Request Enrollment"}
               </Button>
             )}
             {status === "pending" && (
@@ -105,13 +99,28 @@ export default function BrowseCourseDetailPage() {
                 </span>
               </div>
             )}
-            {status === "enrolled" && (
+            {status === "approved" && (
               <Button
                 icon="play"
                 onClick={() => router.push(`/my-courses/${course.id}`)}
               >
                 Go to Course
               </Button>
+            )}
+            {existingEnrollment?.state === "rejected" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <Badge tone="error">Previous request rejected</Badge>
+                {existingEnrollment.reason && (
+                  <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, fontFamily: "var(--font-body)" }}>
+                    Reason: {existingEnrollment.reason}
+                  </span>
+                )}
+                <div>
+                  <Button icon="clipboard-list" onClick={handleRequest} disabled={enrolling}>
+                    {enrolling ? "Requesting…" : "Request Again"}
+                  </Button>
+                </div>
+              </div>
             )}
             <Button
               variant="secondary-light"
@@ -123,7 +132,7 @@ export default function BrowseCourseDetailPage() {
         </div>
 
         <div style={{ width: 140, borderRadius: 14, overflow: "hidden", flexShrink: 0, position: "relative" }}>
-          <CourseCover alt={course.title} />
+          <CourseCover title={course.title} alt={course.title} />
         </div>
       </div>
 

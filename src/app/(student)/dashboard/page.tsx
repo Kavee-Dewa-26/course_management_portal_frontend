@@ -81,7 +81,7 @@ export default function StudentDashboardPage() {
       <div className="my-grid">
         {STUDENT_IN_PROGRESS.map((c) => (
           <article key={c.id} className="course-card my-card" onClick={() => goCourse(c)}>
-            <CourseCover kind={c.kind} emblem={c.emblem} tag={c.tag} />
+            <CourseCover title={c.title} tag={c.tag} />
             <div className="body">
               <div className="meta">
                 <span>
@@ -120,7 +120,7 @@ export default function StudentDashboardPage() {
       <div className="my-grid">
         {STUDENT_ENROLLED_NOT_STARTED.map((c) => (
           <article key={c.id} className="course-card my-card" onClick={() => goCourse(c)}>
-            <CourseCover kind={c.kind} emblem={c.emblem} tag={c.tag} />
+            <CourseCover title={c.title} tag={c.tag} />
             <div className="body">
               <div className="meta">
                 <span>

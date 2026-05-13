@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/Button";
 import { CourseCover } from "@/components/ui/CourseCover";
 import { Icon } from "@/components/ui/Icon";
 import { useCourses } from "@/application/hooks/useCourses";
-import { useEnrollmentRequests } from "@/application/hooks/useEnrollmentRequests";
+import { useEnrollments } from "@/application/hooks/useEnrollments";
 
 export default function BrowseCoursesPage() {
   const router = useRouter();
-  const { getStatus } = useEnrollmentRequests();
+  const { getStatus } = useEnrollments();
   const Q = useCourses({ limit: 24 });
 
   return (
@@ -71,7 +71,7 @@ export default function BrowseCoursesPage() {
                   style={{ cursor: "pointer" }}
                   onClick={() => router.push(`/browse-courses/${c.id}`)}
                 >
-                  <CourseCover alt={c.title} />
+                  <CourseCover title={c.title} alt={c.title} />
                   <div className="body">
                     <div className="meta">
                       <span>
@@ -81,7 +81,7 @@ export default function BrowseCoursesPage() {
                     </div>
                     <h3>{c.title}</h3>
                     <div style={{ marginTop: "auto" }}>
-                      {status === "enrolled" && <Badge tone="success">Enrolled</Badge>}
+                      {status === "approved" && <Badge tone="success">Enrolled</Badge>}
                       {status === "pending" && <Badge tone="warning">Pending Approval</Badge>}
                       {status === "available" && <Badge tone="info">Available</Badge>}
                     </div>
