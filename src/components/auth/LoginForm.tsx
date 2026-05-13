@@ -13,6 +13,7 @@ import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
 import { setUser, type SessionUser, type Role } from "@/application/slices/sessionSlice";
+import { ForgotPasswordModal } from "./ForgotPasswordModal";
 
 const DASHBOARD_BY_ROLE: Record<Role, string> = {
   student: "/dashboard",
@@ -27,6 +28,7 @@ export function LoginForm() {
   const [pw, setPw] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [pwError, setPwError] = useState("");
   const [formError, setFormError] = useState("");
@@ -199,9 +201,22 @@ export function LoginForm() {
           <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input type="checkbox" defaultChecked /> Remember me
           </label>
-          <a href="#" style={{ color: "inherit", textDecoration: "none", fontWeight: 600 }}>
+          <button
+            type="button"
+            onClick={() => setForgotOpen(true)}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              color: "inherit",
+              fontWeight: 600,
+              fontFamily: "var(--font-body)",
+              fontSize: 13,
+            }}
+          >
             Forgot password?
-          </a>
+          </button>
         </div>
         <div style={{ marginTop: 22 }}>
           <Button full size="lg" type="submit" disabled={loading}>
@@ -217,6 +232,12 @@ export function LoginForm() {
           </Link>
         </div>
       </div>
+
+      <ForgotPasswordModal
+        open={forgotOpen}
+        initialEmail={email}
+        onClose={() => setForgotOpen(false)}
+      />
     </>
   );
 }

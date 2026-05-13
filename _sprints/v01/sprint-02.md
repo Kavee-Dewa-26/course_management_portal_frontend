@@ -104,8 +104,8 @@
 - [x] Wire bulk approve → `POST /admin/registrations/bulk-approve`
 - [x] Handle partial bulk-approve failures in UI
 - [ ] Verify newly approved student can log in via Sprint 1 flow
-- [ ] Profile page loads from `GET /me`
-- [ ] Profile edit form → `PATCH /me`
-- [ ] Change password form → `POST /me/change-password`
-- [ ] Forgot password flow → `POST /auth/password-reset`
+- [x] Profile page loads from `GET /me`
+- [x] Profile edit form → `PATCH /me`
+- [x] Change password form → `POST /me/change-password`
+- [x] Forgot password flow → `POST /auth/password-reset`
 - [ ] Test full registration → approval → student login flow end-to-end

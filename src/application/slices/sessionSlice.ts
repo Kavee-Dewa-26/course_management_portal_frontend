@@ -13,6 +13,8 @@ export interface SessionUser {
   firstName: string;
   lastName: string;
   profilePhotoUrl: string | null;
+  createdAt?: string;
+  updatedAt?: string;
   name?: string;
   avatar?: string;
 }
