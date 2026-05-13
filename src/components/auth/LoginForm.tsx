@@ -66,7 +66,24 @@ export function LoginForm() {
       // Step 2: Get profile from backend
       const me = await apiRequest<SessionUser>("/me");
 
-      // Step 3: Store and redirect
+      // Step 3: Check account status before allowing access
+      if (me.status === "pending_approval") {
+        await auth.signOut();
+        setFormError("Your account is pending admin approval. You will receive an email once approved.");
+        return;
+      }
+      if (me.status === "suspended") {
+        await auth.signOut();
+        setFormError("Your account has been suspended. Please contact support.");
+        return;
+      }
+      if (me.status === "rejected") {
+        await auth.signOut();
+        setFormError("Your registration was not approved. Please contact support.");
+        return;
+      }
+
+      // Step 4: Store and redirect
       dispatch(setUser(me));
       dispatch(
         pushToast({
