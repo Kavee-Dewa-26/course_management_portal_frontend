@@ -2,9 +2,10 @@
 
 import { usePathname } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 import { SUPERADMIN_NAV } from "@/components/layout/RoleNav";
 import { SUPER_NOTIFS } from "@/lib/mock/notifications";
-import { SUPERADMIN } from "@/lib/mock/users";
+import { useSessionUser } from "@/application/hooks/useSessionUser";
 
 const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
   { test: /^\/super-admin\/dashboard/, title: "Super Admin" },
@@ -25,16 +26,19 @@ const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const title = TITLE_MAP.find((m) => m.test.test(pathname))?.title ?? "Super Admin";
+  const user = useSessionUser();
   return (
-    <AppShell
-      navItems={SUPERADMIN_NAV}
-      user={SUPERADMIN}
-      roleLabel="Super Admin"
-      title={title}
-      notifications={SUPER_NOTIFS}
-      dashboardHref="/super-admin/dashboard"
-    >
-      {children}
-    </AppShell>
+    <AuthGuard allowedRoles={["super_admin"]}>
+      <AppShell
+        navItems={SUPERADMIN_NAV}
+        user={user}
+        roleLabel="Super Admin"
+        title={title}
+        notifications={SUPER_NOTIFS}
+        dashboardHref="/super-admin/dashboard"
+      >
+        {children}
+      </AppShell>
+    </AuthGuard>
   );
 }

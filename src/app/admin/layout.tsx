@@ -2,9 +2,10 @@
 
 import { usePathname } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ADMIN_NAV } from "@/components/layout/RoleNav";
 import { ADMIN_NOTIFS } from "@/lib/mock/notifications";
-import { ADMIN } from "@/lib/mock/users";
+import { useSessionUser } from "@/application/hooks/useSessionUser";
 
 const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
   { test: /^\/admin\/dashboard/, title: "Admin Dashboard" },
@@ -24,16 +25,19 @@ const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const title = TITLE_MAP.find((m) => m.test.test(pathname))?.title ?? "Admin";
+  const user = useSessionUser();
   return (
-    <AppShell
-      navItems={ADMIN_NAV}
-      user={ADMIN}
-      roleLabel="Administrator"
-      title={title}
-      notifications={ADMIN_NOTIFS}
-      dashboardHref="/admin/dashboard"
-    >
-      {children}
-    </AppShell>
+    <AuthGuard allowedRoles={["admin", "super_admin"]}>
+      <AppShell
+        navItems={ADMIN_NAV}
+        user={user}
+        roleLabel="Administrator"
+        title={title}
+        notifications={ADMIN_NOTIFS}
+        dashboardHref="/admin/dashboard"
+      >
+        {children}
+      </AppShell>
+    </AuthGuard>
   );
 }

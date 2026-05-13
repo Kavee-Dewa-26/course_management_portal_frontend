@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Avatar } from "@/components/ui/Avatar";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
-import { avatarUrl } from "@/lib/kit";
 
 interface Props {
   children: React.ReactNode;
@@ -50,14 +48,33 @@ export function AuthSplit({ children, variant = "login" }: Props) {
                 Sign in to continue your course plan, see your progress and pick the next subject.
               </p>
             </div>
-            <div className="quote" style={{ position: "relative" }}>
-              <p className="text">
-                &ldquo;Coming back to studying after years felt impossible, until EduPath
-                structured it for me.&rdquo;
-              </p>
-              <div className="who">
-                <Avatar src={avatarUrl(32)} size="sm" name="Priya M." /> Priya M., learner
-              </div>
+
+            {/* Quick highlights for returning learners */}
+            <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 12 }}>
+              {[
+                { ico: "play-circle",  label: "Resume where you left off" },
+                { ico: "trending-up",  label: "See your weekly progress at a glance" },
+                { ico: "bell",         label: "Stay on top of approvals and updates" },
+              ].map((f) => (
+                <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: "rgba(188,233,85,0.12)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: "#BCE955", flexShrink: 0,
+                  }}>
+                    <Icon name={f.ico} size={16} />
+                  </span>
+                  <span style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: 14,
+                    color: "rgba(255,255,255,0.85)",
+                    fontWeight: 500,
+                  }}>
+                    {f.label}
+                  </span>
+                </div>
+              ))}
             </div>
           </>
         ) : (
