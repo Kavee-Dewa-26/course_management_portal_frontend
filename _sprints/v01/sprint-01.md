@@ -106,10 +106,12 @@
 - [x] Implement logout (`signOut` + `POST /auth/logout` + clear session)
 - [x] Remove role toggle from `LoginForm`
 - [x] Add login inline errors
-- [ ] Add route guard to admin layout (Branch 2)
-- [ ] Add route guard to super-admin layout (Branch 2)
-- [ ] Add route guard to student layout (Branch 2)
-- [ ] Test login as admin → redirects to `/admin/dashboard` (needs Firebase keys + admin account)
-- [ ] Test login as super admin → redirects to `/super-admin/dashboard` (needs Firebase keys + super admin account)
-- [ ] Test login as student (approved) → redirects to `/dashboard` (needs Firebase keys + approved student)
-- [ ] Test accessing `/admin` without auth → redirects to `/login` (Branch 2)
+- [x] Add route guard to admin layout
+- [x] Add route guard to super-admin layout
+- [x] Add route guard to student layout
+- [ ] Test login as admin → redirects to `/admin/dashboard` (needs admin account in Firebase)
+- [x] Test login as super admin → redirects to `/super-admin/dashboard` (verified working)
+- [ ] Test login as student (approved) → redirects to `/dashboard` (needs approved student)
+- [ ] Test accessing `/admin` without auth → redirects to `/login`
+
+**Status: Sprint 1 complete (Branch 2 pending PR + merge).**
