@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLink } from "@/components/ui/ArrowLink";
@@ -10,28 +9,11 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
 import { FloatingNav } from "@/components/layout/FloatingNav";
-import { FEATURED_COURSES } from "@/lib/mock/courses";
-import { cn } from "@/lib/cn";
-
-const ALL_TAGS = ["All", ...Array.from(new Set(FEATURED_COURSES.map((c) => c.tag)))];
+import { useCourses } from "@/application/hooks/useCourses";
 
 export default function PublicCoursesPage() {
   const router = useRouter();
-  const [query, setQuery] = useState("");
-  const [activeTag, setActiveTag] = useState("All");
-
-  const filtered = useMemo(() => {
-    return FEATURED_COURSES.filter((c) => {
-      const matchesTag = activeTag === "All" || c.tag === activeTag;
-      const q = query.toLowerCase();
-      const matchesQuery =
-        q === "" ||
-        c.title.toLowerCase().includes(q) ||
-        (c.desc ?? "").toLowerCase().includes(q) ||
-        c.tag.toLowerCase().includes(q);
-      return matchesTag && matchesQuery;
-    });
-  }, [query, activeTag]);
+  const Q = useCourses({ limit: 12, authenticated: false });
 
   return (
     <div className="public">
@@ -71,8 +53,8 @@ export default function PublicCoursesPage() {
           }}>
             <Icon name="search" size={16} style={{ color: "rgba(255,255,255,0.5)", flexShrink: 0 }} />
             <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={Q.search}
+              onChange={(e) => Q.setSearch(e.target.value)}
               placeholder="Search courses..."
               style={{
                 background: "transparent",
@@ -84,8 +66,8 @@ export default function PublicCoursesPage() {
                 width: "100%",
               }}
             />
-            {query && (
-              <button onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", padding: 0, lineHeight: 1 }}>
+            {Q.search && (
+              <button onClick={() => Q.setSearch("")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", padding: 0, lineHeight: 1 }}>
                 <Icon name="x" size={14} />
               </button>
             )}
@@ -95,58 +77,67 @@ export default function PublicCoursesPage() {
 
       <section className="section section--white" style={{ paddingTop: 40 }}>
         <div className="container-x">
-          {/* Tag filter chips */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 28 }}>
-            {ALL_TAGS.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => setActiveTag(tag)}
-                className={cn("chip", activeTag === tag && "active")}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-
           {/* Results count */}
           <div style={{ marginBottom: 20, fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)" }}>
-            {filtered.length === 0
-              ? "No courses match your search."
-              : `${filtered.length} course${filtered.length !== 1 ? "s" : ""} found`}
+            {Q.loading
+              ? "Loading…"
+              : Q.total === 0
+                ? "No courses match your search."
+                : `${Q.total} course${Q.total !== 1 ? "s" : ""} available`}
           </div>
 
-          {filtered.length > 0 ? (
-            <div className="course-grid" style={{ marginTop: 0 }}>
-              {filtered.map((c) => (
-                <article
-                  key={c.id}
-                  className="course-card"
-                  onClick={() => router.push(`/courses/${c.id}`)}
-                >
-                  <CourseCover kind={c.kind} emblem={c.emblem} tag={c.tag} />
-                  <div className="body">
-                    <div className="meta">
-                      <span><Icon name="clock" size={12} />{c.time}</span>
-                      <span><Icon name="layers" size={12} />{c.lessons}</span>
-                    </div>
-                    <h3>{c.title}</h3>
-                    <p>{c.desc}</p>
-                    <ArrowLink>Learn More</ArrowLink>
-                  </div>
-                </article>
-              ))}
+          {Q.loading && Q.items.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "48px 0", color: "var(--color-body-green)" }}>
+              <Icon name="loader" size={24} style={{ opacity: 0.4 }} />
+              <p style={{ marginTop: 12, fontFamily: "var(--font-body)", fontSize: 14 }}>Loading courses…</p>
             </div>
+          ) : Q.items.length > 0 ? (
+            <>
+              <div className="course-grid" style={{ marginTop: 0 }}>
+                {Q.items.map((c) => (
+                  <article
+                    key={c.id}
+                    className="course-card"
+                    onClick={() => router.push(`/courses/${c.id}`)}
+                  >
+                    <CourseCover imageUrl={c.coverImageUrl} alt={c.title} />
+                    <div className="body">
+                      <div className="meta">
+                        <span><Icon name="layers" size={12} />{c.semesterCount} {c.semesterCount === 1 ? "module" : "modules"}</span>
+                        {c.createdByName && <span><Icon name="user" size={12} />{c.createdByName}</span>}
+                      </div>
+                      <h3>{c.title}</h3>
+                      <p>{c.description}</p>
+                      <ArrowLink>Learn More</ArrowLink>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {(Q.hasNext || Q.hasPrev) && (
+                <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 32 }}>
+                  <Button variant="secondary" icon="chevron-left" disabled={!Q.hasPrev} onClick={Q.prevPage}>
+                    Previous
+                  </Button>
+                  <Button variant="secondary" iconAfter="chevron-right" disabled={!Q.hasNext} onClick={Q.nextPage}>
+                    Next
+                  </Button>
+                </div>
+              )}
+            </>
           ) : (
             <div style={{ textAlign: "center", padding: "48px 0", color: "var(--color-body-green)", fontFamily: "var(--font-body)" }}>
               <Icon name="search" size={32} style={{ marginBottom: 12, opacity: 0.3 }} />
               <p style={{ margin: 0, fontWeight: 600 }}>No courses found</p>
-              <p style={{ margin: "6px 0 0", fontSize: 13 }}>Try a different search term or clear the filter.</p>
-              <button
-                onClick={() => { setQuery(""); setActiveTag("All"); }}
-                style={{ marginTop: 16, background: "none", border: "1px solid var(--color-stroke)", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 13 }}
-              >
-                Clear filters
-              </button>
+              <p style={{ margin: "6px 0 0", fontSize: 13 }}>Try a different search term.</p>
+              {Q.search && (
+                <button
+                  onClick={() => Q.setSearch("")}
+                  style={{ marginTop: 16, background: "none", border: "1px solid var(--color-stroke)", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 13 }}
+                >
+                  Clear search
+                </button>
+              )}
             </div>
           )}
 

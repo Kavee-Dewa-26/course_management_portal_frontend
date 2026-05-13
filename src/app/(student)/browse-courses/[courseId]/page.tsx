@@ -1,11 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { CourseCover } from "@/components/ui/CourseCover";
 import { Icon } from "@/components/ui/Icon";
-import { FEATURED_COURSES, COURSE_VIEWER_SEMESTERS } from "@/lib/mock/courses";
+import { useCourse } from "@/application/hooks/useCourses";
 import { useEnrollmentRequests } from "@/application/hooks/useEnrollmentRequests";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
@@ -16,8 +17,30 @@ export default function BrowseCourseDetailPage() {
   const dispatch = useAppDispatch();
   const { getStatus, requestEnrollment } = useEnrollmentRequests();
 
-  const course = FEATURED_COURSES.find((c) => c.id === params.courseId) ?? FEATURED_COURSES[0];
+  const { course, loading, error } = useCourse(params.courseId);
+
+  useEffect(() => {
+    if (error?.status === 404) {
+      router.replace("/browse-courses");
+    }
+  }, [error, router]);
+
+  if (loading) {
+    return (
+      <div className="page">
+        <div style={{ textAlign: "center", padding: "48px 0", color: "var(--color-body-green)" }}>
+          <Icon name="loader" size={24} style={{ opacity: 0.4 }} />
+          <p style={{ marginTop: 12, fontFamily: "var(--font-body)", fontSize: 14 }}>Loading course…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!course) return null;
+
   const status = getStatus(course.id);
+  const totalSubjects =
+    course.semesters?.reduce((sum, s) => sum + (s.subjectCount ?? s.subjects?.length ?? 0), 0) ?? 0;
 
   const handleRequest = () => {
     requestEnrollment(course.id);
@@ -48,22 +71,28 @@ export default function BrowseCourseDetailPage() {
         }}
       >
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ marginBottom: 12 }}><Badge tone="info">{course.tag}</Badge></div>
           <h1 style={{ color: "#fff", margin: "8px 0 10px", fontSize: 28, fontFamily: "var(--font-heading)" }}>
             {course.title}
           </h1>
-          {course.desc && (
+          {course.description && (
             <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 15, margin: "0 0 20px", lineHeight: 1.5, maxWidth: 520 }}>
-              {course.desc}
+              {course.description}
             </p>
           )}
-          <div style={{ display: "flex", gap: 20, color: "rgba(255,255,255,0.65)", fontSize: 13, fontFamily: "var(--font-body)", marginBottom: 24 }}>
+          <div style={{ display: "flex", gap: 20, color: "rgba(255,255,255,0.65)", fontSize: 13, fontFamily: "var(--font-body)", marginBottom: 24, flexWrap: "wrap" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name="clock" size={14} /> {course.time}
+              <Icon name="layers" size={14} /> {course.semesterCount} {course.semesterCount === 1 ? "module" : "modules"}
             </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name="layers" size={14} /> {course.lessons}
-            </span>
+            {totalSubjects > 0 && (
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Icon name="play-circle" size={14} /> {totalSubjects} {totalSubjects === 1 ? "subject" : "subjects"}
+              </span>
+            )}
+            {course.createdByName && (
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Icon name="user" size={14} /> {course.createdByName}
+              </span>
+            )}
           </div>
 
           {/* CTA based on status */}
@@ -99,7 +128,7 @@ export default function BrowseCourseDetailPage() {
         </div>
 
         <div style={{ width: 140, borderRadius: 14, overflow: "hidden", flexShrink: 0, position: "relative" }}>
-          <CourseCover kind={course.kind} emblem={course.emblem} />
+          <CourseCover imageUrl={course.coverImageUrl} alt={course.title} />
         </div>
       </div>
 
@@ -107,41 +136,47 @@ export default function BrowseCourseDetailPage() {
       <div className="settings-card">
         <h2>Syllabus</h2>
         <p className="settings-sub">Topics covered across all modules in this course.</p>
-        <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
-          {COURSE_VIEWER_SEMESTERS.map((sem) => (
-            <div
-              key={sem.id}
-              style={{
-                background: "var(--color-surface-2)",
-                border: "1px solid var(--color-stroke)",
-                borderRadius: 12,
-                padding: 16,
-              }}
-            >
-              <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-primary)", marginBottom: 10, fontFamily: "var(--font-heading)" }}>
-                {sem.title}
+        {course.semesters && course.semesters.length > 0 ? (
+          <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
+            {course.semesters.map((sem) => (
+              <div
+                key={sem.id}
+                style={{
+                  background: "var(--color-surface-2)",
+                  border: "1px solid var(--color-stroke)",
+                  borderRadius: 12,
+                  padding: 16,
+                }}
+              >
+                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-primary)", marginBottom: 10, fontFamily: "var(--font-heading)" }}>
+                  {sem.name}
+                </div>
+                <div style={{ display: "grid", gap: 6 }}>
+                  {sem.subjects?.map((s) => (
+                    <div
+                      key={s.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: 13,
+                        color: "var(--color-body-green)",
+                        fontFamily: "var(--font-body)",
+                      }}
+                    >
+                      <Icon name="play-circle" size={13} />
+                      {s.title}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{ display: "grid", gap: 6 }}>
-                {sem.subjects.map((s) => (
-                  <div
-                    key={s.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      fontSize: 13,
-                      color: "var(--color-body-green)",
-                      fontFamily: "var(--font-body)",
-                    }}
-                  >
-                    <Icon name="play-circle" size={13} />
-                    {s.title}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ marginTop: 12, color: "var(--color-body-green)", fontFamily: "var(--font-body)", fontSize: 13 }}>
+            The course curriculum is being prepared.
+          </p>
+        )}
       </div>
     </div>
   );
