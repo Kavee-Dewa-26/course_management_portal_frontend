@@ -97,12 +97,12 @@
 ---
 
 ## Checklist
-- [ ] Replace mock registration list with `GET /admin/registrations` API call
-- [ ] Add pagination to registration queue (nextCursor)
-- [ ] Wire approve action → `POST /admin/registrations/{id}/approve`
-- [ ] Wire reject action with reason input → `POST /admin/registrations/{id}/reject`
-- [ ] Wire bulk approve → `POST /admin/registrations/bulk-approve`
-- [ ] Handle partial bulk-approve failures in UI
+- [x] Replace mock registration list with `GET /admin/registrations` API call
+- [x] Add pagination to registration queue (nextCursor)
+- [x] Wire approve action → `POST /admin/registrations/{id}/approve`
+- [x] Wire reject action with reason input → `POST /admin/registrations/{id}/reject`
+- [x] Wire bulk approve → `POST /admin/registrations/bulk-approve`
+- [x] Handle partial bulk-approve failures in UI
 - [ ] Verify newly approved student can log in via Sprint 1 flow
 - [ ] Profile page loads from `GET /me`
 - [ ] Profile edit form → `PATCH /me`

@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { REHYDRATE } from "redux-persist";
 
 export type Role = "student" | "admin" | "super_admin";
 export type UserStatus = "pending_approval" | "approved" | "rejected" | "suspended";
@@ -12,17 +13,14 @@ export interface SessionUser {
   firstName: string;
   lastName: string;
   profilePhotoUrl: string | null;
-  // Legacy display fields for components that still expect them.
-  // Computed from firstName + lastName when setUser is called.
   name?: string;
   avatar?: string;
 }
 
-interface SessionState {
+export interface SessionState {
   user: SessionUser | null;
   role: Role | null;
   token: string | null;
-  /** True while initial Firebase auth state is being resolved on mount. */
   authResolving: boolean;
 }
 
@@ -65,6 +63,13 @@ const sessionSlice = createSlice({
       state.token = null;
       state.authResolving = false;
     },
+  },
+  extraReducers: (builder) => {
+    // When redux-persist rehydrates on page reload, reset authResolving to true
+    // so API hooks wait for Firebase to restore its session before fetching.
+    builder.addCase(REHYDRATE, (state) => {
+      state.authResolving = true;
+    });
   },
 });
 

@@ -1,11 +1,13 @@
 "use client";
 
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { SUPERADMIN_NAV } from "@/components/layout/RoleNav";
+import { SUPERADMIN_NAV, isLink } from "@/components/layout/RoleNav";
 import { SUPER_NOTIFS } from "@/lib/mock/notifications";
 import { useSessionUser } from "@/application/hooks/useSessionUser";
+import { useAppSelector } from "@/application/hooks/useAppSelector";
 
 const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
   { test: /^\/super-admin\/dashboard/, title: "Super Admin" },
@@ -27,10 +29,24 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
   const pathname = usePathname() ?? "";
   const title = TITLE_MAP.find((m) => m.test.test(pathname))?.title ?? "Super Admin";
   const user = useSessionUser();
+  const pendingRegistrations = useAppSelector((s) => s.ui.pendingRegistrations);
+  const pendingEnrollments = useAppSelector((s) => s.ui.pendingEnrollments);
+
+  const navItems = useMemo(
+    () =>
+      SUPERADMIN_NAV.map((item) => {
+        if (!isLink(item)) return item;
+        if (item.id === "registrations") return { ...item, count: pendingRegistrations };
+        if (item.id === "enrollments") return { ...item, count: pendingEnrollments };
+        return item;
+      }),
+    [pendingRegistrations, pendingEnrollments],
+  );
+
   return (
     <AuthGuard allowedRoles={["super_admin"]}>
       <AppShell
-        navItems={SUPERADMIN_NAV}
+        navItems={navItems}
         user={user}
         roleLabel="Super Admin"
         title={title}

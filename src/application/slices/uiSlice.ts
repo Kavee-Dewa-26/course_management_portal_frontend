@@ -18,12 +18,17 @@ interface UiState {
   toasts: ToastItem[];
   modal: ModalState | null;
   sidebarCollapsed: boolean;
+  /** Live counts shown in sidebar — kept in sync by approval queue hooks. */
+  pendingRegistrations: number;
+  pendingEnrollments: number;
 }
 
 const initialState: UiState = {
   toasts: [],
   modal: null,
   sidebarCollapsed: false,
+  pendingRegistrations: 0,
+  pendingEnrollments: 0,
 };
 
 const uiSlice = createSlice({
@@ -50,9 +55,22 @@ const uiSlice = createSlice({
     setSidebarCollapsed(state, action: PayloadAction<boolean>) {
       state.sidebarCollapsed = action.payload;
     },
+    setPendingRegistrations(state, action: PayloadAction<number>) {
+      state.pendingRegistrations = action.payload;
+    },
+    setPendingEnrollments(state, action: PayloadAction<number>) {
+      state.pendingEnrollments = action.payload;
+    },
   },
 });
 
-export const { pushToast, dismissToast, openModal, closeModal, setSidebarCollapsed } =
-  uiSlice.actions;
+export const {
+  pushToast,
+  dismissToast,
+  openModal,
+  closeModal,
+  setSidebarCollapsed,
+  setPendingRegistrations,
+  setPendingEnrollments,
+} = uiSlice.actions;
 export default uiSlice.reducer;
