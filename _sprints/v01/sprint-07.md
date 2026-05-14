@@ -89,13 +89,13 @@
 ---
 
 ## Checklist
-- [ ] "Mark Complete" button → `POST /progress/subjects/:id/complete`
-- [ ] Completed state persists on page reload (load from `GET /me/progress/subjects/:subjectId`)
-- [ ] Track access on subject open → `POST /progress/subjects/:id/access`
-- [ ] Course progress bar uses `GET /me/progress/courses/:courseId`
-- [ ] Progress re-fetches after marking complete
-- [ ] YouTube 90% threshold auto-complete
-- [ ] "Continue Learning" dashboard card links to `lastAccessedSubjectId`
-- [ ] Admin course progress table from `GET /admin/progress/courses/:courseId`
+- [x] "Mark Complete" button → `POST /progress/subjects/:id/complete`
+- [x] Completed state persists on page reload (loaded from `GET /me/progress/courses/:courseId` which returns `completedSubjectIds`)
+- [x] Track access on subject open → `POST /progress/subjects/:id/access`
+- [x] Course progress bar uses `GET /me/progress/courses/:courseId`
+- [x] Progress re-fetches after marking complete
+- [x] YouTube 90% threshold auto-complete (YouTube IFrame API)
+- [x] "Continue Learning" dashboard card links to `lastAccessedSubjectId`
+- [x] Admin course progress table from `GET /admin/progress/courses/:courseId`
 - [ ] Test: open subject → mark complete → verify progress bar updates
 - [ ] Test: reopen course → continues from last subject

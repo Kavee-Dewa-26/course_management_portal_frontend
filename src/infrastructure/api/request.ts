@@ -71,11 +71,25 @@ export async function apiRequest<T = unknown>(
   if (!res.ok) {
     const err = (json as { error?: { code?: string; message?: string; details?: Record<string, string[]> }; requestId?: string }).error;
 
-    // Session revoked or token expired — sign out and redirect to login.
+    // Session revoked or token expired — sign out, and only force-redirect to
+    // /login when the user is on a PROTECTED route. Public pages (landing,
+    // catalog, login, register) must stay reachable so 401s on background
+    // requests don't kick visitors out of the public site.
     if (res.status === 401) {
       signOut(auth).catch(() => null);
       if (typeof window !== "undefined") {
-        window.location.href = "/login";
+        const path = window.location.pathname;
+        const isProtected =
+          path.startsWith("/dashboard") ||
+          path.startsWith("/my-courses") ||
+          path.startsWith("/browse-courses") ||
+          path.startsWith("/profile") ||
+          path.startsWith("/notifications") ||
+          path.startsWith("/admin") ||
+          path.startsWith("/super-admin");
+        if (isProtected) {
+          window.location.href = "/login";
+        }
       }
     }
 

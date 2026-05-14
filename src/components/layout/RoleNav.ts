@@ -49,7 +49,6 @@ export const ADMIN_NAV: NavItem[] = [
   { id: "students", label: "Students", ico: "users", href: "/admin/students" },
   { group: "System" },
   { id: "profile", label: "Profile", ico: "user", href: "/admin/profile" },
-  { id: "audit", label: "Audit Log", ico: "shield", href: "/admin/audit-log" },
 ];
 
 export const SUPERADMIN_NAV: NavItem[] = [

@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { useCourse } from "@/application/hooks/useCourses";
+import { useAdminCourseProgress } from "@/application/hooks/useProgress";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { pushToast } from "@/application/slices/uiSlice";
@@ -73,6 +74,8 @@ export default function AdminCourseViewPage() {
   const params = useParams<{ courseId: string }>();
   const sessionUser = useAppSelector((s) => s.session.user);
   const { course, loading, error } = useCourse(sessionUser ? params.courseId : undefined);
+  const { items: progressRows, total: progressTotal, loading: progressLoading } =
+    useAdminCourseProgress(sessionUser ? params.courseId : undefined);
 
   // Lessons keyed by subjectId. Each list is fetched in parallel after course loads.
   const [lessonsBySubject, setLessonsBySubject] = useState<Record<string, Lesson[]>>({});
@@ -311,6 +314,77 @@ export default function AdminCourseViewPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Student progress table */}
+      <div className="settings-card">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h2 style={{ margin: 0 }}>Student progress</h2>
+          <span style={{ fontSize: 12, color: "var(--color-muted)", fontFamily: "var(--font-body)" }}>
+            {progressLoading ? "Loading…" : `${progressTotal} enrolled`}
+          </span>
+        </div>
+        {progressLoading && progressRows.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "var(--color-muted)" }}>
+            <Icon name="loader" size={18} />
+          </div>
+        ) : progressRows.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-muted)", fontFamily: "var(--font-body)", fontSize: 13 }}>
+            <Icon name="users" size={22} style={{ opacity: 0.35, marginBottom: 8 }} />
+            <p style={{ margin: 0 }}>No enrolled students yet.</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Progress</th>
+                  <th>Completed</th>
+                  <th>Last accessed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {progressRows.map((row) => {
+                  const fullName = `${row.firstName ?? ""} ${row.lastName ?? ""}`.trim();
+                  return (
+                    <tr key={row.studentUid}>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{fullName || row.studentUid.slice(0, 12) + "…"}</div>
+                        {row.email && (
+                          <div style={{ fontSize: 12, color: "var(--color-muted)", fontFamily: "var(--font-body)" }}>
+                            {row.email}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ minWidth: 180 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{ flex: 1, height: 6, background: "var(--color-light-gray)", borderRadius: 999, overflow: "hidden" }}>
+                            <div style={{
+                              width: `${row.completionPercent}%`,
+                              height: "100%",
+                              background: "#BCE955",
+                              transition: "width 300ms ease",
+                            }} />
+                          </div>
+                          <span style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, minWidth: 36, textAlign: "right" }}>
+                            {row.completionPercent}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="muted" style={{ whiteSpace: "nowrap" }}>
+                        {row.completedCount} / {row.totalSubjects}
+                      </td>
+                      <td className="muted" style={{ whiteSpace: "nowrap" }}>
+                        {formatDate(row.lastAccessedAt)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
