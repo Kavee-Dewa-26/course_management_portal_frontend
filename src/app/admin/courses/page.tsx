@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -34,6 +34,9 @@ function stateBadge(state: CourseSummary["state"]) {
 
 export default function AdminCoursesPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  // Detect whether we're rendered under /admin or /super-admin so navigation stays in the right layout.
+  const base = pathname?.startsWith("/super-admin") ? "/super-admin" : "/admin";
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
   const [toDelete, setToDelete] = useState<CourseSummary | null>(null);
 
@@ -67,7 +70,7 @@ export default function AdminCoursesPage() {
               ))}
             </select>
           </div>
-          <Button icon="plus" onClick={() => router.push("/admin/courses/new")}>
+          <Button icon="plus" onClick={() => router.push(`${base}/courses/new`)}>
             Add course
           </Button>
         </div>
@@ -90,7 +93,7 @@ export default function AdminCoursesPage() {
             <thead>
               <tr>
                 <th>Course</th>
-                <th>Structure</th>
+                <th>Semesters</th>
                 <th>Updated</th>
                 <th>Status</th>
                 <th style={{ textAlign: "right" }}>Action</th>
@@ -125,7 +128,7 @@ export default function AdminCoursesPage() {
                     </div>
                   </td>
                   <td className="muted" style={{ whiteSpace: "nowrap" }}>
-                    {c.semesterCount} {c.semesterCount === 1 ? "module" : "modules"}
+                    {c.semesterCount} {c.semesterCount === 1 ? "semester" : "semesters"}
                   </td>
                   <td className="muted" style={{ whiteSpace: "nowrap" }}>
                     {formatDate(c.updatedAt ?? c.publishedAt ?? c.createdAt)}
@@ -136,32 +139,15 @@ export default function AdminCoursesPage() {
                       ariaLabel={`Actions for ${c.title}`}
                       items={[
                         {
+                          label: "View",
+                          ico: "eye",
+                          onClick: () => router.push(`${base}/courses/${c.id}/view`),
+                        },
+                        {
                           label: "Edit",
                           ico: "edit-3",
-                          onClick: () => router.push(`/admin/courses/${c.id}`),
+                          onClick: () => router.push(`${base}/courses/${c.id}`),
                         },
-                        // Publish/Unpublish — conditional on state
-                        ...(c.state === "draft"
-                          ? [{
-                              label: "Publish",
-                              ico: "upload-cloud",
-                              onClick: () => Q.publish(c.id),
-                            }]
-                          : c.state === "published"
-                            ? [{
-                                label: "Unpublish",
-                                ico: "download-cloud",
-                                onClick: () => Q.unpublish(c.id),
-                              }]
-                            : []),
-                        // Archive (not on archived ones)
-                        ...(c.state !== "archived"
-                          ? [{
-                              label: "Archive",
-                              ico: "archive",
-                              onClick: () => Q.archive(c.id),
-                            }]
-                          : []),
                         {
                           label: "Delete",
                           ico: "trash-2",

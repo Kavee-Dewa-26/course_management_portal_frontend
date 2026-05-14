@@ -11,7 +11,8 @@ import { useEnrollments } from "@/application/hooks/useEnrollments";
 export default function BrowseCoursesPage() {
   const router = useRouter();
   const { getStatus } = useEnrollments();
-  const Q = useCourses({ limit: 24 });
+  // Students only see published courses (even when an admin happens to be logged in).
+  const Q = useCourses({ limit: 24, state: "published" });
 
   return (
     <div className="page">
@@ -76,7 +77,7 @@ export default function BrowseCoursesPage() {
                     <div className="meta">
                       <span>
                         <Icon name="layers" size={12} />
-                        {c.semesterCount} {c.semesterCount === 1 ? "module" : "modules"}
+                        {c.semesterCount} {c.semesterCount === 1 ? "semester" : "semesters"}
                       </span>
                     </div>
                     <h3>{c.title}</h3>

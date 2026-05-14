@@ -237,6 +237,47 @@ export function useCourses({
 }
 
 /**
+ * Fetch course + structure. The detail endpoint OFTEN returns an empty
+ * semesters[] even when semesterCount > 0, so we fall back to listing
+ * semesters and their subjects through the standard REST routes.
+ */
+async function fetchCourseWithStructure(
+  courseId: string,
+  authenticated: boolean,
+): Promise<CourseDetail> {
+  // Step 1 — get the course (always works)
+  const course = await apiRequest<CourseDetail>(`/courses/${courseId}`, { auth: authenticated });
+
+  // Step 2 — if backend already gave us a populated tree, done.
+  if (course.semesters && course.semesters.length > 0) return course;
+
+  // Step 3 — fallback: list semesters separately, then their subjects in parallel.
+  try {
+    const semesters = await apiRequest<Semester[]>(
+      `/courses/${courseId}/semesters`,
+      { auth: authenticated },
+    );
+    const enriched = await Promise.all(
+      (semesters ?? []).map(async (sem) => {
+        try {
+          const subjects = await apiRequest<Subject[]>(
+            `/semesters/${sem.id}/subjects`,
+            { auth: authenticated },
+          );
+          return { ...sem, subjects: subjects ?? [] };
+        } catch {
+          return { ...sem, subjects: [] };
+        }
+      }),
+    );
+    return { ...course, semesters: enriched };
+  } catch {
+    // Fallback endpoints don't exist — return what we have.
+    return course;
+  }
+}
+
+/**
  * Get a single course with its full semester/subject tree.
  * - `GET /courses/:id`
  * - 404 → returns null + redirects (caller handles)
@@ -254,7 +295,7 @@ export function useCourse(courseId: string | undefined, authenticated = true) {
     setLoading(true);
     setError(null);
 
-    apiRequest<CourseDetail>(`/courses/${courseId}`, { auth: authenticated })
+    fetchCourseWithStructure(courseId, authenticated)
       .then((data) => {
         if (cancelled) return;
         setCourse(data);

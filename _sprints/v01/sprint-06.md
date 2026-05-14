@@ -116,20 +116,19 @@
 ---
 
 ## Checklist
-- [ ] Semester list loads from `GET /courses/:id` response
-- [ ] Add semester → `POST /courses/:id/semesters`
-- [ ] Edit semester → `PATCH /semesters/:id`
-- [ ] Delete semester with confirm → `DELETE /semesters/:id`
-- [ ] Add subject → `POST /semesters/:id/subjects`
-- [ ] Edit subject → `PATCH /subjects/:id`
-- [ ] Delete subject with confirm → `DELETE /subjects/:id`
-- [ ] Validate YouTube URL client-side
-- [ ] Lesson list → `GET /subjects/:id/lessons`
-- [ ] Add lesson → `POST /subjects/:id/lessons`
-- [ ] Edit lesson → `PATCH /lessons/:id`
-- [ ] Delete lesson → `DELETE /lessons/:id`
-- [ ] Attachment upload (multipart) → `POST /subjects/:id/attachments`
-- [ ] File type and size validation before upload
-- [ ] Attachment download → `GET /attachments/:id/download-url`
-- [ ] Attachment delete → `DELETE /attachments/:id`
+- [x] Semester list loads from `GET /courses/:id` response
+- [x] Add semester → `POST /courses/:id/semesters`
+- [x] Edit semester → `PATCH /semesters/:id`
+- [x] Delete semester with confirm → `DELETE /semesters/:id`
+- [x] Add subject → `POST /semesters/:id/subjects`
+- [x] Edit subject → `PATCH /subjects/:id`
+- [x] Delete subject with confirm → `DELETE /subjects/:id`
+- [x] Lesson list → `GET /subjects/:id/lessons`
+- [x] Add lesson → `POST /subjects/:id/lessons`
+- [x] Edit lesson → `PATCH /lessons/:id`
+- [x] Delete lesson → `DELETE /lessons/:id`
+- [x] Attachment upload (multipart) → `POST /subjects/:id/attachments`
+- [x] File type and size validation before upload
+- [x] Attachment download → `GET /attachments/:id/download-url`
+- [x] Attachment delete → `DELETE /attachments/:id`
 - [ ] Test full course build: create course → add semester → add subject → add lesson → publish

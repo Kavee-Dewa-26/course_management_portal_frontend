@@ -15,6 +15,7 @@ const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
   { test: /^\/admin\/enrollments/, title: "Enrollments" },
   { test: /^\/admin\/courses\/new/, title: "New course" },
   { test: /^\/admin\/courses\/[^/]+\/publish/, title: "Publish course" },
+  { test: /^\/admin\/courses\/[^/]+\/view/, title: "Course details" },
   { test: /^\/admin\/courses\/[^/]+/, title: "Edit course" },
   { test: /^\/admin\/courses/, title: "Courses" },
   { test: /^\/admin\/students\/[^/]+/, title: "Student" },
