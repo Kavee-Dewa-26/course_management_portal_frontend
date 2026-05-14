@@ -1,8 +1,8 @@
-# Sprint 8: Notifications, User Management, Admin Management & Audit Log
+# Sprint 8: Notifications, User Management, Admin Management, Audit Log & Dashboards
 
-**Goal:** Wire up the final feature set — real-time notifications, admin user/admin management, and the live audit log.
+**Goal:** Wire up the final feature set — real-time notifications, admin user/admin management, live audit log, and real-data admin / super-admin dashboards.
 **Estimated effort:** L
-**Depends on:** Sprint 1 (auth), Sprint 2 (users exist in the system)
+**Depends on:** Sprint 1 (auth), Sprint 2 (users exist in the system), Sprint 7 (progress data for student dashboard)
 **Status:** Not started
 
 ---
@@ -12,8 +12,9 @@
 - `feature/user-management` — admin: list/suspend/reactivate students
 - `feature/admin-management` — super admin: list/create/suspend/reactivate/delete/promote admins
 - `feature/audit-log` — real audit log with API filters
+- `feature/dashboards` — admin & super-admin dashboard widgets wired to real APIs *(do last — depends on most other branches landing first)*
 
-> Four separate branches — each can be reviewed and merged independently.
+> Five separate branches — each can be reviewed and merged independently.
 
 ---
 
@@ -113,6 +114,35 @@
 
 ---
 
+### Admin & Super-Admin Dashboards
+**What to integrate (uses endpoints already brought in by other Sprint 8 branches + earlier sprints):**
+
+**Admin dashboard (`/admin/dashboard`):**
+- Pending registrations count → from `useRegistrationQueue` (Sprint 2)
+- Pending enrollments count → from `useAdminEnrollmentQueue` (Sprint 4)
+- Total courses → `GET /courses?limit=1` (read `total` field)
+- Total students → `GET /users?role=student&limit=1` (read `total`, this sprint)
+- Recent audit activity (last 5 items) → `GET /audit-log?limit=5` (this sprint)
+- Recent enrollments approved (last 5) → `GET /admin/enrollments?status=approved&limit=5` (Sprint 4)
+
+**Super-admin dashboard (`/super-admin/dashboard`):**
+- All admin tiles above PLUS:
+- Total admins → `GET /super-admin/admins?limit=1` (read `total`, this sprint)
+- Suspended student count → `GET /users?role=student&status=suspended&limit=1` (this sprint)
+- System-wide notifications snapshot (optional)
+
+**UI changes needed:**
+- Replace mock stat tiles with real counts
+- Replace mock "recent activity" list with real audit log entries
+- Skeleton loaders on each tile while data fetches
+- Each tile becomes a link to the relevant management page
+- Optional: small chart (last 7 days of registrations / enrollments) if backend exposes a daily aggregation endpoint — *otherwise skip*
+
+**Error states to handle:**
+- Per-tile silent failure: if one stat 500s, others still render; failed tile shows "—"
+
+---
+
 ## Checklist
 - [ ] Notification bell badge from `GET /me/notifications?read=false`
 - [ ] Notification list from API
@@ -134,4 +164,11 @@
 - [ ] Date range filter sends ISO `from`/`to` params
 - [ ] Category filter sends `category` param
 - [ ] Audit log pagination
+- [ ] Admin dashboard tiles (registrations, enrollments, courses, students) wired to real counts
+- [ ] Admin dashboard "Recent activity" pulls from `GET /audit-log?limit=5`
+- [ ] Super-admin dashboard adds admins + suspended-students tiles
+- [ ] Dashboard tile click navigates to the relevant management page
+- [ ] Skeleton loaders while dashboard tiles fetch
+- [ ] Per-tile silent failure (one 500 doesn't break others)
 - [ ] Test full notification flow: admin approves enrollment → student sees notification
+- [ ] Test admin dashboard reflects live counts (create registration → tile increments)
