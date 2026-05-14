@@ -1049,6 +1049,21 @@ svg.lucide { stroke-width: 1.75; }
 /* Generic section subtitle used on light-background sections */
 .dark .section-sub { color: rgba(255, 255, 255, 0.7); }
 
+/* Public landing — flip light/white sections to dark surface in dark mode so
+   section titles and eyebrows remain readable (they default to white text). */
+.dark .section--light,
+.dark .section--white { background: var(--color-surface); }
+.dark .section--light .section-title,
+.dark .section--white .section-title { color: #fff; }
+.dark .section--light .eyebrow,
+.dark .section--white .eyebrow { background: rgba(255, 255, 255, 0.10); color: #fff; }
+.dark .feature-card { background: var(--color-surface-2); border-color: var(--color-stroke); color: #fff; }
+.dark .feature-card h3 { color: #fff; }
+.dark .feature-card p { color: rgba(255, 255, 255, 0.7); }
+.dark .faq-item { background: var(--color-surface-2); border-color: var(--color-stroke); }
+.dark .faq-q { color: #fff; }
+.dark .faq-a { color: rgba(255, 255, 255, 0.75); }
+
 /* Feature card icon background */
 .dark .feature-card .ico { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.7); }
 

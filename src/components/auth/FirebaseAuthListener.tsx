@@ -59,6 +59,29 @@ export function FirebaseAuthListener({ children }: { children: React.ReactNode }
         if (me.status !== "approved") {
           await auth.signOut();
           dispatch(clearSession());
+          // Only redirect to /login if the user is currently on a PROTECTED route.
+          // Public pages (/, /login, /register, /courses) must be free to visit.
+          if (typeof window !== "undefined") {
+            const path = window.location.pathname;
+            const isProtected =
+              path.startsWith("/dashboard") ||
+              path.startsWith("/my-courses") ||
+              path.startsWith("/browse-courses") ||
+              path.startsWith("/profile") ||
+              path.startsWith("/notifications") ||
+              path.startsWith("/admin") ||
+              path.startsWith("/super-admin");
+            if (isProtected) {
+              const reason = me.status === "suspended"
+                ? "suspended"
+                : me.status === "pending_approval"
+                  ? "pending"
+                  : me.status === "rejected"
+                    ? "rejected"
+                    : "unauthorized";
+              window.location.href = `/login?reason=${reason}`;
+            }
+          }
           return;
         }
 
@@ -67,6 +90,19 @@ export function FirebaseAuthListener({ children }: { children: React.ReactNode }
         if (err instanceof ApiRequestError && (err.status === 401 || err.status === 403)) {
           await auth.signOut();
           dispatch(clearSession());
+          // Same rule — only kick to /login from protected routes.
+          if (typeof window !== "undefined" && err.status === 403) {
+            const path = window.location.pathname;
+            const isProtected =
+              path.startsWith("/dashboard") ||
+              path.startsWith("/my-courses") ||
+              path.startsWith("/browse-courses") ||
+              path.startsWith("/profile") ||
+              path.startsWith("/notifications") ||
+              path.startsWith("/admin") ||
+              path.startsWith("/super-admin");
+            if (isProtected) window.location.href = "/login?reason=suspended";
+          }
         }
       } finally {
         dispatch(setAuthResolving(false));

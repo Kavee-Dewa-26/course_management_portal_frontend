@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { Button } from "@/components/ui/Button";
@@ -23,6 +23,7 @@ const DASHBOARD_BY_ROLE: Record<Role, string> = {
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -32,6 +33,19 @@ export function LoginForm() {
   const [emailError, setEmailError] = useState("");
   const [pwError, setPwError] = useState("");
   const [formError, setFormError] = useState("");
+
+  // Read ?reason=... set by FirebaseAuthListener when a session is forcibly ended.
+  useEffect(() => {
+    const reason = searchParams?.get("reason");
+    if (!reason) return;
+    if (reason === "suspended") {
+      setFormError("Your account has been suspended. Please contact support if you believe this is a mistake.");
+    } else if (reason === "pending") {
+      setFormError("Your account is still pending admin approval. You will receive an email once approved.");
+    } else if (reason === "rejected") {
+      setFormError("Your account registration was rejected. Please contact support.");
+    }
+  }, [searchParams]);
 
   const clearErrors = () => {
     setEmailError("");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,8 @@ import { CourseCover } from "@/components/ui/CourseCover";
 import { Icon } from "@/components/ui/Icon";
 import { useEnrollments, type Enrollment } from "@/application/hooks/useEnrollments";
 import { useCourses, type CourseSummary } from "@/application/hooks/useCourses";
+import { apiRequest } from "@/infrastructure/api/request";
+import type { CourseProgress } from "@/application/hooks/useProgress";
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -47,6 +49,30 @@ export default function MyCoursesPage() {
   const pending  = visible.filter((e) => e.state === "pending");
   const rejected = visible.filter((e) => e.state === "rejected");
   const withdrawn = visible.filter((e) => e.state === "withdrawn");
+
+  // Fetch progress for every approved enrollment in PARALLEL.
+  const [progressById, setProgressById] = useState<Record<string, CourseProgress | null>>({});
+  useEffect(() => {
+    if (approved.length === 0) { setProgressById({}); return; }
+    let cancelled = false;
+    Promise.allSettled(
+      approved.map(async (enr) => {
+        const p = await apiRequest<CourseProgress>(`/me/progress/courses/${enr.courseId}`);
+        return { courseId: enr.courseId, progress: p };
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      const map: Record<string, CourseProgress | null> = {};
+      for (const r of results) if (r.status === "fulfilled") map[r.value.courseId] = r.value.progress;
+      setProgressById(map);
+    });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approved.length, approved.map((e) => e.courseId).join(",")]);
+
+  // Split approved into "active" (< 100%) and "done" (= 100%).
+  const approvedActive = approved.filter((e) => (progressById[e.courseId]?.completionPercent ?? 0) < 100);
+  const approvedDone = approved.filter((e) => (progressById[e.courseId]?.completionPercent ?? 0) >= 100);
 
   const loading = E.loading || C.loading;
 
@@ -88,7 +114,7 @@ export default function MyCoursesPage() {
         </div>
         <div className="body">
           <div className="meta">
-            <span><Icon name="layers" size={12} />{semCount} {semCount === 1 ? "module" : "modules"}</span>
+            <span><Icon name="layers" size={12} />{semCount} {semCount === 1 ? "semester" : "semesters"}</span>
             <span><Icon name="calendar" size={12} />Requested {formatDate(e.createdAt)}</span>
           </div>
           <h3>{title}</h3>
@@ -177,13 +203,44 @@ export default function MyCoursesPage() {
         </div>
       )}
 
-      {approved.length > 0 && (
+      {approvedActive.length > 0 && (
         <>
           <div className="section-h" style={{ marginTop: 12 }}>
             <h3>Enrolled</h3>
-            <Badge tone="success">{approved.length}</Badge>
+            <Badge tone="success">{approvedActive.length}</Badge>
           </div>
-          <div className="my-grid">{approved.map(renderCard)}</div>
+          <div className="my-grid">{approvedActive.map(renderCard)}</div>
+        </>
+      )}
+
+      {approvedDone.length > 0 && (
+        <>
+          <div className="section-h" style={{ marginTop: 32 }}>
+            <h3>Done</h3>
+            <Badge tone="success">{approvedDone.length} completed</Badge>
+          </div>
+          <div className="my-grid">
+            {approvedDone.map((e) => {
+              const course = courseById.get(e.courseId);
+              const title = course?.title ?? "Course";
+              return (
+                <article
+                  key={e.id}
+                  className="course-card my-card"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => router.push(`/my-courses/${e.courseId}`)}
+                >
+                  <CourseCover title={title} tag="100% complete" />
+                  <div className="body">
+                    <h3>{title}</h3>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#4ade80", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600 }}>
+                      <Icon name="check-circle" size={14} /> Completed
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </>
       )}
 

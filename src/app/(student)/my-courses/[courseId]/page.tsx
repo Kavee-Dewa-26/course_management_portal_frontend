@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { useCourse } from "@/application/hooks/useCourses";
+import { useCourseProgress } from "@/application/hooks/useProgress";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { pushToast } from "@/application/slices/uiSlice";
 import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import { cn } from "@/lib/cn";
-import type { Subject } from "@/application/hooks/useCourses";
+import { YouTubePlayer } from "@/components/course/YouTubePlayer";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -24,13 +25,16 @@ interface Lesson {
   order?: number;
 }
 
-interface Attachment {
-  id: string;
+/** A lesson augmented with the semester/subject context (for sidebar + nav). */
+interface FlatLesson {
+  lesson: Lesson;
   subjectId: string;
-  filename: string;
-  mimeType: string;
-  sizeBytes: number;
-  createdAt: string;
+  subjectTitle: string;
+  semesterId: string;
+  semesterTitle: string;
+  semesterIndex: number;
+  subjectIndex: number;
+  lessonIndex: number;
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────────── */
@@ -47,10 +51,17 @@ function getYouTubeEmbedUrl(input: string | null | undefined): string | null {
   return null;
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function extractYouTubeId(input: string | null | undefined): string | null {
+  if (!input) return null;
+  const s = input.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
+  const watch = s.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (watch) return watch[1];
+  const short = s.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (short) return short[1];
+  const embed = s.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (embed) return embed[1];
+  return null;
 }
 
 /* ── Component ───────────────────────────────────────────────────────── */
@@ -63,92 +74,194 @@ export default function StudentCourseViewerPage() {
 
   const { course, loading } = useCourse(sessionUser ? params.courseId : undefined);
 
-  // localStorage key for per-course / per-user progress until backend adds an API.
-  const progressKey = sessionUser && params.courseId
-    ? `edupath.progress.${sessionUser.uid}.${params.courseId}`
-    : null;
+  // Real subject-level progress from the API.
+  const {
+    progress,
+    completedSet: completedSubjectsApi,
+    markComplete: markSubjectCompleteApi,
+    trackAccess,
+  } = useCourseProgress(sessionUser ? params.courseId : undefined);
 
-  const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
+  // Lesson-level state (UI tracks per-lesson; backend only tracks per-subject).
+  const [lessonsBySubject, setLessonsBySubject] = useState<Record<string, Lesson[]>>({});
+  const [lessonsLoading, setLessonsLoading] = useState(false);
+  const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
-  const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  // Restore completed lessons from localStorage on mount.
+  // Track which subjects we've already fired the backend "complete" call for
+  // in this session (idempotent on backend but avoids duplicate toasts).
+  const autoCompletedSubjects = useRef<Set<string>>(new Set());
+
+  // localStorage key for per-course / per-user lesson completion.
+  const progressKey = sessionUser && params.courseId
+    ? `edupath.lessons.${sessionUser.uid}.${params.courseId}`
+    : null;
+
+  /* ── Restore + persist lesson-level completion in localStorage ───── */
+
   useEffect(() => {
     if (!progressKey) return;
     try {
       const raw = localStorage.getItem(progressKey);
-      if (raw) {
-        const ids: string[] = JSON.parse(raw);
-        setCompleted(new Set(ids));
-      }
-    } catch { /* ignore corrupt data */ }
+      if (raw) setCompletedLessons(new Set(JSON.parse(raw) as string[]));
+    } catch { /* ignore */ }
   }, [progressKey]);
 
-  // Persist completed lessons to localStorage whenever they change.
   useEffect(() => {
     if (!progressKey) return;
     try {
-      localStorage.setItem(progressKey, JSON.stringify([...completed]));
-    } catch { /* ignore quota errors */ }
-  }, [progressKey, completed]);
+      localStorage.setItem(progressKey, JSON.stringify([...completedLessons]));
+    } catch { /* ignore */ }
+  }, [progressKey, completedLessons]);
 
-  // Flatten all subjects across semesters once (for prev/next nav).
-  const allSubjects: Array<Subject & { semesterTitle: string }> = useMemo(() => {
-    if (!course?.semesters) return [];
-    return course.semesters.flatMap((sem) =>
-      (sem.subjects ?? []).map((sub) => ({ ...sub, semesterTitle: sem.title })),
-    );
+  /* ── Fetch lessons for every subject in parallel (one call per subject) ── */
+
+  useEffect(() => {
+    const subjects = course?.semesters?.flatMap((s) => s.subjects ?? []) ?? [];
+    if (subjects.length === 0) { setLessonsBySubject({}); return; }
+    let cancelled = false;
+    setLessonsLoading(true);
+    Promise.allSettled(
+      subjects.map(async (sub) => {
+        const list = await apiRequest<Lesson[]>(`/subjects/${sub.id}/lessons`);
+        return { subjectId: sub.id, lessons: list ?? [] };
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      const map: Record<string, Lesson[]> = {};
+      for (const r of results) {
+        if (r.status === "fulfilled") {
+          map[r.value.subjectId] = [...r.value.lessons].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        }
+      }
+      setLessonsBySubject(map);
+    }).finally(() => { if (!cancelled) setLessonsLoading(false); });
+    return () => { cancelled = true; };
   }, [course?.semesters]);
 
-  // Auto-select first subject on course load.
-  useEffect(() => {
-    if (!activeSubjectId && allSubjects.length > 0) {
-      setActiveSubjectId(allSubjects[0].id);
-    }
-  }, [allSubjects, activeSubjectId]);
+  /* ── Build a FLAT ordered list of every lesson (for prev/next nav) ── */
 
-  // Fetch lessons whenever active subject changes.
-  useEffect(() => {
-    if (!activeSubjectId) { setLessons([]); setActiveLessonId(null); return; }
-    let cancelled = false;
-    apiRequest<Lesson[]>(`/subjects/${activeSubjectId}/lessons`)
-      .then((data) => {
-        if (cancelled) return;
-        const list = data ?? [];
-        setLessons(list);
-        setActiveLessonId(list[0]?.id ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) { setLessons([]); setActiveLessonId(null); }
+  const flatLessons: FlatLesson[] = useMemo(() => {
+    if (!course?.semesters) return [];
+    const out: FlatLesson[] = [];
+    course.semesters
+      .slice()
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .forEach((sem, semIndex) => {
+        (sem.subjects ?? [])
+          .slice()
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+          .forEach((sub, subIndex) => {
+            (lessonsBySubject[sub.id] ?? []).forEach((lesson, lessonIndex) => {
+              out.push({
+                lesson,
+                subjectId: sub.id,
+                subjectTitle: sub.title,
+                semesterId: sem.id,
+                semesterTitle: sem.title,
+                semesterIndex: semIndex,
+                subjectIndex: subIndex,
+                lessonIndex,
+              });
+            });
+          });
       });
-    return () => { cancelled = true; };
-  }, [activeSubjectId]);
+    return out;
+  }, [course?.semesters, lessonsBySubject]);
 
-  const activeSubject = allSubjects.find((s) => s.id === activeSubjectId) ?? null;
-  const activeLesson = lessons.find((l) => l.id === activeLessonId) ?? lessons[0] ?? null;
+  /* ── Active lesson + derived context ─────────────────────────────── */
 
-  // Progress tracking — local only (no API yet).
-  const total = allSubjects.length;
-  const pct = total === 0 ? 0 : Math.round((completed.size / total) * 100);
+  const activeIndex = activeLessonId
+    ? flatLessons.findIndex((f) => f.lesson.id === activeLessonId)
+    : -1;
+  const active = activeIndex >= 0 ? flatLessons[activeIndex] : null;
+  const prevLesson = activeIndex > 0 ? flatLessons[activeIndex - 1] : null;
+  const nextLesson = activeIndex >= 0 && activeIndex < flatLessons.length - 1 ? flatLessons[activeIndex + 1] : null;
 
-  const markComplete = () => {
-    if (!activeSubjectId || completed.has(activeSubjectId)) return;
-    setCompleted((prev) => new Set([...prev, activeSubjectId]));
-    dispatch(pushToast({
-      tone: "success",
-      title: "Lesson marked complete",
-      message: "Your progress was saved.",
-    }));
+  // Auto-select first lesson (or last accessed subject's first lesson) on load.
+  useEffect(() => {
+    if (activeLessonId || flatLessons.length === 0) return;
+    const lastSubjectId = progress?.lastAccessedSubjectId;
+    const candidate = lastSubjectId
+      ? flatLessons.find((f) => f.subjectId === lastSubjectId)
+      : flatLessons[0];
+    setActiveLessonId((candidate ?? flatLessons[0]).lesson.id);
+  }, [flatLessons, activeLessonId, progress?.lastAccessedSubjectId]);
+
+  // Track access whenever active subject changes (background, fire & forget).
+  useEffect(() => {
+    if (!active) return;
+    trackAccess(active.subjectId, active.semesterId);
+  }, [active?.subjectId, active?.semesterId, trackAccess, active]);
+
+  /* ── Subject completion derivation (lesson-based, backend-synced) ── */
+
+  /**
+   * When every lesson in a subject is locally complete, mark the subject
+   * complete on the backend. Idempotent — auto-completedSubjects guards against
+   * duplicate API hits per session.
+   */
+  const syncSubjectIfAllLessonsDone = useCallback(
+    (subjectId: string, semesterId: string) => {
+      const subjectLessons = lessonsBySubject[subjectId] ?? [];
+      if (subjectLessons.length === 0) return;
+      const allDone = subjectLessons.every((l) => completedLessons.has(l.id));
+      if (!allDone) return;
+      if (completedSubjectsApi.has(subjectId)) return;
+      if (autoCompletedSubjects.current.has(subjectId)) return;
+      autoCompletedSubjects.current.add(subjectId);
+      markSubjectCompleteApi(subjectId, semesterId);
+    },
+    [lessonsBySubject, completedLessons, completedSubjectsApi, markSubjectCompleteApi],
+  );
+
+  // Mark current lesson complete (used by both manual click and "Next").
+  const markCurrentLessonComplete = useCallback(() => {
+    if (!active) return false;
+    if (completedLessons.has(active.lesson.id)) return false;
+    setCompletedLessons((prev) => new Set(prev).add(active.lesson.id));
+    return true;
+  }, [active, completedLessons]);
+
+  // Watch completedLessons + active subject — sync to backend if last lesson finished.
+  useEffect(() => {
+    if (!active) return;
+    syncSubjectIfAllLessonsDone(active.subjectId, active.semesterId);
+  }, [completedLessons, active, syncSubjectIfAllLessonsDone]);
+
+  // Manual Mark Complete button.
+  const handleMarkComplete = () => {
+    if (markCurrentLessonComplete()) {
+      dispatch(pushToast({ tone: "success", title: "Lesson marked complete" }));
+    }
   };
 
-  // Prev/next subject nav
-  const activeIndex = activeSubjectId ? allSubjects.findIndex((s) => s.id === activeSubjectId) : -1;
-  const prevSubject = activeIndex > 0 ? allSubjects[activeIndex - 1] : null;
-  const nextSubject = activeIndex >= 0 && activeIndex < allSubjects.length - 1 ? allSubjects[activeIndex + 1] : null;
+  // YouTube 90% → auto-mark current lesson complete.
+  const handleVideoTime = (currentTime: number, duration: number) => {
+    if (!active || !duration) return;
+    if (completedLessons.has(active.lesson.id)) return;
+    if (currentTime / duration < 0.9) return;
+    if (markCurrentLessonComplete()) {
+      dispatch(pushToast({ tone: "success", title: "Lesson marked complete automatically" }));
+    }
+  };
 
-  // Download an attachment by ID.
+  // Next button: auto-mark current as complete, then advance.
+  const handleNext = () => {
+    if (!nextLesson) return;
+    markCurrentLessonComplete();
+    setActiveLessonId(nextLesson.lesson.id);
+  };
+
+  /* ── Progress percentage (lesson-based) ──────────────────────────── */
+
+  const totalLessons = flatLessons.length;
+  const completedLessonsCount = flatLessons.filter((f) => completedLessons.has(f.lesson.id)).length;
+  const pct = totalLessons === 0 ? 0 : Math.round((completedLessonsCount / totalLessons) * 100);
+
+  /* ── Attachment download ─────────────────────────────────────────── */
+
   const downloadAttachment = async (attachmentId: string, filename?: string) => {
     setDownloadingId(attachmentId);
     try {
@@ -168,6 +281,8 @@ export default function StudentCourseViewerPage() {
     }
   };
 
+  /* ── Render ──────────────────────────────────────────────────────── */
+
   if (loading) {
     return (
       <div style={{ textAlign: "center", padding: 48, color: "var(--color-body-green)" }}>
@@ -186,8 +301,11 @@ export default function StudentCourseViewerPage() {
     );
   }
 
-  const activeTitle = activeLesson?.title || activeSubject?.title || "";
-  const embedUrl = getYouTubeEmbedUrl(activeLesson?.youtubeVideoId);
+  const activeLesson = active?.lesson ?? null;
+  const activeTitle = activeLesson?.title || active?.subjectTitle || "";
+  const youtubeId = extractYouTubeId(activeLesson?.youtubeVideoId);
+  const embedUrl = youtubeId ? null : getYouTubeEmbedUrl(activeLesson?.youtubeVideoId);
+  const activeLessonDone = activeLesson ? completedLessons.has(activeLesson.id) : false;
 
   return (
     <div className="viewer">
@@ -200,7 +318,12 @@ export default function StudentCourseViewerPage() {
             </div>
             <span className="pct">{pct}%</span>
           </div>
+          <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--color-muted)", marginTop: 4 }}>
+            {completedLessonsCount} of {totalLessons} lessons completed
+          </div>
         </div>
+
+        {/* Semester → Subject → Lesson tree */}
         {!course.semesters || course.semesters.length === 0 ? (
           <div style={{ padding: "20px 16px", color: "var(--color-muted)", fontFamily: "var(--font-body)", fontSize: 13, textAlign: "center" }}>
             <Icon name="layers" size={22} style={{ opacity: 0.35, marginBottom: 8 }} />
@@ -213,26 +336,65 @@ export default function StudentCourseViewerPage() {
                 {sem.title} <Icon name="chevron-down" size={14} />
               </div>
               {(sem.subjects ?? []).map((sub) => {
-                const done = completed.has(sub.id);
-                const active = activeSubjectId === sub.id;
+                const subjectLessons = lessonsBySubject[sub.id] ?? [];
+                const allDone = subjectLessons.length > 0 && subjectLessons.every((l) => completedLessons.has(l.id));
+                const hasActive = active?.subjectId === sub.id;
                 return (
-                  <div
-                    key={sub.id}
-                    className={cn(
-                      "subject",
-                      active && "active",
-                      done && "completed",
-                      !done && !active && "notstarted",
+                  <div key={sub.id}>
+                    <div
+                      className={cn(
+                        "subject",
+                        hasActive && "active",
+                        allDone && "completed",
+                        !allDone && !hasActive && "notstarted",
+                      )}
+                      style={{ cursor: subjectLessons[0] ? "pointer" : "default" }}
+                      onClick={() => subjectLessons[0] && setActiveLessonId(subjectLessons[0].id)}
+                    >
+                      <span className="dot">
+                        <Icon name={allDone ? "check-circle" : hasActive ? "play-circle" : "circle"} size={14} />
+                      </span>
+                      {sub.title}
+                    </div>
+                    {/* Lessons nested under their subject */}
+                    {subjectLessons.length > 0 && (
+                      <div>
+                        {subjectLessons.map((l) => {
+                          const lessonDone = completedLessons.has(l.id);
+                          const lessonActive = activeLessonId === l.id;
+                          return (
+                            <div
+                              key={l.id}
+                              onClick={() => setActiveLessonId(l.id)}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                padding: "6px 18px 6px 52px",
+                                cursor: "pointer",
+                                fontFamily: "var(--font-body)",
+                                fontSize: 13,
+                                color: lessonActive ? "var(--color-primary)" : "var(--color-body-green)",
+                                background: lessonActive ? "rgba(188,233,85,0.12)" : "transparent",
+                                fontWeight: lessonActive ? 600 : 400,
+                              }}
+                            >
+                              <Icon
+                                name={lessonDone ? "check-circle" : lessonActive ? "play-circle" : "circle"}
+                                size={12}
+                                style={{
+                                  color: lessonDone ? "#4ade80" : lessonActive ? "#BCE955" : "var(--color-muted)",
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {l.title}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
-                    onClick={() => setActiveSubjectId(sub.id)}
-                  >
-                    <span className="dot">
-                      <Icon
-                        name={done ? "check-circle" : active ? "play-circle" : "circle"}
-                        size={14}
-                      />
-                    </span>
-                    {sub.title}
                   </div>
                 );
               })}
@@ -248,36 +410,20 @@ export default function StudentCourseViewerPage() {
 
       <div className="viewer-main">
         <div className="crumbs">
-          My Courses · {course.title} · <span>{activeTitle}</span>
+          My Courses · {course.title}
+          {active && <> · {active.semesterTitle} · {active.subjectTitle}</>}
         </div>
         <h1>{activeTitle || "Select a lesson"}</h1>
 
-        {/* Lesson selector — only show if multiple lessons in subject */}
-        {lessons.length > 1 && (
-          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-            {lessons.map((l, i) => (
-              <button
-                key={l.id}
-                onClick={() => setActiveLessonId(l.id)}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 8,
-                  border: "1px solid var(--color-stroke)",
-                  background: activeLessonId === l.id ? "var(--color-accent)" : "var(--color-surface)",
-                  color: activeLessonId === l.id ? "var(--color-primary)" : "var(--color-body-green)",
-                  fontFamily: "var(--font-body)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Lesson {i + 1}: {l.title}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {embedUrl ? (
+        {/* Player */}
+        {youtubeId ? (
+          <YouTubePlayer
+            key={youtubeId}
+            videoId={youtubeId}
+            title={activeTitle}
+            onProgress={handleVideoTime}
+          />
+        ) : embedUrl ? (
           <div className="player" style={{ padding: 0, background: "#000", position: "relative", paddingBottom: "56.25%", height: 0, overflow: "hidden" }}>
             <iframe
               src={embedUrl}
@@ -294,8 +440,14 @@ export default function StudentCourseViewerPage() {
             fontFamily: "var(--font-body)", fontSize: 14, borderRadius: 14,
           }}>
             <div style={{ textAlign: "center" }}>
-              <Icon name="play-circle" size={32} style={{ opacity: 0.4, marginBottom: 10 }} />
-              <p style={{ margin: 0 }}>{activeLesson ? "No video for this lesson." : "Select a subject to view its lesson."}</p>
+              <Icon name={lessonsLoading ? "loader" : "play-circle"} size={32} style={{ opacity: 0.4, marginBottom: 10 }} />
+              <p style={{ margin: 0 }}>
+                {lessonsLoading
+                  ? "Loading lesson…"
+                  : activeLesson
+                    ? "No video for this lesson."
+                    : "No lessons in this course yet."}
+              </p>
             </div>
           </div>
         )}
@@ -334,29 +486,29 @@ export default function StudentCourseViewerPage() {
           <Button
             variant="secondary"
             icon="arrow-left"
-            disabled={!prevSubject}
-            onClick={() => prevSubject && setActiveSubjectId(prevSubject.id)}
+            disabled={!prevLesson}
+            onClick={() => prevLesson && setActiveLessonId(prevLesson.lesson.id)}
           >
             Previous lesson
           </Button>
           <Button
-            icon={activeSubjectId && completed.has(activeSubjectId) ? "check-circle" : "check"}
-            disabled={!activeSubjectId}
-            onClick={markComplete}
+            icon={activeLessonDone ? "check-circle" : "check"}
+            disabled={!activeLesson || activeLessonDone}
+            onClick={handleMarkComplete}
           >
-            {activeSubjectId && completed.has(activeSubjectId) ? "Completed" : "Mark Complete"}
+            {activeLessonDone ? "Completed" : "Mark Complete"}
           </Button>
           <Button
             variant="secondary"
             iconAfter="arrow-right"
-            disabled={!nextSubject}
-            onClick={() => nextSubject && setActiveSubjectId(nextSubject.id)}
+            disabled={!nextLesson}
+            onClick={handleNext}
           >
             Next lesson
           </Button>
         </div>
 
-        {/* Back to dashboard — appears at the bottom of every lesson */}
+        {/* Back to dashboard */}
         <div style={{
           marginTop: 24, paddingTop: 20,
           borderTop: "1px solid var(--color-stroke)",

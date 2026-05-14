@@ -1,10 +1,11 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
+import { apiRequest } from "@/infrastructure/api/request";
 import { Button } from "@/components/ui/Button";
 import { ArrowLink } from "@/components/ui/ArrowLink";
 import { CourseCover } from "@/components/ui/CourseCover";
@@ -44,6 +45,29 @@ export default function PublicHomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const featured = useCourses({ limit: 4, authenticated: false, state: "published" });
 
+  // Public stats — student & course counts. Both endpoints accept unauthenticated
+  // requests for the published catalog & user count (limit=1 is enough — we just
+  // read `total`). Silent fallback if either 401/403s.
+  const [stats, setStats] = useState<{ students: number | null; courses: number | null }>({
+    students: null,
+    courses: null,
+  });
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [usersRes, coursesRes] = await Promise.allSettled([
+        apiRequest<{ total: number }>(`/users?role=student&limit=1`, { auth: false }),
+        apiRequest<{ total: number }>(`/courses?state=published&limit=1`, { auth: false }),
+      ]);
+      if (cancelled) return;
+      setStats({
+        students: usersRes.status === "fulfilled" ? usersRes.value.total : null,
+        courses: coursesRes.status === "fulfilled" ? coursesRes.value.total : null,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="public">
       <FloatingNav onSignUp={goRegister} />
@@ -52,7 +76,7 @@ export default function PublicHomePage() {
       <section className="section section--dark hero">
         <div className="container-x hero-grid">
           <div>
-            <Eyebrow dark>★ Trusted by 3,200+ engineers</Eyebrow>
+            <Eyebrow dark>★ Learn at your own pace</Eyebrow>
             <h1>
               Engineering &amp; data skills,
               <br />
@@ -71,16 +95,6 @@ export default function PublicHomePage() {
                 Sign In
               </Button>
             </div>
-            <div className="hero-proof">
-              <div className="stack">
-                {[5, 14, 32, 47].map((n) => (
-                  <Avatar key={n} src={avatarUrl(n)} size="sm" name="" />
-                ))}
-              </div>
-              <span>
-                <b style={{ color: "#fff" }}>3,200+ learners</b> already on the platform
-              </span>
-            </div>
           </div>
           <div className="hero-img">
             <img src="/team-working.webp" alt="Students collaborating on a laptop" />
@@ -91,34 +105,20 @@ export default function PublicHomePage() {
       {/* STATS */}
       <section className="section section--white" style={{ paddingTop: 64, paddingBottom: 64 }}>
         <div className="container-x">
-          <div className="stats">
+          <div className="stats" style={{ gridTemplateColumns: "repeat(2, 1fr)", maxWidth: 720, margin: "0 auto" }}>
             <div className="stat">
               <div className="num">
-                3,200<span className="accent">+</span>
+                {stats.students == null ? "…" : stats.students.toLocaleString()}
               </div>
-              <div className="lab">Active Learners</div>
-              <div className="sub">Studying every week</div>
+              <div className="lab">Enrolled Students</div>
+              <div className="sub">Active learners on the platform</div>
             </div>
             <div className="stat">
               <div className="num">
-                94<span className="accent">%</span>
+                {stats.courses == null ? "…" : stats.courses.toLocaleString()}
               </div>
-              <div className="lab">Completion Rate</div>
-              <div className="sub">Across published programmes</div>
-            </div>
-            <div className="stat">
-              <div className="num">
-                120<span className="accent">+</span>
-              </div>
-              <div className="lab">Lessons</div>
-              <div className="sub">Across every track</div>
-            </div>
-            <div className="stat">
-              <div className="num">
-                320<span className="accent">+</span>
-              </div>
-              <div className="lab">Hands-on Labs</div>
-              <div className="sub">Browser-based, auto-graded</div>
+              <div className="lab">Published Courses</div>
+              <div className="sub">Available right now</div>
             </div>
           </div>
         </div>
