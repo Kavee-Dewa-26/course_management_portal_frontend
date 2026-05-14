@@ -16,9 +16,10 @@ export interface InvitePayload {
 interface Props {
   onCancel: () => void;
   onSubmit: (p: InvitePayload) => void;
+  submitting?: boolean;
 }
 
-export function InviteAdminForm({ onCancel, onSubmit }: Props) {
+export function InviteAdminForm({ onCancel, onSubmit, submitting }: Props) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -69,11 +70,11 @@ export function InviteAdminForm({ onCancel, onSubmit }: Props) {
         />
       </div>
       <div className="form-actions">
-        <Button variant="ghost" onClick={onCancel}>
+        <Button variant="ghost" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button icon="user-plus" onClick={handleSubmit}>
-          Create account
+        <Button icon="user-plus" onClick={handleSubmit} disabled={submitting}>
+          {submitting ? "Creating…" : "Create account"}
         </Button>
       </div>
     </div>

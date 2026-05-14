@@ -16,22 +16,24 @@ interface Props {
  *
  * Three states:
  *  1. Firebase auth state is resolving → show fullscreen loading
- *  2. Not signed in / wrong role → redirect to /login
- *  3. Signed in with correct role → render children
+ *  2. Not signed in → redirect to /login
+ *  3. Wrong ACTIVE role → redirect to their active role's home
+ *  4. Signed in with correct active role → render children
  *
- * Dual-role users (e.g. promoted students with roles ['student','admin'])
- * pass if ANY of their roles overlap with allowedRoles.
+ * Dual-role users (e.g. promoted students with roles ['student','admin']) are
+ * gated by their currently-selected `activeRole`, not all assigned roles, so
+ * the UI stays scoped to one role at a time. They can swap via the user menu.
  */
 export function AuthGuard({ allowedRoles, children }: Props) {
   const router = useRouter();
-  const { user, authResolving } = useAppSelector((s) => s.session);
+  const { user, activeRole, authResolving } = useAppSelector((s) => s.session);
 
   const hasAccess = useMemo(() => {
     if (!user) return false;
     if (user.status !== "approved") return false;
-    const userRoles = user.roles?.length ? user.roles : [user.role];
-    return userRoles.some((r) => allowedRoles.includes(r as Role));
-  }, [user, allowedRoles]);
+    const effective = (activeRole ?? user.role) as Role;
+    return allowedRoles.includes(effective);
+  }, [user, activeRole, allowedRoles]);
 
   useEffect(() => {
     if (authResolving) return;
@@ -40,10 +42,16 @@ export function AuthGuard({ allowedRoles, children }: Props) {
       return;
     }
     if (!hasAccess) {
-      // Wrong role — bounce them to login (a safer default than guessing their home).
-      router.replace("/login");
+      // User is authenticated but is currently in a different role view.
+      // Send them to their active role's home (instead of a confusing /login).
+      const effective = (activeRole ?? user.role) as Role;
+      const home =
+        effective === "super_admin" ? "/super-admin/dashboard"
+        : effective === "admin"     ? "/admin/dashboard"
+        :                              "/dashboard";
+      router.replace(home);
     }
-  }, [authResolving, user, hasAccess, router]);
+  }, [authResolving, user, activeRole, hasAccess, router]);
 
   if (authResolving || !user || !hasAccess) {
     return (

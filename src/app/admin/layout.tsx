@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ADMIN_NAV, isLink } from "@/components/layout/RoleNav";
-import { ADMIN_NOTIFS } from "@/lib/mock/notifications";
 import { useSessionUser } from "@/application/hooks/useSessionUser";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 
@@ -51,7 +50,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         user={user}
         roleLabel="Administrator"
         title={title}
-        notifications={ADMIN_NOTIFS}
         dashboardHref="/admin/dashboard"
       >
         {children}

@@ -9,8 +9,10 @@ import { Toaster } from "@/components/ui/Toaster";
 import type { NavItem } from "./RoleNav";
 import type { NotificationItem } from "@/lib/mock/notifications";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
+import { useAppSelector } from "@/application/hooks/useAppSelector";
+import { useNotifications } from "@/application/hooks/useNotifications";
 import { pushToast } from "@/application/slices/uiSlice";
-import { clearSession } from "@/application/slices/sessionSlice";
+import { clearSession, setActiveRole, type Role } from "@/application/slices/sessionSlice";
 import { auth } from "@/infrastructure/firebase/auth";
 import { apiRequest } from "@/infrastructure/api/request";
 
@@ -19,7 +21,8 @@ interface Props {
   user: { name: string; avatar?: string };
   roleLabel: string;
   title: string;
-  notifications: NotificationItem[];
+  /** Optional override — when omitted, AppShell uses the real notifications hook. */
+  notifications?: NotificationItem[];
   dashboardHref: string;
   rightExtras?: React.ReactNode;
   children: React.ReactNode;
@@ -37,7 +40,26 @@ export function AppShell({
 }: Props) {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const sessionUser = useAppSelector((s) => s.session.user);
+  const activeRole = useAppSelector((s) => s.session.activeRole);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Real notifications + unread count. Used by the bell unless caller
+  // supplies a mock list via the `notifications` prop.
+  const { items: liveNotifications, unreadCount, markRead } = useNotifications({ pollUnread: true });
+
+  const onSwitchRole = (newRole: Role) => {
+    dispatch(setActiveRole(newRole));
+    dispatch(pushToast({
+      tone: "success",
+      title: `Switched to ${newRole === "super_admin" ? "super admin" : newRole} view`,
+    }));
+    const home =
+      newRole === "super_admin" ? "/super-admin/dashboard"
+      : newRole === "admin"     ? "/admin/dashboard"
+      :                            "/dashboard";
+    router.push(home);
+  };
 
   const onLogout = async () => {
     try {
@@ -51,9 +73,43 @@ export function AppShell({
     }
   };
 
+  // Map real API notifications into the NotificationItem shape the bell expects.
+  const mappedNotifications: NotificationItem[] = liveNotifications.map((n) => {
+    const cat = (n.category ?? "").toLowerCase();
+    const ico = cat.includes("approved") ? "check-circle"
+      : cat.includes("rejected") || cat.includes("suspended") ? "alert-triangle"
+      : cat.includes("registration") ? "user-plus"
+      : cat.includes("enrollment") ? "clipboard-list"
+      : "bell";
+    const tone = cat.includes("rejected") || cat.includes("suspended") ? "warning"
+      : cat.includes("approved") ? "success"
+      : "info";
+    const ts = new Date(n.createdAt).getTime();
+    const diff = Date.now() - ts;
+    const m = Math.floor(diff / 60000);
+    const when = m < 1 ? "just now" : m < 60 ? `${m} min ago`
+      : m < 1440 ? `${Math.floor(m / 60)} h ago`
+      : `${Math.floor(m / 1440)} d ago`;
+    return {
+      id: n.id,
+      ico,
+      tone: tone as NotificationItem["tone"],
+      title: n.title,
+      body: n.body || undefined,
+      when,
+      read: n.read,
+      link: n.link || undefined,
+    } as NotificationItem & { id: string };
+  });
+
   const onNotificationClick = (n: NotificationItem) => {
+    const realId = (n as NotificationItem & { id?: string }).id;
+    if (realId && !n.read) markRead(realId);
     if (n.link) router.push(n.link);
   };
+
+  // Caller can override (e.g. for testing); otherwise we use real data.
+  const notifsToShow = notifications ?? mappedNotifications;
 
   return (
     <div className="shell">
@@ -77,7 +133,10 @@ export function AppShell({
           title={title}
           user={user}
           roleLabel={roleLabel}
-          notifications={notifications}
+          roles={sessionUser?.roles}
+          activeRole={activeRole}
+          onSwitchRole={onSwitchRole}
+          notifications={notifsToShow}
           dashboardHref={dashboardHref}
           onLogout={onLogout}
           onNotificationClick={onNotificationClick}

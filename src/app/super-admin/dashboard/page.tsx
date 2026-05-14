@@ -1,16 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLink } from "@/components/ui/ArrowLink";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { ADMINS_SEED } from "@/lib/mock/admins";
-import { avatarUrl } from "@/lib/kit";
 import { useRegistrationQueue } from "@/application/hooks/useRegistrationQueue";
 import { useAdminEnrollmentQueue } from "@/application/hooks/useAdminEnrollmentQueue";
+import { useAppSelector } from "@/application/hooks/useAppSelector";
+import { apiRequest } from "@/infrastructure/api/request";
 
 function formatRelative(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -26,28 +26,98 @@ function formatRelative(iso: string | null | undefined): string {
   return `${days} d ago`;
 }
 
-interface KPI {
-  ico: string;
-  label: string;
-  num: string;
-  trend: string;
-  warn?: boolean;
-  to?: string;
+interface AdminUser {
+  uid: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  status: string;
+  roles?: string[];
+  profilePhotoUrl?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
-
-const KPIS: KPI[] = [
-  { ico: "shield-check", label: "Active Administrators", num: "7", trend: "1 new this week" },
-  { ico: "user-plus", label: "Pending Admin Invites", num: "2", trend: "Awaiting acceptance", warn: true, to: "/super-admin/admins" },
-  { ico: "alert-octagon", label: "Failed Sign-ins (24h)", num: "12", trend: "2 from same IP", warn: true },
-  { ico: "activity", label: "API Requests (24h)", num: "1.2M", trend: "Within plan limits" },
-];
 
 export default function SuperAdminDashboardPage() {
   const router = useRouter();
+  const sessionUser = useAppSelector((s) => s.session.user);
 
   // Live data feeds for the activity panel.
   const RQ = useRegistrationQueue();
   const EQ = useAdminEnrollmentQueue();
+
+  // Real administrators list (preview — first 6 only on the dashboard).
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [adminsLoading, setAdminsLoading] = useState(false);
+
+  // Real platform stats for KPI tiles.
+  const [totalAdmins, setTotalAdmins] = useState<number | null>(null);
+  const [totalStudents, setTotalStudents] = useState<number | null>(null);
+  const [totalCourses, setTotalCourses] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!sessionUser) return;
+    let cancelled = false;
+    setAdminsLoading(true);
+
+    // Fetch all dashboard data in parallel.
+    Promise.allSettled([
+      apiRequest<{ items: AdminUser[]; total: number }>(`/super-admin/admins?limit=6`),
+      apiRequest<{ total: number }>(`/super-admin/admins?limit=1`),
+      apiRequest<{ total: number }>(`/users?role=student&limit=1`),
+      apiRequest<{ total: number }>(`/courses?state=published&limit=1`),
+    ]).then((results) => {
+      if (cancelled) return;
+      if (results[0].status === "fulfilled") setAdmins(results[0].value.items ?? []);
+      if (results[1].status === "fulfilled") setTotalAdmins(results[1].value.total ?? 0);
+      else setTotalAdmins(0);
+      if (results[2].status === "fulfilled") setTotalStudents(results[2].value.total ?? 0);
+      else setTotalStudents(0);
+      if (results[3].status === "fulfilled") setTotalCourses(results[3].value.total ?? 0);
+      else setTotalCourses(0);
+    }).finally(() => {
+      if (!cancelled) setAdminsLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [sessionUser]);
+
+  const totalPendingApprovals = (RQ.total ?? 0) + (EQ.pendingCount ?? 0);
+
+  // Compute KPI tiles from real data.
+  const kpis = [
+    {
+      ico: "shield-check",
+      label: "Total Administrators",
+      num: totalAdmins == null ? "…" : totalAdmins.toLocaleString(),
+      trend: totalAdmins === 0 ? "no admins yet" : "across the platform",
+      to: "/super-admin/admins",
+    },
+    {
+      ico: "users",
+      label: "Total Students",
+      num: totalStudents == null ? "…" : totalStudents.toLocaleString(),
+      trend: totalStudents === 0 ? "no students yet" : "registered on the platform",
+      to: "/super-admin/students",
+    },
+    {
+      ico: "book-open",
+      label: "Published Courses",
+      num: totalCourses == null ? "…" : totalCourses.toLocaleString(),
+      trend: totalCourses === 0 ? "no published courses" : "live in catalog",
+      to: "/super-admin/courses",
+    },
+    {
+      ico: "clipboard-list",
+      label: "Pending Approvals",
+      num: RQ.loading && EQ.loading && totalPendingApprovals === 0
+        ? "…"
+        : String(totalPendingApprovals),
+      trend: totalPendingApprovals > 0 ? "needs admin review" : "all caught up",
+      warn: totalPendingApprovals > 0,
+      to: "/super-admin/registrations",
+    },
+  ];
 
   // Build a real "recent activity" feed from pending queue items (newest first).
   const activity = useMemo(() => {
@@ -103,7 +173,7 @@ export default function SuperAdminDashboardPage() {
       </div>
 
       <div className="kpi-grid">
-        {KPIS.map((k) => (
+        {kpis.map((k) => (
           <div
             className="kpi"
             key={k.label}
@@ -138,38 +208,66 @@ export default function SuperAdminDashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {ADMINS_SEED.map((a) => (
-              <tr
-                key={a.email}
-                style={{ cursor: "pointer" }}
-                onClick={() => router.push(`/super-admin/admins/${a.id}`)}
-              >
-                <td>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    <Avatar src={avatarUrl(a.avatar)} size="sm" name={a.name} />
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{a.name}</div>
-                      <div
-                        style={{
-                          fontFamily: "var(--font-body)",
-                          fontSize: 12,
-                          color: "#41574A",
-                        }}
-                      >
-                        {a.email}
-                      </div>
-                    </div>
+            {adminsLoading && admins.length === 0 && (
+              <tr>
+                <td colSpan={4} style={{ textAlign: "center", padding: 32 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--color-muted)" }}>
+                    <Icon name="loader" size={18} />
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 14 }}>Loading…</span>
                   </div>
                 </td>
-                <td>{a.role}</td>
-                <td className="muted">{a.last}</td>
-                <td>
-                  {a.status === "active" && <Badge tone="success">Active</Badge>}
-                  {a.status === "invited" && <Badge tone="warning">Invited</Badge>}
-                  {a.status === "suspended" && <Badge tone="error">Suspended</Badge>}
+              </tr>
+            )}
+            {!adminsLoading && admins.length === 0 && (
+              <tr>
+                <td colSpan={4} style={{ textAlign: "center", padding: 24, fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-muted)" }}>
+                  No administrators yet — click <b>Manage all</b> to add one.
                 </td>
               </tr>
-            ))}
+            )}
+            {admins.map((a) => {
+              const fullName = `${a.firstName} ${a.lastName}`.trim();
+              const promoted = a.roles?.includes("student");
+              return (
+                <tr
+                  key={a.uid}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => router.push(`/super-admin/admins/${a.uid}`)}
+                >
+                  <td>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                      <Avatar src={a.profilePhotoUrl ?? undefined} size="sm" name={fullName || a.uid} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600 }}>{fullName || a.uid.slice(0, 12) + "…"}</div>
+                        <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#41574A" }}>
+                          {a.email}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    {promoted ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        Admin
+                        <Badge tone="info">Promoted</Badge>
+                      </span>
+                    ) : "Admin"}
+                  </td>
+                  <td className="muted" style={{ whiteSpace: "nowrap" }}>
+                    {a.updatedAt
+                      ? new Date(a.updatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                      : "—"}
+                  </td>
+                  <td>
+                    {a.status === "approved" || a.status === "active"
+                      ? <Badge tone="success">Active</Badge>
+                      : a.status === "suspended"
+                        ? <Badge tone="error">Suspended</Badge>
+                        : <Badge tone="warning">{a.status}</Badge>}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

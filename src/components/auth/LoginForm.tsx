@@ -108,17 +108,33 @@ export function LoginForm() {
           message: "Loading your dashboard…",
         }),
       );
-      router.push(DASHBOARD_BY_ROLE[me.role]);
+      // Redirect to the dashboard of the user's effective active role.
+      // For dual-role users, this respects the saved preference (set by
+      // sessionSlice.setUser) and otherwise defaults to highest assigned role.
+      let savedRole: Role | null = null;
+      try {
+        const v = typeof window !== "undefined"
+          ? (localStorage.getItem(`edupath.activeRole.${me.uid}`) as Role | null)
+          : null;
+        if (v === "student" || v === "admin" || v === "super_admin") {
+          if (me.roles?.includes(v)) savedRole = v;
+        }
+      } catch { /* ignore */ }
+      const target: Role = savedRole
+        ?? (me.roles?.includes("super_admin") ? "super_admin"
+          : me.roles?.includes("admin")       ? "admin"
+          :                                      "student");
+      router.push(DASHBOARD_BY_ROLE[target]);
     } catch (err: unknown) {
       if (err instanceof FirebaseError) {
+        // Avoid disclosing which field is wrong — that enables email enumeration.
+        // Show a single generic message for all credential / account-lookup errors.
         switch (err.code) {
           case "auth/invalid-credential":
           case "auth/wrong-password":
-            setPwError("Incorrect password. Please try again.");
-            break;
           case "auth/user-not-found":
           case "auth/invalid-email":
-            setEmailError("No account found with this email.");
+            setFormError("Email or password is incorrect.");
             break;
           case "auth/user-disabled":
             setFormError("Your account has been suspended. Please contact support.");
@@ -127,10 +143,10 @@ export function LoginForm() {
             setFormError("Too many failed attempts. Please wait a moment and try again.");
             break;
           case "auth/network-request-failed":
-            setFormError("Could not reach Firebase. Check your connection and try again.");
+            setFormError("Could not reach the server. Check your connection and try again.");
             break;
           default:
-            setFormError(err.message || "Sign in failed. Please try again.");
+            setFormError("Sign in failed. Please try again.");
         }
       } else if (err instanceof ApiRequestError) {
         if (err.status === 403) {

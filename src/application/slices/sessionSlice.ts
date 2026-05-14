@@ -22,6 +22,13 @@ export interface SessionUser {
 export interface SessionState {
   user: SessionUser | null;
   role: Role | null;
+  /**
+   * The role the user is currently acting as. Differs from `role` when a
+   * dual-role user (e.g. promoted student with `roles: ["student", "admin"]`)
+   * has switched views. Used by the sidebar, layout guards, and dashboard
+   * redirect logic.
+   */
+  activeRole: Role | null;
   token: string | null;
   authResolving: boolean;
 }
@@ -29,9 +36,28 @@ export interface SessionState {
 const initialState: SessionState = {
   user: null,
   role: null,
+  activeRole: null,
   token: null,
   authResolving: true,
 };
+
+/** Pick the highest assigned role as the default active role. */
+function pickDefaultActiveRole(roles: string[] | undefined): Role {
+  const set = new Set(roles ?? []);
+  if (set.has("super_admin")) return "super_admin";
+  if (set.has("admin")) return "admin";
+  return "student";
+}
+
+/** Restore the user's last-selected active role from localStorage. */
+function readSavedActiveRole(uid: string): Role | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const v = localStorage.getItem(`edupath.activeRole.${uid}`) as Role | null;
+    if (v === "student" || v === "admin" || v === "super_admin") return v;
+  } catch { /* ignore */ }
+  return null;
+}
 
 const sessionSlice = createSlice({
   name: "session",
@@ -45,13 +71,34 @@ const sessionSlice = createSlice({
           name: u.name ?? `${u.firstName} ${u.lastName}`.trim(),
         };
         state.role = u.role;
+        // Compute activeRole: saved preference if valid for this user's roles,
+        // otherwise the highest assigned role.
+        const saved = readSavedActiveRole(u.uid);
+        const defaultActive = pickDefaultActiveRole(u.roles);
+        if (saved && u.roles.includes(saved)) {
+          state.activeRole = saved;
+        } else {
+          state.activeRole = defaultActive;
+        }
       } else {
         state.user = null;
         state.role = null;
+        state.activeRole = null;
       }
     },
     setRole(state, action: PayloadAction<Role | null>) {
       state.role = action.payload;
+    },
+    setActiveRole(state, action: PayloadAction<Role>) {
+      // Only switch if the user actually holds that role.
+      if (!state.user) return;
+      if (!state.user.roles.includes(action.payload)) return;
+      state.activeRole = action.payload;
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`edupath.activeRole.${state.user.uid}`, action.payload);
+        } catch { /* ignore */ }
+      }
     },
     setToken(state, action: PayloadAction<string | null>) {
       state.token = action.payload;
@@ -62,6 +109,7 @@ const sessionSlice = createSlice({
     clearSession(state) {
       state.user = null;
       state.role = null;
+      state.activeRole = null;
       state.token = null;
       state.authResolving = false;
     },
@@ -75,5 +123,5 @@ const sessionSlice = createSlice({
   },
 });
 
-export const { setUser, setRole, setToken, setAuthResolving, clearSession } = sessionSlice.actions;
+export const { setUser, setRole, setActiveRole, setToken, setAuthResolving, clearSession } = sessionSlice.actions;
 export default sessionSlice.reducer;

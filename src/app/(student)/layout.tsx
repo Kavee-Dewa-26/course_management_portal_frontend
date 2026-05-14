@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { STUDENT_NAV } from "@/components/layout/RoleNav";
-import { STUDENT_NOTIFS } from "@/lib/mock/notifications";
 import { useSessionUser } from "@/application/hooks/useSessionUser";
 
 const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
@@ -30,7 +29,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         user={user}
         roleLabel="Student"
         title={title}
-        notifications={STUDENT_NOTIFS}
         dashboardHref="/dashboard"
       >
         {children}

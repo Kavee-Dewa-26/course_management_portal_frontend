@@ -7,11 +7,15 @@ import { Icon } from "@/components/ui/Icon";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
 import type { NotificationItem } from "@/lib/mock/notifications";
+import type { Role } from "@/application/slices/sessionSlice";
 
 interface Props {
   title: string;
   user: { name: string; avatar?: string };
   roleLabel: string;
+  roles?: string[];
+  activeRole?: Role | null;
+  onSwitchRole?: (role: Role) => void;
   notifications: NotificationItem[];
   dashboardHref: string;
   onLogout: () => void;
@@ -24,6 +28,9 @@ export function TopNav({
   title,
   user,
   roleLabel,
+  roles,
+  activeRole,
+  onSwitchRole,
   notifications,
   dashboardHref,
   onLogout,
@@ -65,6 +72,41 @@ export function TopNav({
       </div>
       <div className="right">
         {rightExtras}
+
+        {/* Dual-role quick switcher — shown only when user has multiple roles */}
+        {roles && roles.length > 1 && onSwitchRole && activeRole && (() => {
+          // Pick the "other" role to switch to (cycle through if 3 roles exist).
+          const otherRole = (roles.find((r) => r !== activeRole) as Role | undefined);
+          if (!otherRole) return null;
+          const label = otherRole === "super_admin" ? "Super admin"
+            : otherRole === "admin" ? "Admin"
+            : "Student";
+          return (
+            <button
+              onClick={() => onSwitchRole(otherRole)}
+              title={`Switch to ${label} view`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 12px",
+                borderRadius: 9999,
+                border: "1px solid var(--color-accent, #BCE955)",
+                background: "rgba(188,233,85,0.10)",
+                color: "var(--color-primary)",
+                fontFamily: "var(--font-body)",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Icon name="arrow-up-circle" size={13} />
+              Switch to {label}
+            </button>
+          );
+        })()}
+
         <button
           className="icon-btn"
           aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
@@ -74,7 +116,14 @@ export function TopNav({
           <Icon name={isDark ? "sun" : "moon"} size={18} />
         </button>
         <NotificationBell items={notifications} onItemClick={onNotificationClick} />
-        <UserMenu user={user} role={roleLabel} onLogout={onLogout} />
+        <UserMenu
+          user={user}
+          role={roleLabel}
+          roles={roles}
+          activeRole={activeRole}
+          onSwitchRole={onSwitchRole}
+          onLogout={onLogout}
+        />
       </div>
     </header>
   );

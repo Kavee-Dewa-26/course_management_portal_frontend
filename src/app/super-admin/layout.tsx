@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { SUPERADMIN_NAV, isLink } from "@/components/layout/RoleNav";
-import { SUPER_NOTIFS } from "@/lib/mock/notifications";
 import { useSessionUser } from "@/application/hooks/useSessionUser";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 
@@ -31,6 +30,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
   const user = useSessionUser();
   const pendingRegistrations = useAppSelector((s) => s.ui.pendingRegistrations);
   const pendingEnrollments = useAppSelector((s) => s.ui.pendingEnrollments);
+  const totalAdmins = useAppSelector((s) => s.ui.totalAdmins);
 
   const navItems = useMemo(
     () =>
@@ -38,9 +38,10 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
         if (!isLink(item)) return item;
         if (item.id === "registrations") return { ...item, count: pendingRegistrations };
         if (item.id === "enrollments") return { ...item, count: pendingEnrollments };
+        if (item.id === "admins") return { ...item, count: totalAdmins, hint: "Total admins" };
         return item;
       }),
-    [pendingRegistrations, pendingEnrollments],
+    [pendingRegistrations, pendingEnrollments, totalAdmins],
   );
 
   return (
@@ -50,7 +51,6 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
         user={user}
         roleLabel="Super Admin"
         title={title}
-        notifications={SUPER_NOTIFS}
         dashboardHref="/super-admin/dashboard"
       >
         {children}
