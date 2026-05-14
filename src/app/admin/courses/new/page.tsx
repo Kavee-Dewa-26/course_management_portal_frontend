@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
@@ -12,6 +12,8 @@ import type { CourseSummary } from "@/application/hooks/useCourses";
 
 export default function NewCoursePage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const base = pathname?.startsWith("/super-admin") ? "/super-admin" : "/admin";
   const dispatch = useAppDispatch();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -34,7 +36,7 @@ export default function NewCoursePage() {
         body: { title: title.trim(), description: description.trim() },
       });
       dispatch(pushToast({ tone: "success", title: "Course created", message: "Starts as a draft — add semesters and subjects before publishing." }));
-      router.push(`/admin/courses/${course.id}`);
+      router.push(`${base}/courses/${course.id}`);
     } catch (err) {
       if (err instanceof ApiRequestError) {
         if (err.code === "COURSE_TITLE_EXISTS" || err.status === 409) {
@@ -58,7 +60,7 @@ export default function NewCoursePage() {
           <h1>New course</h1>
           <div className="greeting">Give your course a unique title to get started.</div>
         </div>
-        <Button variant="ghost" icon="arrow-left" onClick={() => router.push("/admin/courses")}>
+        <Button variant="ghost" icon="arrow-left" onClick={() => router.push(`${base}/courses`)}>
           Back
         </Button>
       </div>
@@ -93,7 +95,7 @@ export default function NewCoursePage() {
             )}
           </div>
           <div className="form-actions" style={{ borderTop: "none", marginTop: 8 }}>
-            <Button variant="ghost" type="button" onClick={() => router.push("/admin/courses")} disabled={loading}>
+            <Button variant="ghost" type="button" onClick={() => router.push(`${base}/courses`)} disabled={loading}>
               Cancel
             </Button>
             <Button icon="plus" type="submit" disabled={loading || !title.trim() || !description.trim()}>

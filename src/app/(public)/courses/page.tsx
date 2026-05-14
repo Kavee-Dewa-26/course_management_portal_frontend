@@ -13,7 +13,7 @@ import { useCourses } from "@/application/hooks/useCourses";
 
 export default function PublicCoursesPage() {
   const router = useRouter();
-  const Q = useCourses({ limit: 12, authenticated: false });
+  const Q = useCourses({ limit: 12, authenticated: false, state: "published" });
 
   return (
     <div className="public">
@@ -103,8 +103,8 @@ export default function PublicCoursesPage() {
                     <CourseCover title={c.title} alt={c.title} />
                     <div className="body">
                       <div className="meta">
-                        <span><Icon name="layers" size={12} />{c.semesterCount} {c.semesterCount === 1 ? "module" : "modules"}</span>
-                        {c.publishedAt && (
+                        <span><Icon name="layers" size={12} />{c.semesterCount} {c.semesterCount === 1 ? "semester" : "semesters"}</span>
+                        {c.state === "published" && c.publishedAt && (
                           <span><Icon name="calendar" size={12} />Published {new Date(c.publishedAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}</span>
                         )}
                       </div>

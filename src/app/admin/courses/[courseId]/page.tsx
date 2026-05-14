@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
+import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { pushToast } from "@/application/slices/uiSlice";
 import { useCourse } from "@/application/hooks/useCourses";
 import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import type { CourseSummary } from "@/application/hooks/useCourses";
+import { CourseStructureEditor } from "@/components/course/CourseStructureEditor";
 
 function stateBadge(state: string) {
   if (state === "published") return <Badge tone="success">Published</Badge>;
@@ -20,15 +22,19 @@ function stateBadge(state: string) {
 
 export default function EditCoursePage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const base = pathname?.startsWith("/super-admin") ? "/super-admin" : "/admin";
   const dispatch = useAppDispatch();
   const params = useParams<{ courseId: string }>();
 
-  const { course, loading: courseLoading } = useCourse(params.courseId);
+  const sessionUser = useAppSelector((s) => s.session.user);
+  const { course, loading: courseLoading } = useCourse(sessionUser ? params.courseId : undefined);
 
   const [title, setTitle] = useState("");
   const [titleError, setTitleError] = useState("");
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
 
   // Pre-fill form when course loads.
   useEffect(() => {
@@ -79,6 +85,48 @@ export default function EditCoursePage() {
     }
   };
 
+  // Lifecycle action handlers
+  const handlePublish = async () => {
+    setLifecycleBusy(true);
+    try {
+      await apiRequest(`/courses/${course.id}/publish`, { method: "POST" });
+      dispatch(pushToast({
+        tone: "success",
+        title: course.state === "archived" ? "Course restored & published" : "Course published",
+      }));
+      router.replace(`${base}/courses/${course.id}`);
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        const msg = err.status === 409 ? "Course can't be published from its current state."
+          : err.status === 422 ? "Add at least one semester with subjects before publishing."
+          : err.message;
+        dispatch(pushToast({ tone: "warning", title: "Cannot publish", message: msg }));
+      }
+    } finally {
+      setLifecycleBusy(false);
+    }
+  };
+
+  const handleSaveAsDraft = async () => {
+    setLifecycleBusy(true);
+    try {
+      await apiRequest(`/courses/${course.id}/unpublish`, { method: "POST" });
+      dispatch(pushToast({
+        tone: "success",
+        title: course.state === "archived" ? "Course restored as draft" : "Course saved as draft",
+      }));
+      router.replace(`${base}/courses/${course.id}`);
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        const msg = err.status === 409 ? "Course can't move to draft from its current state."
+          : err.message;
+        dispatch(pushToast({ tone: "warning", title: "Cannot save as draft", message: msg }));
+      }
+    } finally {
+      setLifecycleBusy(false);
+    }
+  };
+
   return (
     <div className="page">
       <div className="page-header">
@@ -87,11 +135,44 @@ export default function EditCoursePage() {
           {stateBadge(course.state)}
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <Button variant="ghost" icon="arrow-left" onClick={() => router.push("/admin/courses")}>
+          <Button variant="ghost" icon="arrow-left" onClick={() => router.push(`${base}/courses`)}>
             Back
           </Button>
+          {course.state === "draft" && (
+            <Button icon="upload-cloud" onClick={handlePublish} disabled={lifecycleBusy}>
+              {lifecycleBusy ? "Publishing…" : "Publish"}
+            </Button>
+          )}
+          {course.state === "published" && (
+            <Button variant="secondary" icon="rotate-ccw" onClick={handleSaveAsDraft} disabled={lifecycleBusy}>
+              {lifecycleBusy ? "Saving…" : "Save as draft"}
+            </Button>
+          )}
+          {course.state === "archived" && (
+            <Button icon="upload-cloud" onClick={handlePublish} disabled={lifecycleBusy}>
+              {lifecycleBusy ? "Publishing…" : "Publish"}
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Info banner — only for archived courses */}
+      {course.state === "archived" && (
+        <div style={{
+          padding: "12px 16px",
+          background: "var(--color-light-gray)",
+          borderRadius: 12,
+          border: "1px solid var(--color-stroke)",
+          display: "flex", gap: 10, alignItems: "flex-start",
+          fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)",
+        }}>
+          <Icon name="archive" size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>
+            This course is <b>archived</b>. You can still edit its content.
+            Click <b>Publish</b> to make it live again.
+          </span>
+        </div>
+      )}
 
       {/* Title edit card */}
       <div className="settings-card">
@@ -128,73 +209,11 @@ export default function EditCoursePage() {
         </form>
       </div>
 
-      {/* Structure placeholder */}
-      <div className="settings-card">
-        <h2>Course structure</h2>
-        <p className="settings-sub">
-          Semesters, subjects and lessons are managed here.
-          Full structure editing is coming in Sprint 6.
-        </p>
-        <div style={{ marginTop: 16 }}>
-          {course.semesters && course.semesters.length > 0 ? (
-            <div style={{ display: "grid", gap: 10 }}>
-              {course.semesters.map((sem, i) => (
-                <div
-                  key={sem.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 16px",
-                    background: "var(--color-light-gray)",
-                    borderRadius: 10,
-                    border: "1px solid var(--color-stroke)",
-                  }}
-                >
-                  <span style={{
-                    width: 28, height: 28, borderRadius: "50%",
-                    background: "rgba(188,233,85,0.15)",
-                    border: "1.5px solid rgba(188,233,85,0.3)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 12,
-                    color: "#BCE955", flexShrink: 0,
-                  }}>{i + 1}</span>
-                  <div>
-                    <div style={{ fontWeight: 600, fontFamily: "var(--font-body)" }}>{sem.title}</div>
-                    <div style={{ fontSize: 12, color: "var(--color-body-green)", fontFamily: "var(--font-body)" }}>
-                      {sem.subjectCount ?? sem.subjects?.length ?? 0} {(sem.subjectCount ?? sem.subjects?.length ?? 0) === 1 ? "subject" : "subjects"}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{
-              textAlign: "center", padding: "32px 16px",
-              color: "var(--color-muted)", fontFamily: "var(--font-body)", fontSize: 14,
-            }}>
-              <Icon name="layers" size={28} style={{ marginBottom: 10, opacity: 0.4 }} />
-              <p style={{ margin: 0 }}>No semesters yet.</p>
-              <p style={{ margin: "4px 0 0", fontSize: 12 }}>Semester management is coming in Sprint 6.</p>
-            </div>
-          )}
-        </div>
-      </div>
+      <CourseStructureEditor
+        courseId={course.id}
+        initialSemesters={course.semesters ?? []}
+      />
 
-      {/* Info */}
-      <div style={{
-        marginTop: 8, padding: "12px 16px",
-        background: "var(--color-light-gray)",
-        borderRadius: 12,
-        display: "flex", gap: 10, alignItems: "flex-start",
-        fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)",
-      }}>
-        <Icon name="info" size={16} style={{ flexShrink: 0, marginTop: 1 }} />
-        <span>
-          Use the <b>Courses</b> list to Publish, Unpublish, Archive or Delete this course.
-          Structure editing (semesters / subjects / lessons) lands in Sprint 6.
-        </span>
-      </div>
     </div>
   );
 }

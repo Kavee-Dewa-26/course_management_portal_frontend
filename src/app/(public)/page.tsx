@@ -42,7 +42,7 @@ export default function PublicHomePage() {
   const goLogin = () => router.push("/login");
   const goRegister = () => router.push("/register");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const featured = useCourses({ limit: 4, authenticated: false });
+  const featured = useCourses({ limit: 4, authenticated: false, state: "published" });
 
   return (
     <div className="public">
@@ -233,7 +233,7 @@ export default function PublicHomePage() {
                   <div className="meta">
                     <span>
                       <Icon name="layers" size={12} />
-                      {c.semesterCount} {c.semesterCount === 1 ? "module" : "modules"}
+                      {c.semesterCount} {c.semesterCount === 1 ? "semester" : "semesters"}
                     </span>
                   </div>
                   <h3>{c.title}</h3>

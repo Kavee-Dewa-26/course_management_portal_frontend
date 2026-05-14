@@ -27,6 +27,7 @@ export interface EnrollmentItem {
   createdAt: string;
   updatedAt: string;
   student?: StudentProfile; // enriched after fetch
+  courseTitle?: string; // enriched after fetch
   [key: string]: unknown;
 }
 
@@ -82,12 +83,16 @@ export function useAdminEnrollmentQueue(courseIdFilter?: string) {
       // Step 2 — filter to pending only.
       const pending = collected.filter((e) => isPending(e.state));
 
-      // Step 3 — enrich with student profiles in parallel.
+      // Step 3a — enrich with student profiles in parallel.
       const uniqueUids = [...new Set(pending.map((e) => e.studentUid))];
       const profileMap = new Map<string, StudentProfile>();
 
-      await Promise.allSettled(
-        uniqueUids.map(async (uid) => {
+      // Step 3b — enrich with course titles in parallel.
+      const uniqueCourseIds = [...new Set(pending.map((e) => e.courseId))];
+      const courseTitleMap = new Map<string, string>();
+
+      await Promise.allSettled([
+        ...uniqueUids.map(async (uid) => {
           try {
             const profile = await apiRequest<StudentProfile>(`/users/${uid}`);
             profileMap.set(uid, profile);
@@ -95,11 +100,20 @@ export function useAdminEnrollmentQueue(courseIdFilter?: string) {
             // Silently skip if profile fetch fails for a given UID.
           }
         }),
-      );
+        ...uniqueCourseIds.map(async (courseId) => {
+          try {
+            const course = await apiRequest<{ id: string; title: string }>(`/courses/${courseId}`);
+            if (course?.title) courseTitleMap.set(courseId, course.title);
+          } catch {
+            // Course unavailable (deleted, archived, or no access) — fallback handled in UI.
+          }
+        }),
+      ]);
 
       const enriched = pending.map((e) => ({
         ...e,
         student: profileMap.get(e.studentUid),
+        courseTitle: courseTitleMap.get(e.courseId),
       }));
 
       setAllItems(enriched);
@@ -129,9 +143,11 @@ export function useAdminEnrollmentQueue(courseIdFilter?: string) {
       arr = arr.filter((r) => {
         const fullName = `${r.student?.firstName ?? ""} ${r.student?.lastName ?? ""}`.toLowerCase();
         const email = (r.student?.email ?? "").toLowerCase();
+        const courseTitle = (r.courseTitle ?? "").toLowerCase();
         return (
           fullName.includes(q) ||
           email.includes(q) ||
+          courseTitle.includes(q) ||
           r.courseId.toLowerCase().includes(q) ||
           r.studentUid.toLowerCase().includes(q)
         );

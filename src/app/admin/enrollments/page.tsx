@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -13,7 +13,6 @@ import {
   isRejected,
   type EnrollmentItem,
 } from "@/application/hooks/useAdminEnrollmentQueue";
-import { useCourses } from "@/application/hooks/useCourses";
 
 function formatDate(iso: string | undefined | null): string {
   if (!iso) return "—";
@@ -33,15 +32,7 @@ function stateBadge(r: EnrollmentItem) {
 
 export default function AdminEnrollmentsPage() {
   const Q = useAdminEnrollmentQueue();
-  const C = useCourses({ limit: 100 });
   const [rejectTarget, setRejectTarget] = useState<{ id: string; label: string } | null>(null);
-
-  // Index course titles by id for quick lookup.
-  const courseTitle = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of C.items) map.set(c.id, c.title);
-    return map;
-  }, [C.items]);
 
   return (
     <div className="page">
@@ -138,7 +129,7 @@ export default function AdminEnrollmentsPage() {
             )}
             {Q.items.map((r) => {
               const pending = Q.isRowPending(r);
-              const title = courseTitle.get(r.courseId);
+              const title = r.courseTitle;
               const label = title ?? r.courseId;
               return (
                 <tr key={r.id}>
@@ -168,13 +159,21 @@ export default function AdminEnrollmentsPage() {
                     </div>
                   </td>
                   <td style={{ maxWidth: 240 }}>
-                    <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={label}>
-                      {title ?? (
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--color-muted)" }}>
-                          {r.courseId}
+                    {title ? (
+                      <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={title}>
+                        {title}
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontStyle: "italic", color: "var(--color-muted)", fontSize: 13, fontFamily: "var(--font-body)" }}>
+                          <Icon name="alert-circle" size={13} />
+                          Course unavailable
                         </span>
-                      )}
-                    </div>
+                        <span style={{ fontSize: 11, color: "var(--color-muted)", fontFamily: "var(--font-body)" }}>
+                          may be deleted or archived
+                        </span>
+                      </div>
+                    )}
                   </td>
                   <td className="muted" style={{ whiteSpace: "nowrap" }}>{formatDate(r.createdAt)}</td>
                   <td>{stateBadge(r)}</td>

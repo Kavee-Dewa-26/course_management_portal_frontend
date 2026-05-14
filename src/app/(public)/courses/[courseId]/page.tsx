@@ -91,14 +91,14 @@ export default function PublicCourseDetailPage() {
               }}
             >
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <Icon name="layers" size={14} /> {course.semesterCount} {course.semesterCount === 1 ? "module" : "modules"}
+                <Icon name="layers" size={14} /> {course.semesterCount} {course.semesterCount === 1 ? "semester" : "semesters"}
               </span>
               {totalSubjects > 0 && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <Icon name="play-circle" size={14} /> {totalSubjects} {totalSubjects === 1 ? "subject" : "subjects"}
                 </span>
               )}
-              {course.publishedAt && (
+              {course.state === "published" && course.publishedAt && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <Icon name="calendar" size={14} /> Published {new Date(course.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                 </span>

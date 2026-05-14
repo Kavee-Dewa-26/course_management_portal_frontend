@@ -1,5 +1,20 @@
 "use client";
 
+/**
+ * Student Browse Course Detail page
+ * ──────────────────────────────────
+ * APIs used to render this page:
+ *  • GET  /courses/:id                  → course title, state, publishedAt, semesterCount, semesters[]
+ *  • GET  /courses/:id/semesters        → fallback if main response has empty semesters[]
+ *  • GET  /semesters/:id/subjects       → fallback for each semester's subjects
+ *  • POST /courses/:id/enroll           → student requests enrollment
+ *  • GET  /me/enrollments               → check if student already has an enrollment for this course
+ *
+ * NOTE: lessons are intentionally NOT shown here — students must enroll first.
+ * Once enrolled and approved, lessons appear in /my-courses/:id (uses
+ * GET /subjects/:id/lessons + GET /attachments/:id/download-url).
+ */
+
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
@@ -8,20 +23,47 @@ import { CourseCover } from "@/components/ui/CourseCover";
 import { Icon } from "@/components/ui/Icon";
 import { useCourse } from "@/application/hooks/useCourses";
 import { useEnrollments } from "@/application/hooks/useEnrollments";
+import { useAppSelector } from "@/application/hooks/useAppSelector";
+import { apiRequest } from "@/infrastructure/api/request";
+
+interface LessonTitle { id: string; title: string }
 
 export default function BrowseCourseDetailPage() {
   const router = useRouter();
   const params = useParams<{ courseId: string }>();
   const { getStatus, getEnrollmentForCourse, enroll } = useEnrollments();
   const [enrolling, setEnrolling] = useState(false);
+  const sessionUser = useAppSelector((s) => s.session.user);
 
-  const { course, loading, error } = useCourse(params.courseId);
+  const { course, loading, error } = useCourse(sessionUser ? params.courseId : undefined);
+  const [lessonsBySubject, setLessonsBySubject] = useState<Record<string, LessonTitle[]>>({});
 
   useEffect(() => {
     if (error?.status === 404) {
       router.replace("/browse-courses");
     }
   }, [error, router]);
+
+  // Fetch lesson titles for every subject (preview only — no video/content).
+  useEffect(() => {
+    const subjects = course?.semesters?.flatMap((s) => s.subjects ?? []) ?? [];
+    if (subjects.length === 0) { setLessonsBySubject({}); return; }
+    let cancelled = false;
+    Promise.allSettled(
+      subjects.map(async (sub) => {
+        const list = await apiRequest<LessonTitle[]>(`/subjects/${sub.id}/lessons`);
+        return { subjectId: sub.id, list: (list ?? []).map((l) => ({ id: l.id, title: l.title })) };
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      const map: Record<string, LessonTitle[]> = {};
+      for (const r of results) {
+        if (r.status === "fulfilled") map[r.value.subjectId] = r.value.list;
+      }
+      setLessonsBySubject(map);
+    });
+    return () => { cancelled = true; };
+  }, [course?.semesters]);
 
   if (loading) {
     return (
@@ -70,14 +112,14 @@ export default function BrowseCourseDetailPage() {
           </h1>
           <div style={{ display: "flex", gap: 20, color: "rgba(255,255,255,0.65)", fontSize: 13, fontFamily: "var(--font-body)", marginBottom: 24, flexWrap: "wrap" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name="layers" size={14} /> {course.semesterCount} {course.semesterCount === 1 ? "module" : "modules"}
+              <Icon name="layers" size={14} /> {course.semesterCount} {course.semesterCount === 1 ? "semester" : "semesters"}
             </span>
             {totalSubjects > 0 && (
               <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <Icon name="play-circle" size={14} /> {totalSubjects} {totalSubjects === 1 ? "subject" : "subjects"}
               </span>
             )}
-            {course.publishedAt && (
+            {course.state === "published" && course.publishedAt && (
               <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <Icon name="calendar" size={14} /> Published {new Date(course.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
               </span>
@@ -136,13 +178,15 @@ export default function BrowseCourseDetailPage() {
         </div>
       </div>
 
-      {/* Syllabus */}
+      {/* Syllabus — preview of semesters & subjects (lessons are gated behind enrollment) */}
       <div className="settings-card">
         <h2>Syllabus</h2>
-        <p className="settings-sub">Topics covered across all modules in this course.</p>
+        <p className="settings-sub">
+          Course structure across all semesters. Enroll to unlock lessons, videos and materials.
+        </p>
         {course.semesters && course.semesters.length > 0 ? (
           <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
-            {course.semesters.map((sem) => (
+            {course.semesters.map((sem, si) => (
               <div
                 key={sem.id}
                 style={{
@@ -152,34 +196,74 @@ export default function BrowseCourseDetailPage() {
                   padding: 16,
                 }}
               >
-                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-primary)", marginBottom: 10, fontFamily: "var(--font-heading)" }}>
-                  {sem.title}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                  <span style={{
+                    width: 24, height: 24, borderRadius: "50%",
+                    background: "rgba(188,233,85,0.15)",
+                    border: "1px solid rgba(188,233,85,0.3)",
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 11,
+                    color: "#BCE955", flexShrink: 0,
+                  }}>{si + 1}</span>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-primary)", fontFamily: "var(--font-heading)" }}>
+                    {sem.title}
+                  </div>
                 </div>
-                <div style={{ display: "grid", gap: 6 }}>
-                  {sem.subjects?.map((s) => (
-                    <div
-                      key={s.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        fontSize: 13,
-                        color: "var(--color-body-green)",
-                        fontFamily: "var(--font-body)",
-                      }}
-                    >
-                      <Icon name="play-circle" size={13} />
-                      {s.title}
+                <div style={{ display: "grid", gap: 10, paddingLeft: 34 }}>
+                  {sem.subjects && sem.subjects.length > 0 ? (
+                    sem.subjects.map((s) => {
+                      const lessons = lessonsBySubject[s.id] ?? [];
+                      return (
+                        <div key={s.id}>
+                          <div style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "var(--color-primary)",
+                            fontFamily: "var(--font-body)",
+                          }}>
+                            <Icon name="bookmark" size={13} />
+                            {s.title}
+                          </div>
+                          {lessons.length > 0 && (
+                            <div style={{ display: "grid", gap: 4, paddingLeft: 21, marginTop: 4 }}>
+                              {lessons.map((l) => (
+                                <div
+                                  key={l.id}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    fontSize: 12,
+                                    color: "var(--color-body-green)",
+                                    fontFamily: "var(--font-body)",
+                                  }}
+                                >
+                                  <Icon name="play-circle" size={11} style={{ opacity: 0.65 }} />
+                                  {l.title}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div style={{ fontSize: 12, color: "var(--color-muted)", fontStyle: "italic", fontFamily: "var(--font-body)" }}>
+                      No subjects yet
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p style={{ marginTop: 12, color: "var(--color-body-green)", fontFamily: "var(--font-body)", fontSize: 13 }}>
-            The course curriculum is being prepared.
-          </p>
+          <div style={{ marginTop: 16, padding: "24px 16px", textAlign: "center", color: "var(--color-muted)", fontFamily: "var(--font-body)" }}>
+            <Icon name="layers" size={24} style={{ opacity: 0.35, marginBottom: 8 }} />
+            <p style={{ margin: 0, fontSize: 13 }}>The course curriculum is being prepared.</p>
+          </div>
         )}
       </div>
     </div>
