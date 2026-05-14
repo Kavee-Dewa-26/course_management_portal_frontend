@@ -144,31 +144,31 @@
 ---
 
 ## Checklist
-- [ ] Notification bell badge from `GET /me/notifications?read=false`
-- [ ] Notification list from API
-- [ ] Mark single notification read
-- [ ] Mark all notifications read
-- [ ] Unread count refreshes after marking read
-- [ ] Student list → `GET /users?role=student`
-- [ ] Student search and status filter
-- [ ] Student detail → `GET /users/:uid`
-- [ ] Suspend student → `POST /users/:uid/suspend`
-- [ ] Reactivate student → `POST /users/:uid/reactivate`
-- [ ] Admin list → `GET /super-admin/admins` (replace mock)
-- [ ] Create admin form wired to real endpoint
-- [ ] Suspend admin → real endpoint with UID from API
-- [ ] Reactivate admin → real endpoint
-- [ ] Delete admin → `DELETE /super-admin/admins/:uid`
-- [ ] Promote student to admin → `POST /super-admin/users/:uid/make-admin`
-- [ ] Audit log → `GET /audit-log` replaces mock
-- [ ] Date range filter sends ISO `from`/`to` params
-- [ ] Category filter sends `category` param
-- [ ] Audit log pagination
-- [ ] Admin dashboard tiles (registrations, enrollments, courses, students) wired to real counts
-- [ ] Admin dashboard "Recent activity" pulls from `GET /audit-log?limit=5`
-- [ ] Super-admin dashboard adds admins + suspended-students tiles
-- [ ] Dashboard tile click navigates to the relevant management page
-- [ ] Skeleton loaders while dashboard tiles fetch
-- [ ] Per-tile silent failure (one 500 doesn't break others)
-- [ ] Test full notification flow: admin approves enrollment → student sees notification
-- [ ] Test admin dashboard reflects live counts (create registration → tile increments)
+- [x] Notification bell badge from `GET /me/notifications?read=false`
+- [x] Notification list from API
+- [x] Mark single notification read
+- [x] Mark all notifications read
+- [x] Unread count refreshes after marking read
+- [x] Student list → `GET /users?role=student`
+- [x] Student search and status filter
+- [x] Student detail → `GET /users/:uid`
+- [x] Suspend student → `POST /users/:uid/suspend`
+- [x] Reactivate student → `POST /users/:uid/reactivate`
+- [x] Admin list → `GET /super-admin/admins` (replace mock)
+- [x] Create admin form wired to real endpoint
+- [x] Suspend admin → real endpoint with UID from API
+- [x] Reactivate admin → real endpoint
+- [x] Delete admin → `DELETE /super-admin/admins/:uid`
+- [x] Promote student to admin → `POST /super-admin/users/:uid/make-admin`
+- [x] Audit log → `GET /audit-log` replaces mock
+- [x] Date range filter sends ISO `from`/`to` params
+- [x] Category filter sends `category` param
+- [x] Audit log pagination
+- [x] Admin dashboard tiles (registrations, enrollments, courses, students) wired to real counts
+- [x] Admin dashboard "Recent activity" pulls from `GET /audit-log?limit=5`
+- [x] Super-admin dashboard adds admins + suspended-students tiles
+- [x] Dashboard tile click navigates to the relevant management page
+- [x] Skeleton loaders while dashboard tiles fetch
+- [x] Per-tile silent failure (one 500 doesn't break others)
+- [x] Test full notification flow: admin approves enrollment → student sees notification
+- [x] Test admin dashboard reflects live counts (create registration → tile increments)

@@ -21,6 +21,7 @@ interface UiState {
   /** Live counts shown in sidebar — kept in sync by approval queue hooks. */
   pendingRegistrations: number;
   pendingEnrollments: number;
+  totalAdmins: number;
 }
 
 const initialState: UiState = {
@@ -29,6 +30,7 @@ const initialState: UiState = {
   sidebarCollapsed: false,
   pendingRegistrations: 0,
   pendingEnrollments: 0,
+  totalAdmins: 0,
 };
 
 const uiSlice = createSlice({
@@ -61,6 +63,9 @@ const uiSlice = createSlice({
     setPendingEnrollments(state, action: PayloadAction<number>) {
       state.pendingEnrollments = action.payload;
     },
+    setTotalAdmins(state, action: PayloadAction<number>) {
+      state.totalAdmins = action.payload;
+    },
   },
 });
 
@@ -72,5 +77,6 @@ export const {
   setSidebarCollapsed,
   setPendingRegistrations,
   setPendingEnrollments,
+  setTotalAdmins,
 } = uiSlice.actions;
 export default uiSlice.reducer;

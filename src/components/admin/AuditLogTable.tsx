@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { AUDIT_SEED } from "@/lib/mock/audit";
+import { useAppSelector } from "@/application/hooks/useAppSelector";
+import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import { cn } from "@/lib/cn";
 
 const CATS = ["All", "Approvals", "Admins", "Content", "Security", "Settings"] as const;
@@ -18,28 +19,117 @@ const DATE_OPTIONS: { value: DateRange; label: string }[] = [
   { value: "all", label: "All time" },
 ];
 
-function parseDaysAgo(when: string): number {
-  const w = when.toLowerCase();
-  if (w.startsWith("today")) return 0;
-  if (w === "yesterday") return 1;
-  const d = w.match(/(\d+)\s*d\s*ago/);
-  if (d) return parseInt(d[1]);
-  const wk = w.match(/(\d+)\s*w\s*ago/);
-  if (wk) return parseInt(wk[1]) * 7;
-  return 0;
+interface AuditEntry {
+  id: string;
+  actorUid: string;
+  actorEmail?: string;
+  category: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  ip?: string;
+  createdAt: string;
+  [key: string]: unknown;
+}
+
+interface PagedResponse {
+  items: AuditEntry[];
+  nextCursor: string | null;
+  total: number;
+}
+
+function isoFromDateRange(range: DateRange): string | null {
+  if (range === "all") return null;
+  const days = parseInt(range);
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function formatRelative(iso: string): string {
+  const d = new Date(iso).getTime();
+  if (isNaN(d)) return iso;
+  const diff = Date.now() - d;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} h ago`;
+  const days = Math.floor(h / 24);
+  if (days < 7) return `${days} d ago`;
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export function AuditLogTable() {
+  const sessionUser = useAppSelector((s) => s.session.user);
+
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<Cat>("All");
   const [dateRange, setDateRange] = useState<DateRange>("30");
 
-  const filtered = AUDIT_SEED.filter(
-    (r) =>
-      (cat === "All" || r.category === cat) &&
-      (dateRange === "all" || parseDaysAgo(r.when) <= parseInt(dateRange)) &&
-      (q === "" || (r.actor + r.action).toLowerCase().includes(q.toLowerCase())),
-  );
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPage = useCallback(async (reset: boolean) => {
+    if (!sessionUser) return;
+    setLoading(true);
+    if (reset) setError(null);
+    try {
+      const params = new URLSearchParams({ limit: "25" });
+      const from = isoFromDateRange(dateRange);
+      if (from) params.append("from", from);
+      if (cat !== "All") params.append("category", cat.toLowerCase());
+      if (!reset && nextCursor) params.append("cursor", nextCursor);
+      const url = `/audit-log?${params}`;
+      // eslint-disable-next-line no-console
+      console.log("[audit-log] requesting:", url);
+      const data = await apiRequest<PagedResponse>(url);
+      // eslint-disable-next-line no-console
+      console.log("[audit-log] response:", data);
+      const items = data.items ?? [];
+      setEntries((prev) => reset ? items : [...prev, ...items]);
+      setTotal(data.total ?? 0);
+      setNextCursor(data.nextCursor ?? null);
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        // eslint-disable-next-line no-console
+        console.warn("[audit-log] error:", err.status, err.code, err.message);
+        if (err.status === 403) {
+          setError("Insufficient permissions to view the audit log.");
+        } else if (err.status === 404) {
+          setError("Audit log endpoint not found. The backend may not have this feature enabled yet.");
+        } else if (err.status === 500) {
+          setError("Server error loading the audit log. Please try again.");
+        } else if (err.status !== 401) {
+          setError(err.message || "Failed to load audit log.");
+        }
+      } else {
+        setError("Unexpected error loading audit log.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionUser, dateRange, cat, nextCursor]);
+
+  // Refetch from page 1 whenever filters change.
+  useEffect(() => {
+    setEntries([]);
+    setNextCursor(null);
+    fetchPage(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionUser, dateRange, cat]);
+
+  // Client-side text search (filters already-loaded entries).
+  const filtered = useMemo(() => {
+    if (!q.trim()) return entries;
+    const needle = q.trim().toLowerCase();
+    return entries.filter((r) =>
+      (r.actorEmail ?? "").toLowerCase().includes(needle) ||
+      r.action.toLowerCase().includes(needle) ||
+      (r.targetId ?? "").toLowerCase().includes(needle),
+    );
+  }, [entries, q]);
 
   return (
     <div className="page">
@@ -47,7 +137,10 @@ export function AuditLogTable() {
         <div>
           <h1>Audit Log</h1>
           <div className="greeting">
-            Every administrative action: sign-ins, approvals, content edits, role changes.
+            <b style={{ color: "var(--color-primary)" }}>
+              {loading && entries.length === 0 ? "…" : total}
+            </b>{" "}
+            total entries · {entries.length} loaded
           </div>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -64,15 +157,10 @@ export function AuditLogTable() {
               onChange={(e) => setDateRange(e.target.value as DateRange)}
             >
               {DATE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </div>
-          <Button variant="secondary" icon="download">
-            Export CSV
-          </Button>
         </div>
       </div>
 
@@ -80,7 +168,7 @@ export function AuditLogTable() {
         <div className="audit-search">
           <Icon name="search" size={16} />
           <input
-            placeholder="Search actor, action or target…"
+            placeholder="Search actor email, action or target…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -98,6 +186,25 @@ export function AuditLogTable() {
         </div>
       </div>
 
+      {error && (
+        <div style={{
+          padding: "12px 16px",
+          marginBottom: 16,
+          background: "rgba(220, 38, 38, 0.08)",
+          border: "1px solid rgba(220, 38, 38, 0.3)",
+          borderRadius: 12,
+          fontFamily: "var(--font-body)",
+          fontSize: 13,
+          color: "var(--color-error, #DC2626)",
+          display: "flex",
+          gap: 10,
+          alignItems: "flex-start",
+        }}>
+          <Icon name="alert-triangle" size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>{error}</span>
+        </div>
+      )}
+
       <div className="tbl-card">
         <table className="tbl">
           <thead>
@@ -110,17 +217,34 @@ export function AuditLogTable() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r, i) => (
-              <tr key={i}>
-                <td className="muted">{r.when}</td>
-                <td style={{ fontWeight: 600 }}>{r.actor}</td>
+            {loading && entries.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ textAlign: "center", padding: 40 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--color-muted)" }}>
+                    <Icon name="loader" size={18} />
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 14 }}>Loading…</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!loading && filtered.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ textAlign: "center", padding: 32, color: "var(--color-muted)" }}>
+                  No log entries match.
+                </td>
+              </tr>
+            )}
+            {filtered.map((r) => (
+              <tr key={r.id}>
+                <td className="muted" style={{ whiteSpace: "nowrap" }}>{formatRelative(r.createdAt)}</td>
+                <td style={{ fontWeight: 600 }}>{r.actorEmail || r.actorUid.slice(0, 12) + "…"}</td>
                 <td>{r.action}</td>
                 <td>
                   <Badge
                     tone={
-                      r.category === "Security"
+                      r.category === "security" || r.category === "Security"
                         ? "warning"
-                        : r.category === "Approvals"
+                        : r.category === "approvals" || r.category === "Approvals"
                           ? "success"
                           : "info"
                     }
@@ -128,27 +252,22 @@ export function AuditLogTable() {
                     {r.category}
                   </Badge>
                 </td>
-                <td
-                  className="muted"
-                  style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}
-                >
-                  {r.ip}
+                <td className="muted" style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                  {r.ip ?? "—"}
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  style={{ textAlign: "center", padding: 32, color: "#41574A" }}
-                >
-                  No log entries match.
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
+
+      {nextCursor && !loading && (
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+          <Button variant="secondary" icon="chevron-down" onClick={() => fetchPage(false)}>
+            Load more
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
