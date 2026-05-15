@@ -107,20 +107,32 @@ export default function EditCoursePage() {
     }
   };
 
-  const handleSaveAsDraft = async () => {
+  const handleUnpublish = async () => {
     setLifecycleBusy(true);
     try {
       await apiRequest(`/courses/${course.id}/unpublish`, { method: "POST" });
-      dispatch(pushToast({
-        tone: "success",
-        title: course.state === "archived" ? "Course restored as draft" : "Course saved as draft",
-      }));
+      dispatch(pushToast({ tone: "success", title: "Course unpublished" }));
       router.replace(`${base}/courses/${course.id}`);
     } catch (err) {
       if (err instanceof ApiRequestError) {
-        const msg = err.status === 409 ? "Course can't move to draft from its current state."
-          : err.message;
-        dispatch(pushToast({ tone: "warning", title: "Cannot save as draft", message: msg }));
+        const msg = err.status === 409 ? "Only a PUBLISHED course can be unpublished." : err.message;
+        dispatch(pushToast({ tone: "warning", title: "Cannot unpublish", message: msg }));
+      }
+    } finally {
+      setLifecycleBusy(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    setLifecycleBusy(true);
+    try {
+      await apiRequest(`/courses/${course.id}/archive`, { method: "POST" });
+      dispatch(pushToast({ tone: "success", title: "Course archived" }));
+      router.replace(`${base}/courses/${course.id}`);
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        const msg = err.status === 409 ? "Only a PUBLISHED course can be archived." : err.message;
+        dispatch(pushToast({ tone: "warning", title: "Cannot archive", message: msg }));
       }
     } finally {
       setLifecycleBusy(false);
@@ -144,14 +156,14 @@ export default function EditCoursePage() {
             </Button>
           )}
           {course.state === "published" && (
-            <Button variant="secondary" icon="rotate-ccw" onClick={handleSaveAsDraft} disabled={lifecycleBusy}>
-              {lifecycleBusy ? "Saving…" : "Save as draft"}
-            </Button>
-          )}
-          {course.state === "archived" && (
-            <Button icon="upload-cloud" onClick={handlePublish} disabled={lifecycleBusy}>
-              {lifecycleBusy ? "Publishing…" : "Publish"}
-            </Button>
+            <>
+              <Button variant="secondary" icon="eye-off" onClick={handleUnpublish} disabled={lifecycleBusy}>
+                {lifecycleBusy ? "Unpublishing…" : "Unpublish"}
+              </Button>
+              <Button variant="secondary" icon="archive" onClick={handleArchive} disabled={lifecycleBusy}>
+                {lifecycleBusy ? "Archiving…" : "Archive"}
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -168,8 +180,9 @@ export default function EditCoursePage() {
         }}>
           <Icon name="archive" size={16} style={{ flexShrink: 0, marginTop: 1 }} />
           <span>
-            This course is <b>archived</b>. You can still edit its content.
-            Click <b>Publish</b> to make it live again.
+            This course is <b>archived</b>. Archived courses can only be deleted —
+            the API does not support unarchiving. Enrolled students retain
+            read-only access to the content for 30 days.
           </span>
         </div>
       )}

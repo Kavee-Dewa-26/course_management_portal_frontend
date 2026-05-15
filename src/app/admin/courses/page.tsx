@@ -25,11 +25,18 @@ function formatDate(value: string | undefined | null): string {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function normalizeState(state: string | null | undefined): "draft" | "published" | "archived" | "unknown" {
+  const s = (state ?? "").toLowerCase().trim();
+  if (s === "published" || s === "draft" || s === "archived") return s;
+  return "unknown";
+}
+
 function stateBadge(state: CourseSummary["state"]) {
-  if (state === "published") return <Badge tone="success">Published</Badge>;
-  if (state === "draft")     return <Badge tone="warning">Draft</Badge>;
-  if (state === "archived")  return <Badge tone="archive">Archived</Badge>;
-  return <Badge tone="info">{state}</Badge>;
+  const s = normalizeState(state);
+  if (s === "published") return <Badge tone="success">Published</Badge>;
+  if (s === "draft")     return <Badge tone="warning">Draft</Badge>;
+  if (s === "archived")  return <Badge tone="archive">Archived</Badge>;
+  return <Badge tone="info">{state || "—"}</Badge>;
 }
 
 export default function AdminCoursesPage() {
@@ -45,7 +52,13 @@ export default function AdminCoursesPage() {
     state: stateFilter === "all" ? undefined : stateFilter,
   });
 
-  const draftsOnPage = Q.items.filter((c) => c.state === "draft").length;
+  // Debug — log the state field as the API returns it so we can spot inconsistencies.
+  if (Q.items.length > 0) {
+    // eslint-disable-next-line no-console
+    console.log("[courses] states returned by API:", Q.items.map((c) => ({ title: c.title, state: c.state })));
+  }
+
+  const draftsOnPage = Q.items.filter((c) => normalizeState(c.state) === "draft").length;
 
   return (
     <div className="page">
@@ -120,7 +133,9 @@ export default function AdminCoursesPage() {
                   </td>
                 </tr>
               )}
-              {!Q.loading && Q.items.map((c) => (
+              {!Q.loading && Q.items.map((c) => {
+                const cstate = normalizeState(c.state);
+                return (
                 <tr key={c.id}>
                   <td style={{ verticalAlign: "middle", maxWidth: 360 }}>
                     <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -143,11 +158,30 @@ export default function AdminCoursesPage() {
                           ico: "eye",
                           onClick: () => router.push(`${base}/courses/${c.id}/view`),
                         },
-                        {
+                        // Edit available for draft + published (PATCH endpoint has no state restriction).
+                        ...(cstate !== "archived" ? [{
                           label: "Edit",
                           ico: "edit-3",
                           onClick: () => router.push(`${base}/courses/${c.id}`),
-                        },
+                        }] : []),
+                        // Lifecycle actions — strictly per the API state machine.
+                        ...(cstate === "draft" ? [{
+                          label: "Publish",
+                          ico: "upload-cloud",
+                          onClick: () => Q.publish(c.id),
+                        }] : []),
+                        ...(cstate === "published" ? [
+                          {
+                            label: "Unpublish",
+                            ico: "eye-off",
+                            onClick: () => Q.unpublish(c.id),
+                          },
+                          {
+                            label: "Archive",
+                            ico: "archive",
+                            onClick: () => Q.archive(c.id),
+                          },
+                        ] : []),
                         {
                           label: "Delete",
                           ico: "trash-2",
@@ -158,7 +192,8 @@ export default function AdminCoursesPage() {
                     />
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
