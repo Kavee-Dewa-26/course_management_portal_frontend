@@ -13,8 +13,8 @@ export type UserStatus = "pending_approval" | "approved" | "rejected" | "suspend
 /** Where each role lands after login. Picked by the user's activeRole. */
 export const DASHBOARD_BY_ROLE: Record<Role, string> = {
   member: "/home",
-  leader: "/cells",
-  g12: "/cells",
+  leader: "/leader/dashboard",
+  g12: "/g12/dashboard",
   student: "/dashboard",
   admin: "/admin/dashboard",
   super_admin: "/super-admin/dashboard",
