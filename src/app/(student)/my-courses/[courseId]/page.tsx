@@ -323,9 +323,20 @@ export default function StudentCourseViewerPage() {
   });
   if (currentSemIdx === -1) currentSemIdx = sortedSemesters.length - 1; // all done → last is "current"
 
-  // Batch badge — show the first batch associated with this course (mock data).
+  // Batch badge — use mock data; fall back to a sensible dummy so the badge
+  // always appears even for courses not yet in the mock store.
   const batches = listBatchesForCourse(course.id);
-  const activeBatch = batches.find((b) => b.state === "open") ?? batches[0] ?? null;
+  const activeBatch = batches.find((b) => b.state === "open") ??
+    batches[0] ?? {
+      id: "fallback",
+      courseId: course.id,
+      name: "Intake B · Q2 2026",
+      intakeStart: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString().slice(0, 10),
+      intakeEnd: new Date(Date.now() + 1000 * 60 * 60 * 24 * 50).toISOString().slice(0, 10),
+      state: "open" as const,
+      capacity: 60,
+      enrolled: 23,
+    };
 
   function formatBatchDate(iso: string) {
     if (!iso) return "—";
@@ -337,6 +348,28 @@ export default function StudentCourseViewerPage() {
     if (idx === currentSemIdx) return "current";
     return "future";
   }
+
+  /**
+   * Generates a dummy date window for each semester position so the sidebar
+   * always shows the "01 Jan 2026 → 28 Feb 2026 · closed" style rows from
+   * the design. Real dates will replace these once the backend returns them.
+   *   idx 0 → past      (5–3 months ago)
+   *   idx 1 → current   (last month → +2 months)
+   *   idx 2+ → future   (3+ months ahead)
+   */
+  function getDummySemesterDates(idx: number) {
+    const offset = (months: number) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() + months);
+      return d.toISOString().slice(0, 10);
+    };
+    if (idx === 0) return { start: offset(-5), end: offset(-3) };
+    if (idx === 1) return { start: offset(-1), end: offset(2) };
+    return { start: offset(3 + (idx - 2) * 2), end: offset(5 + (idx - 2) * 2) };
+  }
+
+  /** Pre-compute date ranges for every semester. */
+  const semesterDates = sortedSemesters.map((_, i) => getDummySemesterDates(i));
 
   return (
     <div className="viewer">
@@ -389,12 +422,22 @@ export default function StudentCourseViewerPage() {
             const state = getSemesterState(semIdx);
             const isPast = state === "past";
             const isFuture = state === "future";
+            const isCurrent = state === "current";
             const isLocked = isPast || isFuture;
+            const { start, end } = semesterDates[semIdx];
+            const dateColor = isPast
+              ? "var(--color-error-deep)"
+              : isFuture
+              ? "var(--color-muted)"
+              : "var(--color-success-deep)";
 
             return (
               <div className="semester" key={sem.id} style={{ opacity: isLocked ? 0.65 : 1 }}>
                 {/* Semester header */}
-                <div className="semester-head" style={{ color: isLocked ? "var(--color-muted)" : "var(--color-primary)" }}>
+                <div
+                  className="semester-head"
+                  style={{ fontWeight: isCurrent ? 700 : 600, color: isLocked ? "var(--color-muted)" : "var(--color-primary)" }}
+                >
                   <span>
                     {sem.title}
                     <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 6, color: "var(--color-muted)" }}>
@@ -404,6 +447,16 @@ export default function StudentCourseViewerPage() {
                   {isLocked
                     ? <Icon name="lock" size={13} style={{ color: "var(--color-muted)" }} />
                     : <Icon name="chevron-down" size={14} />}
+                </div>
+
+                {/* Date range row — shown for every semester */}
+                <div style={{
+                  padding: "0 24px 8px",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11,
+                  color: dateColor,
+                }}>
+                  {formatBatchDate(start)} → {formatBatchDate(end)}{isLocked ? " · closed" : ""}
                 </div>
 
                 {/* Locked state: Past or Future */}
