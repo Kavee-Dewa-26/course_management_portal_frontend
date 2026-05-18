@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon } from "@/components/ui/Icon";
-import type { Role } from "@/application/slices/sessionSlice";
+import { isRole, type Role } from "@/application/slices/sessionSlice";
 
 interface RoleOption {
   value: Role;
@@ -22,7 +22,10 @@ interface Props {
 }
 
 const ROLE_OPTIONS: Record<Role, RoleOption> = {
-  student:     { value: "student",     label: "Student view",     ico: "user" },
+  member:      { value: "member",      label: "Member view",      ico: "user" },
+  student:     { value: "student",     label: "Student view",     ico: "graduation-cap" },
+  leader:      { value: "leader",      label: "Leader view",      ico: "users" },
+  g12:         { value: "g12",         label: "G12 view",         ico: "share-2" },
   admin:       { value: "admin",       label: "Admin view",       ico: "shield" },
   super_admin: { value: "super_admin", label: "Super admin view", ico: "shield-check" },
 };
@@ -39,9 +42,7 @@ export function UserMenu({ user, role, roles, activeRole, onSwitchRole, onLogout
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  const validRoles = (roles ?? []).filter((r): r is Role =>
-    r === "student" || r === "admin" || r === "super_admin",
-  );
+  const validRoles = (roles ?? []).filter(isRole);
   const showSwitcher = validRoles.length > 1 && !!onSwitchRole;
 
   return (

@@ -12,14 +12,17 @@ import { auth } from "@/infrastructure/firebase/auth";
 import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
-import { setUser, type SessionUser, type Role } from "@/application/slices/sessionSlice";
+import {
+  setUser,
+  isRole,
+  DASHBOARD_BY_ROLE,
+  type SessionUser,
+  type Role,
+} from "@/application/slices/sessionSlice";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
-
-const DASHBOARD_BY_ROLE: Record<Role, string> = {
-  student: "/dashboard",
-  admin: "/admin/dashboard",
-  super_admin: "/super-admin/dashboard",
-};
+import { FederatedSignInButtons } from "./FederatedSignInButtons";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { DevLoginPanel } from "./DevLoginPanel";
 
 export function LoginForm() {
   const router = useRouter();
@@ -114,16 +117,17 @@ export function LoginForm() {
       let savedRole: Role | null = null;
       try {
         const v = typeof window !== "undefined"
-          ? (localStorage.getItem(`edupath.activeRole.${me.uid}`) as Role | null)
+          ? localStorage.getItem(`edupath.activeRole.${me.uid}`)
           : null;
-        if (v === "student" || v === "admin" || v === "super_admin") {
-          if (me.roles?.includes(v)) savedRole = v;
-        }
+        if (isRole(v) && me.roles?.includes(v)) savedRole = v;
       } catch { /* ignore */ }
       const target: Role = savedRole
         ?? (me.roles?.includes("super_admin") ? "super_admin"
           : me.roles?.includes("admin")       ? "admin"
-          :                                      "student");
+          : me.roles?.includes("g12")         ? "g12"
+          : me.roles?.includes("leader")      ? "leader"
+          : me.roles?.includes("student")     ? "student"
+          :                                      "member");
       router.push(DASHBOARD_BY_ROLE[target]);
     } catch (err: unknown) {
       if (err instanceof FirebaseError) {
@@ -167,8 +171,15 @@ export function LoginForm() {
 
   return (
     <>
-      <h3>Sign in to your account</h3>
-      <p className="sub">Enter your credentials to continue.</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
+        <div>
+          <h3 style={{ margin: 0 }}>Sign in to your account</h3>
+          <p className="sub" style={{ margin: "4px 0 0" }}>Enter your credentials to continue.</p>
+        </div>
+        <LanguageSwitcher />
+      </div>
+
+      <FederatedSignInButtons context="signin" disabled={loading} />
 
       {formError && (
         <div
@@ -262,6 +273,8 @@ export function LoginForm() {
           </Link>
         </div>
       </div>
+
+      <DevLoginPanel />
 
       <ForgotPasswordModal
         open={forgotOpen}
