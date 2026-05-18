@@ -328,12 +328,6 @@ export default function SuperAdminStudentsPage() {
                             ico: "user",
                             onClick: () => router.push(`${base}/students/${s.uid}`),
                           },
-                          // Upgrade-to-admin is super-admin-only.
-                          ...(base === "/super-admin" ? [{
-                            label: "Upgrade to admin",
-                            ico: "arrow-up-circle",
-                            onClick: () => router.push(`${base}/students/${s.uid}/upgrade`),
-                          }] : []),
                         ]}
                       />
                     </div>
