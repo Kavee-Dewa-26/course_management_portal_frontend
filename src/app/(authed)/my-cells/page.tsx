@@ -25,7 +25,16 @@ export default function MyCellsPage() {
   const isG12 = user?.roles?.includes("g12") ?? false;
   const isLeader = user?.roles?.includes("leader") ?? false;
   const hasLeaderRole = isLeader || isG12;
-  const leaderLabel = isG12 ? "G12 Leader" : "Leader";
+
+  // Dev/demo affordance — show the SwitchBanner on /my-cells for users
+  // signed in via DevLoginPanel even if their mock roles don't include
+  // leader/g12. Mock users get a uid prefix of `dev-`; real users don't.
+  // When forced by demo, default the banner to the G12 variant so testers
+  // can jump straight into the richer surface.
+  const isDevDemo = (user?.uid ?? "").startsWith("dev-");
+  const showBanner = hasLeaderRole || isDevDemo;
+  const bannerVariant: "g12" | "leader" = isG12 ? "g12" : isLeader ? "leader" : "g12";
+  const bannerLabel = bannerVariant === "g12" ? "G12 Leader" : "Leader";
 
   // Cells where the user is a *member* (not the leader). Members typically
   // attend exactly one cell; a leader may also be a member of a different
@@ -72,12 +81,12 @@ export default function MyCellsPage() {
         </p>
       </header>
 
-      {hasLeaderRole && (
+      {showBanner && (
         <SwitchBanner
-          title={`You're also a ${leaderLabel}.`}
-          body={`Switch to your ${isG12 ? "G12" : "Leader"} dashboard for full access — add cells, edit members, file and review reports.`}
-          ctaLabel={`Continue as  ${leaderLabel}`}
-          onCta={() => router.push(isG12 ? "/g12/dashboard" : "/leader/dashboard")}
+          title={`You're also a ${bannerLabel}.`}
+          body={`Switch to your ${bannerVariant === "g12" ? "G12" : "Leader"} dashboard for full access — add cells, edit members, file and review reports.`}
+          ctaLabel={`Continue as  ${bannerLabel}`}
+          onCta={() => router.push(bannerVariant === "g12" ? "/g12/dashboard" : "/leader/dashboard")}
         />
       )}
 

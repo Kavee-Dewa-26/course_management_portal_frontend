@@ -1356,3 +1356,15 @@ svg.lucide { stroke-width: 1.75; }
 .dark .fed-btn { background: var(--color-surface-2); color: #fff; }
 .dark .lang-pill { background: rgba(255, 255, 255, 0.08); }
 .dark .lang-pill button { color: rgba(255, 255, 255, 0.7); }
+
+/* TCCR wordmark — the lime "T" mark + "TCCR" wordmark used in the public
+   floating nav, auth pages, and footer. Mirrors the prototype's TLogo
+   (src/ui_structure/v2/project/tccr-components.jsx). */
+.tccr-wordmark { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-heading); font-weight: 700; letter-spacing: -0.01em; color: #152A24; text-decoration: none; }
+.tccr-wordmark--reversed { color: #fff; }
+.tccr-wordmark .mark { width: 28px; height: 28px; border-radius: 8px; background: #BCE955; color: #152A24; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; flex-shrink: 0; }
+.tccr-wordmark .name { font-size: 16px; letter-spacing: 0.02em; }
+.tccr-wordmark--reversed .name { color: #fff; }
+.tccr-wordmark--reversed .mark { background: #BCE955; color: #152A24; }
+.dark .tccr-wordmark { color: #fff; }
+.dark .tccr-wordmark .name { color: #fff; }
