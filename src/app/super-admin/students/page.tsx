@@ -221,7 +221,8 @@ export default function SuperAdminStudentsPage() {
       </div>
 
       <div className="tbl-card">
-        <table className="tbl">
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+        <table className="tbl" style={{ minWidth: 760 }}>
           <thead>
             <tr>
               <th>User</th>
@@ -342,6 +343,7 @@ export default function SuperAdminStudentsPage() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

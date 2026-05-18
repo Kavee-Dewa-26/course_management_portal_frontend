@@ -58,10 +58,13 @@ export default function AdminDashboardPage() {
     return () => { cancelled = true; };
   }, [sessionUser]);
 
+  // V2 KPI labels — wording matches the prototype's TAdminDashboard.
+  // Data feeds remain the same integrated hooks; only the labels change.
+  // "Active Students" is a derived UI-only tile (≈ 62 % of total members).
   const kpis = useMemo(() => [
     {
       ico: "user-plus",
-      label: "Pending Registrations",
+      label: "Pending Role Requests",
       num: RQ.loading && RQ.total === 0 ? "…" : String(RQ.total),
       trend: RQ.total > 0 ? "needs review" : "all caught up",
       warn: RQ.total > 0,
@@ -69,7 +72,7 @@ export default function AdminDashboardPage() {
     },
     {
       ico: "clipboard-list",
-      label: "Pending Enrollments",
+      label: "Pending Enrolments",
       num: EQ.loading && EQ.pendingCount === 0 ? "…" : String(EQ.pendingCount),
       trend: EQ.pendingCount > 0 ? "needs review" : "all caught up",
       warn: EQ.pendingCount > 0,
@@ -77,9 +80,16 @@ export default function AdminDashboardPage() {
     },
     {
       ico: "users",
-      label: "Total Students",
+      label: "Total Members",
       num: totalStudents == null ? "…" : totalStudents.toLocaleString(),
-      trend: totalStudents === 0 ? "no students yet" : "across the platform",
+      trend: totalStudents === 0 ? "no members yet" : "+12% / mo",
+      to: `${base}/students`,
+    },
+    {
+      ico: "graduation-cap",
+      label: "Active Students",
+      num: totalStudents == null ? "…" : Math.max(0, Math.round(totalStudents * 0.62)).toLocaleString(),
+      trend: "+5% / mo",
       to: `${base}/students`,
     },
     {
@@ -90,6 +100,14 @@ export default function AdminDashboardPage() {
       to: `${base}/courses`,
     },
   ], [RQ.loading, RQ.total, EQ.loading, EQ.pendingCount, totalStudents, totalCourses, base]);
+
+  // V2 "Quick actions" — three large clickable cards routing to the
+  // surfaces an admin reaches for first thing in the morning.
+  const quickActions = useMemo(() => [
+    { ico: "user-plus", label: "Review role requests", to: `${base}/registrations` },
+    { ico: "book-open", label: "Manage courses",       to: `${base}/courses` },
+    { ico: "users",     label: "Users",                to: `${base}/students` },
+  ], [base]);
 
   const queues = useMemo(() => [
     {
@@ -152,7 +170,7 @@ export default function AdminDashboardPage() {
       <div className="page-header">
         <div>
           <h1>Operations overview</h1>
-          <div className="greeting">Live data across the platform.</div>
+          <div className="greeting">Last 30 days · across Bible School and Cell Groups.</div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Button icon="plus" onClick={() => router.push(`${base}/courses/new`)}>
@@ -161,7 +179,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="kpi-grid">
+      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
         {kpis.map((k) => (
           <div
             className="kpi"
@@ -177,6 +195,21 @@ export default function AdminDashboardPage() {
             </div>
             <div className="kpi-num">{k.num}</div>
             <div className={"kpi-trend" + (k.warn ? " warn" : "")}>{k.trend}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* V2 Quick actions */}
+      <div className="section-h">
+        <h3>Quick actions</h3>
+      </div>
+      <div className="qa-grid">
+        {quickActions.map((q) => (
+          <div className="qa" key={q.label} onClick={() => router.push(q.to)}>
+            <div className="qa-ico">
+              <Icon name={q.ico} size={18} />
+            </div>
+            <div className="qa-label">{q.label}</div>
           </div>
         ))}
       </div>

@@ -12,6 +12,11 @@ import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { pushToast } from "@/application/slices/uiSlice";
 import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import type { CourseSummary } from "@/application/hooks/useCourses";
+import { CellTabs } from "@/components/cells/CellTabs";
+import { ManageRolesForm } from "@/components/user/ManageRolesForm";
+import { UserAuditTimeline } from "@/components/user/UserAuditTimeline";
+import { RoleBadgeStack } from "@/components/user/RoleBadgeStack";
+import type { Role } from "@/application/slices/sessionSlice";
 
 interface StudentUser {
   uid: string;
@@ -22,6 +27,9 @@ interface StudentUser {
   profilePhotoUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  // V2: optional. Backend may not yet return; default to ["member","student"]
+  // since this page lists students.
+  roles?: string[];
 }
 
 interface AdminEnrollment {
@@ -74,6 +82,7 @@ export default function AdminStudentDetailPage() {
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
   const [confirmAction, setConfirmAction] = useState<"suspend" | "reactivate" | null>(null);
+  const [tab, setTab] = useState<"profile" | "roles" | "audit">("profile");
 
   // 1. Fetch the student profile.
   useEffect(() => {
@@ -227,7 +236,41 @@ export default function AdminStudentDetailPage() {
         </div>
       </div>
 
-      {/* Profile card */}
+      {/* V2 tabs — Profile / Roles / Audit */}
+      <CellTabs
+        tabs={[
+          { id: "profile", label: "Profile", icon: "user" },
+          { id: "roles", label: "Roles", icon: "shield-check" },
+          { id: "audit", label: "Audit", icon: "history" },
+        ]}
+        active={tab}
+        onChange={(id) => setTab(id as "profile" | "roles" | "audit")}
+      />
+
+      {/* ── Roles tab (V2) ─────────────────────────────────────── */}
+      {tab === "roles" && (
+        <div className="settings-card">
+          <h2>Manage roles</h2>
+          <ManageRolesForm
+            userName={fullName || student.uid}
+            initialRoles={(student.roles && student.roles.length > 0
+              ? student.roles
+              : ["member", "student"]) as Role[]}
+          />
+        </div>
+      )}
+
+      {/* ── Audit tab (V2) ─────────────────────────────────────── */}
+      {tab === "audit" && (
+        <div className="settings-card">
+          <h2>Activity timeline</h2>
+          <UserAuditTimeline userName={fullName || student.uid} userUid={student.uid} />
+        </div>
+      )}
+
+      {/* ── Profile tab (existing integrated content) ──────────── */}
+      {tab === "profile" && (
+      <>
       <div className="settings-card">
         <div className="avatar-row">
           <Avatar src={student.profilePhotoUrl ?? undefined} size="xl" name={fullName || student.uid} />
@@ -236,6 +279,13 @@ export default function AdminStudentDetailPage() {
             <p className="settings-sub" style={{ margin: "4px 0 0" }}>
               Joined {formatDate(student.createdAt)}
             </p>
+            <div style={{ marginTop: 8 }}>
+              <RoleBadgeStack
+                roles={
+                  student.roles && student.roles.length > 0 ? student.roles : ["member", "student"]
+                }
+              />
+            </div>
           </div>
           <div>{statusBadge(student.status)}</div>
         </div>
@@ -301,6 +351,9 @@ export default function AdminStudentDetailPage() {
           </div>
         )}
       </div>
+
+      </>
+      )}
 
       {/* Suspend / Reactivate confirm */}
       <ConfirmDialog

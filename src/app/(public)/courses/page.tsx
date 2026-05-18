@@ -1,15 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLink } from "@/components/ui/ArrowLink";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { CourseCover } from "@/components/ui/CourseCover";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
-import { Logo } from "@/components/ui/Logo";
+import { TccrWordmark } from "@/components/ui/TccrWordmark";
 import { FloatingNav } from "@/components/layout/FloatingNav";
 import { useCourses } from "@/application/hooks/useCourses";
+import { openBatchesForCourse } from "@/lib/mock/batches";
 
 export default function PublicCoursesPage() {
   const router = useRouter();
@@ -94,25 +95,35 @@ export default function PublicCoursesPage() {
           ) : Q.items.length > 0 ? (
             <>
               <div className="course-grid" style={{ marginTop: 0 }}>
-                {Q.items.map((c) => (
-                  <article
-                    key={c.id}
-                    className="course-card"
-                    onClick={() => router.push(`/courses/${c.id}`)}
-                  >
-                    <CourseCover title={c.title} alt={c.title} />
-                    <div className="body">
-                      <div className="meta">
-                        <span><Icon name="layers" size={12} />{c.semesterCount} {c.semesterCount === 1 ? "semester" : "semesters"}</span>
-                        {c.state === "published" && c.publishedAt && (
-                          <span><Icon name="calendar" size={12} />Published {new Date(c.publishedAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}</span>
-                        )}
+                {Q.items.map((c) => {
+                  // V2: surface open intakes as a badge on each card so
+                  // members can tell which courses are accepting applications.
+                  const openIntakes = openBatchesForCourse(c.id).length;
+                  return (
+                    <article
+                      key={c.id}
+                      className="course-card"
+                      onClick={() => router.push(`/courses/${c.id}`)}
+                    >
+                      <CourseCover title={c.title} alt={c.title} />
+                      <div className="body">
+                        <div className="meta">
+                          <span><Icon name="layers" size={12} />{c.semesterCount} {c.semesterCount === 1 ? "semester" : "semesters"}</span>
+                          <span><Icon name="calendar-clock" size={12} />{openIntakes} open {openIntakes === 1 ? "intake" : "intakes"}</span>
+                        </div>
+                        <h3>{c.title}</h3>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                          <ArrowLink>Learn More</ArrowLink>
+                          {openIntakes > 0 ? (
+                            <Badge tone="success">Open</Badge>
+                          ) : (
+                            <Badge tone="archive">No intakes</Badge>
+                          )}
+                        </div>
                       </div>
-                      <h3>{c.title}</h3>
-                      <ArrowLink>Learn More</ArrowLink>
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
 
               {(Q.hasNext || Q.hasPrev) && (
@@ -152,14 +163,8 @@ export default function PublicCoursesPage() {
 
       <footer className="footer footer--minimal">
         <div className="footer-bottom footer-bottom--solo">
-          <Logo variant="reversed" height={26} />
-          <nav className="footer-nav-links">
-            <Link href="/">Home</Link>
-            <Link href="/#why">About</Link>
-            <Link href="/courses">Courses</Link>
-            <Link href="/#faq">Contact</Link>
-          </nav>
-          <span>© 2026 EduPath. All rights reserved.</span>
+          <TccrWordmark variant="reversed" />
+          <span>© 2026 The Christian Center Rathmalana. All rights reserved.</span>
         </div>
       </footer>
     </div>
