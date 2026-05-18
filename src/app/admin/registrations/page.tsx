@@ -63,12 +63,13 @@ export default function AdminRegistrationsPage() {
       <div className="page-header">
         <div>
           <h1>
-            Registrations <span className="page-sub">· sign-up approvals</span>
+            Role Requests <span className="page-sub">· Member → Student access</span>
           </h1>
           <div className="greeting">
             <b style={{ color: "#152A24" }}>{Q.total}</b> total ·{" "}
-            <b style={{ color: "#152A24" }}>{pendingCount}</b> pending on this page.
-            Once approved, the learner can sign in and request course access.
+            <b style={{ color: "#152A24" }}>{pendingCount}</b> awaiting approval.
+            Approving grants the Student role — the applicant chooses a course + batch from
+            Browse Courses afterwards.
           </div>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -92,18 +93,18 @@ export default function AdminRegistrationsPage() {
         </div>
       </div>
 
-      {/* Flow strip */}
+      {/* V2 Flow strip — Role request workflow */}
       <div className="flow-strip">
         <div className="flow-step active">
-          <i>1</i> Sign-up <small>Awaits admin approval</small>
+          <i>1</i> Role request <small>Awaits admin</small>
         </div>
         <div className="flow-arrow"><Icon name="arrow-right" size={14} /></div>
         <div className="flow-step">
-          <i>2</i> Course request <small>Triggers an enrollment</small>
+          <i>2</i> Grant Student role <small>Adds to roles[]</small>
         </div>
         <div className="flow-arrow"><Icon name="arrow-right" size={14} /></div>
         <div className="flow-step">
-          <i>3</i> Studying <small>Course materials unlocked</small>
+          <i>3</i> Student picks a course <small>Separate enrolment approval</small>
         </div>
       </div>
 

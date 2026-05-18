@@ -25,3 +25,20 @@ export function listBatchesForCourse(courseId: string): Batch[] {
 export function openBatchesForCourse(courseId: string): Batch[] {
   return listBatchesForCourse(courseId).filter((b) => b.state === "open");
 }
+
+export function createBatch(input: {
+  courseId: string;
+  name: string;
+  intakeStart: string;
+  intakeEnd: string;
+  state: BatchState;
+  capacity: number;
+}): Batch {
+  const batch: Batch = {
+    id: `b-${Date.now().toString(36)}`,
+    ...input,
+    enrolled: 0,
+  };
+  MOCK_BATCHES.push(batch);
+  return batch;
+}
