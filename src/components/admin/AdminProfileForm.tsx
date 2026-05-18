@@ -273,11 +273,6 @@ export function AdminProfileForm({ roleLabel = "Administrator", scope }: Props) 
             disabled
             hint="Email cannot be changed."
           />
-          <Input
-            label="Role"
-            value={roleLabel}
-            disabled
-          />
         </div>
 
         {joinedAt && (
