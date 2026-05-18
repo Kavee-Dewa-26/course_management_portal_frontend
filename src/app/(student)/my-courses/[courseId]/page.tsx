@@ -343,19 +343,37 @@ export default function StudentCourseViewerPage() {
     return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   }
 
-  function getSemesterState(idx: number): "past" | "current" | "future" {
+  /**
+   * V2 semester states — 4 possibilities:
+   *
+   *   past     — all subjects completed. Student finished, access preserved.
+   *   current  — active semester, content accessible, lessons visible.
+   *   disabled — date window has expired but student did NOT complete it.
+   *              Content is locked even though the student had access.
+   *              Shown with red border + "Closed" badge on each subject.
+   *   future   — not yet opened. Hidden behind a lock until the intake date.
+   *
+   * For demonstration we put the semester immediately AFTER "current" into
+   * the disabled state (when 3+ semesters exist). This lets the UI show all
+   * four states simultaneously on the sidebar.
+   */
+  function getSemesterState(idx: number): "past" | "current" | "disabled" | "future" {
     if (idx < currentSemIdx) return "past";
     if (idx === currentSemIdx) return "current";
+    // One "disabled" slot right after current (demo: idx = currentSemIdx + 1
+    // when there are at least 2 more semesters, so future still exists).
+    if (idx === currentSemIdx + 1 && sortedSemesters.length > currentSemIdx + 2) return "disabled";
     return "future";
   }
 
   /**
-   * Generates a dummy date window for each semester position so the sidebar
-   * always shows the "01 Jan 2026 → 28 Feb 2026 · closed" style rows from
-   * the design. Real dates will replace these once the backend returns them.
-   *   idx 0 → past      (5–3 months ago)
-   *   idx 1 → current   (last month → +2 months)
-   *   idx 2+ → future   (3+ months ahead)
+   * Dummy date windows per position. Dates are illustrative — real values
+   * come from the backend once the V2 semesters API ships them.
+   *
+   *   idx 0 → Past     5–3 months ago
+   *   idx 1 → Current  last month → +2 months
+   *   idx 2 → Disabled 3–4 months ago (closed, not completed)
+   *   idx 3+ → Future  3+ months ahead
    */
   function getDummySemesterDates(idx: number) {
     const offset = (months: number) => {
@@ -365,7 +383,8 @@ export default function StudentCourseViewerPage() {
     };
     if (idx === 0) return { start: offset(-5), end: offset(-3) };
     if (idx === 1) return { start: offset(-1), end: offset(2) };
-    return { start: offset(3 + (idx - 2) * 2), end: offset(5 + (idx - 2) * 2) };
+    if (idx === 2) return { start: offset(-4), end: offset(-1) }; // ended → disabled
+    return { start: offset(3 + (idx - 3) * 2), end: offset(5 + (idx - 3) * 2) };
   }
 
   /** Pre-compute date ranges for every semester. */
@@ -420,32 +439,51 @@ export default function StudentCourseViewerPage() {
         ) : (
           sortedSemesters.map((sem, semIdx) => {
             const state = getSemesterState(semIdx);
-            const isPast = state === "past";
-            const isFuture = state === "future";
-            const isCurrent = state === "current";
-            const isLocked = isPast || isFuture;
+            const isPast     = state === "past";
+            const isCurrent  = state === "current";
+            const isDisabled = state === "disabled";
+            const isFuture   = state === "future";
+            const isLocked   = isPast || isFuture;
             const { start, end } = semesterDates[semIdx];
-            const dateColor = isPast
+            const dateColor = isPast || isDisabled
               ? "var(--color-error-deep)"
               : isFuture
               ? "var(--color-muted)"
               : "var(--color-success-deep)";
 
+            const stateLabel = isPast ? "Past" : isDisabled ? "Closed" : isFuture ? "Future" : "Current";
+
             return (
-              <div className="semester" key={sem.id} style={{ opacity: isLocked ? 0.65 : 1 }}>
+              <div
+                className="semester"
+                key={sem.id}
+                style={{
+                  opacity: isLocked ? 0.65 : 1,
+                  // Disabled gets a subtle red left border to call it out visually.
+                  borderLeft: isDisabled ? "3px solid var(--color-error)" : "none",
+                  marginLeft: isDisabled ? 0 : undefined,
+                }}
+              >
                 {/* Semester header */}
                 <div
                   className="semester-head"
-                  style={{ fontWeight: isCurrent ? 700 : 600, color: isLocked ? "var(--color-muted)" : "var(--color-primary)" }}
+                  style={{
+                    fontWeight: isCurrent ? 700 : 600,
+                    color: isDisabled
+                      ? "var(--color-error-deep)"
+                      : isLocked
+                      ? "var(--color-muted)"
+                      : "var(--color-primary)",
+                  }}
                 >
                   <span>
                     {sem.title}
-                    <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 6, color: "var(--color-muted)" }}>
-                      · {isPast ? "Past" : isFuture ? "Future" : "Current"}
+                    <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 6, color: isDisabled ? "var(--color-error-deep)" : "var(--color-muted)" }}>
+                      · {stateLabel}
                     </span>
                   </span>
-                  {isLocked
-                    ? <Icon name="lock" size={13} style={{ color: "var(--color-muted)" }} />
+                  {isLocked || isDisabled
+                    ? <Icon name="lock" size={13} style={{ color: isDisabled ? "var(--color-error-deep)" : "var(--color-muted)" }} />
                     : <Icon name="chevron-down" size={14} />}
                 </div>
 
@@ -456,8 +494,64 @@ export default function StudentCourseViewerPage() {
                   fontSize: 11,
                   color: dateColor,
                 }}>
-                  {formatBatchDate(start)} → {formatBatchDate(end)}{isLocked ? " · closed" : ""}
+                  {formatBatchDate(start)} → {formatBatchDate(end)}
+                  {(isLocked || isDisabled) ? " · closed" : ""}
                 </div>
+
+                {/* Disabled state — semester expired without completion */}
+                {isDisabled && (
+                  <div style={{ padding: "4px 24px 12px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "10px 14px",
+                        background: "var(--color-error-bg)",
+                        borderRadius: 10,
+                        marginBottom: 8,
+                        fontFamily: "var(--font-body)",
+                        fontSize: 13,
+                        color: "var(--color-error-deep)",
+                      }}
+                    >
+                      <Icon name="alert-triangle" size={14} />
+                      Semester closed — intake window ended before completion.
+                    </div>
+                    {/* Show subjects as disabled (greyed-out with Closed overlay) */}
+                    {(sem.subjects ?? []).map((sub) => {
+                      const subjectLessons = lessonsBySubject[sub.id] ?? [];
+                      return (
+                        <div key={sub.id}>
+                          <div className="subject disabled" style={{ pointerEvents: "none", opacity: 0.5 }}>
+                            <span className="dot">
+                              <Icon name="x-circle" size={14} style={{ color: "var(--color-error-deep)" }} />
+                            </span>
+                            {sub.title}
+                          </div>
+                          {subjectLessons.slice(0, 2).map((l) => (
+                            <div
+                              key={l.id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                padding: "5px 18px 5px 52px",
+                                fontFamily: "var(--font-body)",
+                                fontSize: 12,
+                                color: "var(--color-muted)",
+                                opacity: 0.6,
+                              }}
+                            >
+                              <Icon name="lock" size={11} style={{ color: "var(--color-error-deep)", flexShrink: 0 }} />
+                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Locked state: Past or Future */}
                 {isLocked ? (
