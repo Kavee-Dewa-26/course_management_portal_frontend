@@ -2,31 +2,47 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
+import { useAppDispatch } from "@/application/hooks/useAppDispatch";
+import { useAppSelector } from "@/application/hooks/useAppSelector";
+import { setLocale, type Locale } from "@/application/slices/localeSlice";
 
 export type LanguageCode = "EN" | "SI" | "TA";
 
-const LANGS: { id: LanguageCode; label: string; native: string }[] = [
-  { id: "EN", label: "English",  native: "EN" },
-  { id: "SI", label: "සිංහල",   native: "සි" },
-  { id: "TA", label: "தமிழ்",  native: "த" },
+const LANGS: { id: LanguageCode; locale: Locale; label: string; native: string }[] = [
+  { id: "EN", locale: "en", label: "English",  native: "EN" },
+  { id: "SI", locale: "si", label: "සිංහල",   native: "සි" },
+  { id: "TA", locale: "ta", label: "தமிழ்",  native: "த" },
 ];
 
+const LOCALE_TO_CODE: Record<Locale, LanguageCode> = { en: "EN", si: "SI", ta: "TA" };
+
 interface Props {
+  /** Override the active language (otherwise read from Redux locale). */
   current?: LanguageCode;
+  /** Optional extra hook when the user picks a language (in addition to the
+   *  built-in Redux dispatch that flips the active locale). */
   onChange?: (code: LanguageCode) => void;
   dark?: boolean;
 }
 
 /**
- * UI-only language switcher. Renders a globe-icon dropdown of EN / සිංහල / தமிழ்.
- * Does not actually translate anything yet — real i18n is deferred to a later phase.
+ * Language switcher wired to the Redux `locale` slice. Clicking an option
+ * dispatches `setLocale`, which persists to localStorage AND re-renders the
+ * <NextIntlClientProvider> with the new catalogue. The change is reflected
+ * across the whole tree without a page reload.
  */
-export function LanguageSwitcher({ current = "EN", onChange, dark }: Props) {
+export function LanguageSwitcher({ current, onChange, dark }: Props) {
+  const dispatch = useAppDispatch();
+  const reduxLocale = useAppSelector((s) => s.locale.current);
+  const fallbackCode = LOCALE_TO_CODE[reduxLocale];
   const [open, setOpen] = useState(false);
-  const [cur, setCur] = useState<LanguageCode>(current);
+  const [cur, setCur] = useState<LanguageCode>(current ?? fallbackCode);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => setCur(current), [current]);
+  // Keep local state in sync with whichever source of truth is in play.
+  useEffect(() => {
+    setCur(current ?? fallbackCode);
+  }, [current, fallbackCode]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -89,6 +105,7 @@ export function LanguageSwitcher({ current = "EN", onChange, dark }: Props) {
               onClick={() => {
                 setCur(l.id);
                 setOpen(false);
+                dispatch(setLocale(l.locale));
                 onChange?.(l.id);
               }}
               style={{

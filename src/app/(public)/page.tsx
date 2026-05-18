@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -18,52 +19,39 @@ import { avatarUrl } from "@/lib/kit";
  *
  *   TopNav · Hero · Stats · Modules · How it works · Why · FAQ · Final CTA · Footer
  *
- * Module copy, feature list, FAQ entries and section labels are lifted verbatim
- * so the production page matches the prototype's content + tone.
+ * All copy is read from `src/messages/{en,si,ta}.json` via next-intl's
+ * `useTranslations`. The structural data (module variants, glyph icons,
+ * step active flags) stays in code; only user-visible strings live in JSON.
  */
 
-const MODULES = [
-  {
-    variant: "bs" as const,
-    title: "Bible School",
-    body: "Structured programmes with semester-by-semester learning. Multi-batch intakes, browser-based labs and lecture recordings on every lesson.",
-    glyph: "book-open",
-  },
-  {
-    variant: "cg" as const,
-    title: "Cell Groups",
-    body: "Stay connected to your G12 leader, attend weekly cells, and let your leader file reports in seconds — on web or mobile.",
-    glyph: "users",
-  },
+const MODULE_KEYS = [
+  { variant: "bs" as const, glyph: "book-open", titleKey: "modules.bs.title", bodyKey: "modules.bs.body" },
+  { variant: "cg" as const, glyph: "users", titleKey: "modules.cg.title", bodyKey: "modules.cg.body" },
 ];
 
-const STEPS = [
-  { n: "01", title: "Create your account", body: "Sign up in under a minute — you'll join as a Member straight away.", active: false },
-  { n: "02", title: "Pick a course or join a cell", body: "Apply to enrol in a course batch, or wait to be added to your cell.", active: true },
-  { n: "03", title: "Learn & connect", body: "Watch lessons, complete labs, attend cells, and grow with your community.", active: false },
+const STEP_KEYS = [
+  { active: false, numberKey: "how.step1.number", titleKey: "how.step1.title", bodyKey: "how.step1.body" },
+  { active: true, numberKey: "how.step2.number", titleKey: "how.step2.title", bodyKey: "how.step2.body" },
+  { active: false, numberKey: "how.step3.number", titleKey: "how.step3.title", bodyKey: "how.step3.body" },
 ];
 
-const FEATURES = [
-  { ico: "layers", title: "Course → Batch → Semester", body: "Pick the intake that fits your schedule. Past intakes auto-close so you always join the right cohort." },
-  { ico: "calendar-clock", title: "Time-bound semesters", body: "Each semester has a clear start and end date. Once a semester closes, content locks for that cohort." },
-  { ico: "shield-check", title: "Approved access", body: "Admins verify each request — for Student role, course enrolment, or leader promotion — within 24 hours." },
-  { ico: "clipboard-list", title: "Weekly cell reports", body: "Leaders and G12 leaders file a single, structured weekly report — attendance, subject, follow-ups in one form." },
-  { ico: "bar-chart-3", title: "Live analytics", body: "Leader, G12 and admin dashboards refresh weekly with attendance, growth and participation insights." },
-  { ico: "languages", title: "සිංහල · தமிழ் · English", body: "Switch language any time. Notifications and emails arrive in your preferred language." },
+const FEATURE_KEYS = [
+  { ico: "layers", titleKey: "why.features.hierarchy.title", bodyKey: "why.features.hierarchy.body" },
+  { ico: "calendar-clock", titleKey: "why.features.semesters.title", bodyKey: "why.features.semesters.body" },
+  { ico: "shield-check", titleKey: "why.features.access.title", bodyKey: "why.features.access.body" },
+  { ico: "clipboard-list", titleKey: "why.features.reports.title", bodyKey: "why.features.reports.body" },
+  { ico: "bar-chart-3", titleKey: "why.features.analytics.title", bodyKey: "why.features.analytics.body" },
+  { ico: "languages", titleKey: "why.features.languages.title", bodyKey: "why.features.languages.body" },
 ];
 
-const FAQS = [
-  { q: "Do I need to be a student to join a cell?", a: "No — every registered user is a Member by default and can be added to a cell group. Student role is only required to enrol in Bible School courses." },
-  { q: "How does a course intake work?", a: "Each course runs as multiple Batches. You apply to a specific Batch that fits your schedule. Past Batches auto-close, so you'll only see future or open intakes when applying." },
-  { q: "Who can file a cell report?", a: "Only the cell's Leader or G12 Leader. Members can view past reports of their own cell, but they cannot edit or file new ones." },
-  { q: "How do I become a Leader or G12?", a: "Existing G12 Leaders can promote a Member or Leader from their network. Admins and Super Admins can also assign these roles directly." },
-];
+const FAQ_KEYS = ["q1", "q2", "q3", "q4"] as const;
 
 export default function PublicHomePage() {
   const router = useRouter();
+  const t = useTranslations("publicHome");
+  const tCommon = useTranslations("common");
   const goLogin = () => router.push("/login");
   const goRegister = () => router.push("/register");
-  const goCourses = () => router.push("/courses");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // Live stats — backend may or may not respond. Falls back to the static
@@ -96,23 +84,19 @@ export default function PublicHomePage() {
       <section className="section section--dark hero">
         <div className="container-x hero-grid">
           <div>
-            <Eyebrow dark>★ The Christian Center Rathmalana</Eyebrow>
+            <Eyebrow dark>{t("hero.eyebrow")}</Eyebrow>
             <h1>
-              One community.
+              {t("hero.titleLine1")}
               <br />
-              <span className="accent">Two ways</span> to grow.
+              <span className="accent">{t("hero.titleAccent")}</span> {t("hero.titleLine2Suffix")}
             </h1>
-            <p>
-              TCCR brings Bible School learning and Cell Group fellowship into a single platform.
-              Enrol in structured course batches, gather weekly with your cell, and let leaders
-              track every meeting in seconds.
-            </p>
+            <p>{t("hero.body")}</p>
             <div className="hero-cta">
               <Button size="lg" iconAfter="arrow-right" onClick={goRegister}>
-                Create Account
+                {t("hero.ctaCreate")}
               </Button>
               <Button size="lg" variant="secondary-light" icon="log-in" onClick={goLogin}>
-                Sign In
+                {t("hero.ctaSignIn")}
               </Button>
             </div>
             <div className="hero-proof">
@@ -122,21 +106,21 @@ export default function PublicHomePage() {
                 ))}
               </div>
               <span>
-                <b style={{ color: "#fff" }}>3,200+ members</b> across cells &amp; courses
+                <b style={{ color: "#fff" }}>{t("hero.proofStat")}</b> {t("hero.proofSuffix")}
               </span>
             </div>
           </div>
           <div className="hero-img">
-            <img src="/team-working.webp" alt="TCCR community" />
+            <img src="/team-working.webp" alt={t("hero.imageAlt")} />
             <div className="hero-badge">
               <div>
-                <div className="num">4.9</div>
-                <div className="stars">★ ★ ★ ★ ★</div>
+                <div className="num">{t("hero.badgeNum")}</div>
+                <div className="stars">{t("hero.badgeStars")}</div>
               </div>
               <div className="lab">
-                Avg. cell-meeting
+                {t("hero.badgeLabel1")}
                 <br />
-                satisfaction
+                {t("hero.badgeLabel2")}
               </div>
             </div>
           </div>
@@ -150,16 +134,16 @@ export default function PublicHomePage() {
             <Stat
               num={stats.members == null ? "3,200" : stats.members.toLocaleString()}
               suffix="+"
-              label="Members"
-              sub="Across cells & courses"
+              label={t("stats.members")}
+              sub={t("stats.membersSub")}
             />
-            <Stat num="142" label="Cell Groups" sub="Meeting weekly" />
+            <Stat num="142" label={t("stats.cellGroups")} sub={t("stats.cellGroupsSub")} />
             <Stat
               num={stats.courses == null ? "21" : stats.courses.toLocaleString()}
-              label="Bible School Courses"
-              sub="Live in catalog"
+              label={t("stats.courses")}
+              sub={t("stats.coursesSub")}
             />
-            <Stat num="94" suffix="%" label="Avg. attendance" sub="Last 8 weeks" />
+            <Stat num="94" suffix="%" label={t("stats.attendance")} sub={t("stats.attendanceSub")} />
           </div>
         </div>
       </section>
@@ -168,24 +152,23 @@ export default function PublicHomePage() {
       <section className="section section--light" id="modules">
         <div className="container-x">
           <div style={{ textAlign: "center" }}>
-            <Eyebrow>The Platform</Eyebrow>
+            <Eyebrow>{t("modules.eyebrow")}</Eyebrow>
             <h2 className="section-title section-title--center">
-              Two modules,
+              {t("modules.titleLine1")}
               <br />
-              <span className="accent">one</span> account.
+              <span className="accent">{t("modules.titleAccent")}</span> {t("modules.titleLine2Suffix")}
             </h2>
             <p className="section-sub" style={{ margin: "16px auto 0", textAlign: "center" }}>
-              Bible School and Cell Groups share a single sign-in. Switch between them in one
-              click — and language any time.
+              {t("modules.subtitle")}
             </p>
           </div>
           <div className="module-tiles" style={{ marginTop: 48 }}>
-            {MODULES.map((m) => (
-              <button key={m.title} type="button" className={`mod-tile ${m.variant}`} onClick={goRegister}>
+            {MODULE_KEYS.map((m) => (
+              <button key={m.variant} type="button" className={`mod-tile ${m.variant}`} onClick={goRegister}>
                 <div>
-                  <div className="label">Module</div>
-                  <h2>{m.title}</h2>
-                  <p>{m.body}</p>
+                  <div className="label">{t("modules.moduleLabel")}</div>
+                  <h2>{t(m.titleKey)}</h2>
+                  <p>{t(m.bodyKey)}</p>
                 </div>
                 <div className="pill-row">
                   <button
@@ -195,7 +178,7 @@ export default function PublicHomePage() {
                       goRegister();
                     }}
                   >
-                    Get started <Icon name="arrow-right" size={14} />
+                    {t("modules.getStarted")} <Icon name="arrow-right" size={14} />
                   </button>
                 </div>
                 <div className="glyph" aria-hidden="true">
@@ -210,21 +193,19 @@ export default function PublicHomePage() {
       {/* ─── HOW IT WORKS ───────────────────────────────────────────── */}
       <section className="section section--deep">
         <div className="container-x">
-          <Eyebrow dark>Our Process</Eyebrow>
+          <Eyebrow dark>{t("how.eyebrow")}</Eyebrow>
           <h2 className="section-title">
-            How <span className="accent">TCCR</span> works.
+            {t("how.title")} <span className="accent">{t("how.titleAccent")}</span> {t("how.titleSuffix")}
           </h2>
-          <p className="section-sub">
-            Three quick steps from sign-up to your first lesson — or your first cell meeting.
-          </p>
+          <p className="section-sub">{t("how.subtitle")}</p>
           <div className="process-grid">
             <div className="steps">
-              {STEPS.map((s) => (
-                <div key={s.n} className={`step${s.active ? " active" : ""}`}>
-                  <div className="num">{s.n}</div>
+              {STEP_KEYS.map((s) => (
+                <div key={s.numberKey} className={`step${s.active ? " active" : ""}`}>
+                  <div className="num">{t(s.numberKey)}</div>
                   <div>
-                    <h4>{s.title}</h4>
-                    <p>{s.body}</p>
+                    <h4>{t(s.titleKey)}</h4>
+                    <p>{t(s.bodyKey)}</p>
                   </div>
                 </div>
               ))}
@@ -232,32 +213,33 @@ export default function PublicHomePage() {
             <div className="hero-img" style={{ aspectRatio: "1/1", borderRadius: 24 }}>
               <img
                 src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&q=80"
-                alt="Members gathering"
+                alt={t("how.imageAlt")}
               />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ─── WHY (V2 feature list) ──────────────────────────────────── */}
+      {/* ─── WHY ────────────────────────────────────────────────────── */}
       <section className="section section--white" id="why">
         <div className="container-x">
           <div style={{ textAlign: "center" }}>
-            <Eyebrow>What&apos;s in v2</Eyebrow>
+            <Eyebrow>{t("why.eyebrow")}</Eyebrow>
             <h2 className="section-title section-title--center">
-              Everything you need to <span className="accent">learn</span>
+              {t("why.titleLine1")} <span className="accent">{t("why.titleAccent1")}</span>
               <br />
-              and <span className="accent">connect</span> — in one place.
+              {t("why.titleLine2Prefix")} <span className="accent">{t("why.titleAccent2")}</span>{" "}
+              {t("why.titleLine2Suffix")}
             </h2>
           </div>
           <div className="feature-grid">
-            {FEATURES.map((f) => (
-              <div className="feature-card" key={f.title}>
+            {FEATURE_KEYS.map((f) => (
+              <div className="feature-card" key={f.titleKey}>
                 <div className="ico">
                   <Icon name={f.ico} size={26} />
                 </div>
-                <h3>{f.title}</h3>
-                <p>{f.body}</p>
+                <h3>{t(f.titleKey)}</h3>
+                <p>{t(f.bodyKey)}</p>
               </div>
             ))}
           </div>
@@ -268,16 +250,17 @@ export default function PublicHomePage() {
       <section className="section section--light" id="faq">
         <div className="container-x">
           <div style={{ textAlign: "center" }}>
-            <Eyebrow>Common Questions</Eyebrow>
+            <Eyebrow>{t("faq.eyebrow")}</Eyebrow>
             <h2 className="section-title section-title--center">
-              Frequently asked <span className="accent">questions</span>.
+              {t("faq.titleLine1")} <span className="accent">{t("faq.titleAccent")}</span>
+              {t("faq.titleSuffix")}
             </h2>
           </div>
           <div className="faq-list">
-            {FAQS.map((f, i) => {
+            {FAQ_KEYS.map((key, i) => {
               const isOpen = openFaq === i;
               return (
-                <div key={f.q} className={`faq${isOpen ? " open" : ""}`}>
+                <div key={key} className={`faq${isOpen ? " open" : ""}`}>
                   <button
                     className="faq-summary"
                     onClick={() => setOpenFaq(isOpen ? null : i)}
@@ -286,9 +269,9 @@ export default function PublicHomePage() {
                     <span className="ico">
                       <Icon name={isOpen ? "minus" : "plus"} size={18} />
                     </span>
-                    {f.q}
+                    {t(`faq.items.${key}.q`)}
                   </button>
-                  {isOpen && <div className="body">{f.a}</div>}
+                  {isOpen && <div className="body">{t(`faq.items.${key}.a`)}</div>}
                 </div>
               );
             })}
@@ -320,19 +303,20 @@ export default function PublicHomePage() {
           style={{ position: "absolute", bottom: "24%", right: "20%", border: "3px solid #BCE955", transform: "rotate(-3deg)" }}
         />
         <div className="container-x" style={{ position: "relative" }}>
-          <Eyebrow dark>Join TCCR</Eyebrow>
+          <Eyebrow dark>{t("finalCta.eyebrow")}</Eyebrow>
           <h2 className="section-title section-title--center" style={{ marginTop: 18 }}>
-            Ready to <span className="accent">be part</span> of the family?
+            {t("finalCta.titleLine1")} <span className="accent">{t("finalCta.titleAccent")}</span>{" "}
+            {t("finalCta.titleSuffix")}
           </h2>
           <p className="section-sub" style={{ margin: "20px auto 28px", textAlign: "center" }}>
-            One account, both modules. Sign up takes under a minute.
+            {t("finalCta.subtitle")}
           </p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
             <Button size="lg" iconAfter="arrow-right" onClick={goRegister}>
-              Create Account
+              {t("hero.ctaCreate")}
             </Button>
             <Button size="lg" variant="secondary-light" onClick={goLogin}>
-              Sign In
+              {t("hero.ctaSignIn")}
             </Button>
           </div>
         </div>
@@ -342,7 +326,7 @@ export default function PublicHomePage() {
       <footer className="footer footer--minimal">
         <div className="footer-bottom footer-bottom--solo">
           <TccrWordmark variant="reversed" />
-          <span>© 2026 The Christian Center Rathmalana. All rights reserved.</span>
+          <span>{tCommon("footer.copyright")}</span>
         </div>
       </footer>
     </div>

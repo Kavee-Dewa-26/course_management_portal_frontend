@@ -221,8 +221,14 @@ export default function SuperAdminStudentsPage() {
       </div>
 
       <div className="tbl-card">
-        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-        <table className="tbl" style={{ minWidth: 760 }}>
+        <table className="tbl" style={{ tableLayout: "fixed", width: "100%" }}>
+          <colgroup>
+            <col style={{ width: "30%" }} />  {/* User */}
+            <col style={{ width: "22%" }} />  {/* Roles */}
+            <col style={{ width: "12%" }} />  {/* Status */}
+            <col style={{ width: "12%" }} />  {/* Joined */}
+            <col style={{ width: "24%" }} />  {/* Action */}
+          </colgroup>
           <thead>
             <tr>
               <th>User</th>
@@ -307,9 +313,9 @@ export default function SuperAdminStudentsPage() {
                       <Badge tone="success">Active</Badge>
                     )}
                   </td>
-                  <td className="muted" style={{ whiteSpace: "nowrap" }}>{formatDate(s.createdAt)}</td>
+                  <td className="muted">{formatDate(s.createdAt)}</td>
                   <td style={{ textAlign: "right" }}>
-                    <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end", flexWrap: "wrap" }}>
                       {!hasLeader && (
                         <Button size="sm" variant="ghost" icon="chevron-up" onClick={promoteToLeader}>
                           Make Leader
@@ -328,12 +334,6 @@ export default function SuperAdminStudentsPage() {
                             ico: "user",
                             onClick: () => router.push(`${base}/students/${s.uid}`),
                           },
-                          // Upgrade-to-admin is super-admin-only.
-                          ...(base === "/super-admin" ? [{
-                            label: "Upgrade to admin",
-                            ico: "arrow-up-circle",
-                            onClick: () => router.push(`${base}/students/${s.uid}/upgrade`),
-                          }] : []),
                         ]}
                       />
                     </div>
@@ -343,7 +343,6 @@ export default function SuperAdminStudentsPage() {
             })}
           </tbody>
         </table>
-        </div>
       </div>
     </div>
   );
