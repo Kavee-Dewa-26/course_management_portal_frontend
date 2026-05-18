@@ -3,53 +3,73 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
-import { apiRequest } from "@/infrastructure/api/request";
 import { Button } from "@/components/ui/Button";
-import { ArrowLink } from "@/components/ui/ArrowLink";
-import { CourseCover } from "@/components/ui/CourseCover";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
-import { Logo } from "@/components/ui/Logo";
+import { TccrWordmark } from "@/components/ui/TccrWordmark";
 import { FloatingNav } from "@/components/layout/FloatingNav";
-import { useCourses } from "@/application/hooks/useCourses";
+import { apiRequest } from "@/infrastructure/api/request";
 import { avatarUrl } from "@/lib/kit";
 
-const FEATURES = [
-  { ico: "layers", title: "Structured Course Plans", body: "Multi-module roadmaps with clear topic ordering. No guesswork on what to learn next." },
-  { ico: "trending-up", title: "Track Your Progress", body: "Module-level completion shown across every course so you always know where you stand." },
-  { ico: "shield-check", title: "Verified Materials", body: "Lessons, code labs and project briefs curated by working software and data engineers." },
-  { ico: "terminal", title: "Hands-on Labs", body: "Browser-based notebooks and sandboxes. Write real code and run real queries from lesson one." },
-  { ico: "video", title: "Lecture Recordings", body: "Watch on demand. Every lesson stays available throughout your subscription." },
-  { ico: "smartphone", title: "Learn on Any Device", body: "The platform works across desktop, tablet and phone with no install required." },
+/**
+ * TCCR public landing page. Mirrors
+ * src/ui_structure/v2/project/tccr-screens-public.jsx (TPublicHomePage):
+ *
+ *   TopNav · Hero · Stats · Modules · How it works · Why · FAQ · Final CTA · Footer
+ *
+ * Module copy, feature list, FAQ entries and section labels are lifted verbatim
+ * so the production page matches the prototype's content + tone.
+ */
+
+const MODULES = [
+  {
+    variant: "bs" as const,
+    title: "Bible School",
+    body: "Structured programmes with semester-by-semester learning. Multi-batch intakes, browser-based labs and lecture recordings on every lesson.",
+    glyph: "book-open",
+  },
+  {
+    variant: "cg" as const,
+    title: "Cell Groups",
+    body: "Stay connected to your G12 leader, attend weekly cells, and let your leader file reports in seconds — on web or mobile.",
+    glyph: "users",
+  },
 ];
 
 const STEPS = [
-  { n: "01", title: "Create Your Account", body: "Submit your registration and wait for admin approval. Once approved you can sign in and get started.", ico: "user-plus" },
-  { n: "02", title: "Pick Your Course Plan", body: "Browse module-by-module tracks built around your engineering goals.", ico: "layers" },
-  { n: "03", title: "Start Learning", body: "Watch lessons, complete labs and track progress across every module.", ico: "play-circle" },
+  { n: "01", title: "Create your account", body: "Sign up in under a minute — you'll join as a Member straight away.", active: false },
+  { n: "02", title: "Pick a course or join a cell", body: "Apply to enrol in a course batch, or wait to be added to your cell.", active: true },
+  { n: "03", title: "Learn & connect", body: "Watch lessons, complete labs, attend cells, and grow with your community.", active: false },
+];
+
+const FEATURES = [
+  { ico: "layers", title: "Course → Batch → Semester", body: "Pick the intake that fits your schedule. Past intakes auto-close so you always join the right cohort." },
+  { ico: "calendar-clock", title: "Time-bound semesters", body: "Each semester has a clear start and end date. Once a semester closes, content locks for that cohort." },
+  { ico: "shield-check", title: "Approved access", body: "Admins verify each request — for Student role, course enrolment, or leader promotion — within 24 hours." },
+  { ico: "clipboard-list", title: "Weekly cell reports", body: "Leaders and G12 leaders file a single, structured weekly report — attendance, subject, follow-ups in one form." },
+  { ico: "bar-chart-3", title: "Live analytics", body: "Leader, G12 and admin dashboards refresh weekly with attendance, growth and participation insights." },
+  { ico: "languages", title: "සිංහල · தமிழ் · English", body: "Switch language any time. Notifications and emails arrive in your preferred language." },
 ];
 
 const FAQS = [
-  { q: "Do I need a CS degree to start?", a: "No. Foundation courses assume only basic familiarity with a programming language. Our SQL and analytics tracks have no prerequisites at all." },
-  { q: "How long does each course take?", a: "Most modules are designed for 5–12 hours of focused study, plus labs. A full programme typically takes 3–6 months at part-time pace." },
-  { q: "Can I switch courses later?", a: "Yes. You can request any published course at any time. Your progress is saved per-module. Switching tracks never resets your work." },
-  { q: "What about the labs? Do I need to install anything?", a: "No. Every lab runs in your browser. Notebooks, terminals and databases are spun up on demand and persist between sessions." },
+  { q: "Do I need to be a student to join a cell?", a: "No — every registered user is a Member by default and can be added to a cell group. Student role is only required to enrol in Bible School courses." },
+  { q: "How does a course intake work?", a: "Each course runs as multiple Batches. You apply to a specific Batch that fits your schedule. Past Batches auto-close, so you'll only see future or open intakes when applying." },
+  { q: "Who can file a cell report?", a: "Only the cell's Leader or G12 Leader. Members can view past reports of their own cell, but they cannot edit or file new ones." },
+  { q: "How do I become a Leader or G12?", a: "Existing G12 Leaders can promote a Member or Leader from their network. Admins and Super Admins can also assign these roles directly." },
 ];
 
 export default function PublicHomePage() {
   const router = useRouter();
   const goLogin = () => router.push("/login");
   const goRegister = () => router.push("/register");
+  const goCourses = () => router.push("/courses");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const featured = useCourses({ limit: 4, authenticated: false, state: "published" });
 
-  // Public stats — student & course counts. Both endpoints accept unauthenticated
-  // requests for the published catalog & user count (limit=1 is enough — we just
-  // read `total`). Silent fallback if either 401/403s.
-  const [stats, setStats] = useState<{ students: number | null; courses: number | null }>({
-    students: null,
+  // Live stats — backend may or may not respond. Falls back to the static
+  // copy from the prototype if either endpoint 401/403s.
+  const [stats, setStats] = useState<{ members: number | null; courses: number | null }>({
+    members: null,
     courses: null,
   });
   useEffect(() => {
@@ -61,7 +81,7 @@ export default function PublicHomePage() {
       ]);
       if (cancelled) return;
       setStats({
-        students: usersRes.status === "fulfilled" ? usersRes.value.total : null,
+        members: usersRes.status === "fulfilled" ? usersRes.value.total : null,
         courses: coursesRes.status === "fulfilled" ? coursesRes.value.total : null,
       });
     })();
@@ -72,67 +92,162 @@ export default function PublicHomePage() {
     <div className="public">
       <FloatingNav onSignUp={goRegister} />
 
-      {/* HERO */}
+      {/* ─── HERO ───────────────────────────────────────────────────── */}
       <section className="section section--dark hero">
         <div className="container-x hero-grid">
           <div>
-            <Eyebrow dark>★ Learn at your own pace</Eyebrow>
+            <Eyebrow dark>★ The Christian Center Rathmalana</Eyebrow>
             <h1>
-              Engineering &amp; data skills,
+              One community.
               <br />
-              on <span className="accent">your schedule</span>.
+              <span className="accent">Two ways</span> to grow.
             </h1>
             <p>
-              Multi-module course programmes in software, ML and analytics. Real instructor
-              lectures, browser-based labs, and progress tracking that keep you focused from
-              your first commit to your final project.
+              TCCR brings Bible School learning and Cell Group fellowship into a single platform.
+              Enrol in structured course batches, gather weekly with your cell, and let leaders
+              track every meeting in seconds.
             </p>
             <div className="hero-cta">
               <Button size="lg" iconAfter="arrow-right" onClick={goRegister}>
-                Start Learning
+                Create Account
               </Button>
               <Button size="lg" variant="secondary-light" icon="log-in" onClick={goLogin}>
                 Sign In
               </Button>
             </div>
+            <div className="hero-proof">
+              <div className="stack">
+                {[5, 14, 32, 47].map((n) => (
+                  <Avatar key={n} src={avatarUrl(n)} size="sm" />
+                ))}
+              </div>
+              <span>
+                <b style={{ color: "#fff" }}>3,200+ members</b> across cells &amp; courses
+              </span>
+            </div>
           </div>
           <div className="hero-img">
-            <img src="/team-working.webp" alt="Students collaborating on a laptop" />
+            <img src="/team-working.webp" alt="TCCR community" />
+            <div className="hero-badge">
+              <div>
+                <div className="num">4.9</div>
+                <div className="stars">★ ★ ★ ★ ★</div>
+              </div>
+              <div className="lab">
+                Avg. cell-meeting
+                <br />
+                satisfaction
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* STATS */}
+      {/* ─── STATS strip ────────────────────────────────────────────── */}
       <section className="section section--white" style={{ paddingTop: 64, paddingBottom: 64 }}>
         <div className="container-x">
-          <div className="stats" style={{ gridTemplateColumns: "repeat(2, 1fr)", maxWidth: 720, margin: "0 auto" }}>
-            <div className="stat">
-              <div className="num">
-                {stats.students == null ? "…" : stats.students.toLocaleString()}
-              </div>
-              <div className="lab">Enrolled Students</div>
-              <div className="sub">Active learners on the platform</div>
+          <div className="stats">
+            <Stat
+              num={stats.members == null ? "3,200" : stats.members.toLocaleString()}
+              suffix="+"
+              label="Members"
+              sub="Across cells & courses"
+            />
+            <Stat num="142" label="Cell Groups" sub="Meeting weekly" />
+            <Stat
+              num={stats.courses == null ? "21" : stats.courses.toLocaleString()}
+              label="Bible School Courses"
+              sub="Live in catalog"
+            />
+            <Stat num="94" suffix="%" label="Avg. attendance" sub="Last 8 weeks" />
+          </div>
+        </div>
+      </section>
+
+      {/* ─── MODULES ────────────────────────────────────────────────── */}
+      <section className="section section--light" id="modules">
+        <div className="container-x">
+          <div style={{ textAlign: "center" }}>
+            <Eyebrow>The Platform</Eyebrow>
+            <h2 className="section-title section-title--center">
+              Two modules,
+              <br />
+              <span className="accent">one</span> account.
+            </h2>
+            <p className="section-sub" style={{ margin: "16px auto 0", textAlign: "center" }}>
+              Bible School and Cell Groups share a single sign-in. Switch between them in one
+              click — and language any time.
+            </p>
+          </div>
+          <div className="module-tiles" style={{ marginTop: 48 }}>
+            {MODULES.map((m) => (
+              <button key={m.title} type="button" className={`mod-tile ${m.variant}`} onClick={goRegister}>
+                <div>
+                  <div className="label">Module</div>
+                  <h2>{m.title}</h2>
+                  <p>{m.body}</p>
+                </div>
+                <div className="pill-row">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      goRegister();
+                    }}
+                  >
+                    Get started <Icon name="arrow-right" size={14} />
+                  </button>
+                </div>
+                <div className="glyph" aria-hidden="true">
+                  <Icon name={m.glyph} size={200} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── HOW IT WORKS ───────────────────────────────────────────── */}
+      <section className="section section--deep">
+        <div className="container-x">
+          <Eyebrow dark>Our Process</Eyebrow>
+          <h2 className="section-title">
+            How <span className="accent">TCCR</span> works.
+          </h2>
+          <p className="section-sub">
+            Three quick steps from sign-up to your first lesson — or your first cell meeting.
+          </p>
+          <div className="process-grid">
+            <div className="steps">
+              {STEPS.map((s) => (
+                <div key={s.n} className={`step${s.active ? " active" : ""}`}>
+                  <div className="num">{s.n}</div>
+                  <div>
+                    <h4>{s.title}</h4>
+                    <p>{s.body}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="stat">
-              <div className="num">
-                {stats.courses == null ? "…" : stats.courses.toLocaleString()}
-              </div>
-              <div className="lab">Published Courses</div>
-              <div className="sub">Available right now</div>
+            <div className="hero-img" style={{ aspectRatio: "1/1", borderRadius: 24 }}>
+              <img
+                src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&q=80"
+                alt="Members gathering"
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* WHY */}
-      <section className="section section--light" id="why">
+      {/* ─── WHY (V2 feature list) ──────────────────────────────────── */}
+      <section className="section section--white" id="why">
         <div className="container-x">
           <div style={{ textAlign: "center" }}>
-            <Eyebrow>Why Choose Us</Eyebrow>
+            <Eyebrow>What&apos;s in v2</Eyebrow>
             <h2 className="section-title section-title--center">
-              Everything you need to <span className="accent">level up</span>
+              Everything you need to <span className="accent">learn</span>
               <br />
-              and ship, all in one place.
+              and <span className="accent">connect</span> — in one place.
             </h2>
           </div>
           <div className="feature-grid">
@@ -149,104 +264,8 @@ export default function PublicHomePage() {
         </div>
       </section>
 
-      {/* HOW */}
-      <section className="section section--deep">
-        <div className="container-x">
-          <Eyebrow dark>Our Process</Eyebrow>
-          <h2 className="section-title">
-            How <span className="accent">EduPath</span> works.
-          </h2>
-          <p className="section-sub">
-            Three simple steps: sign up, choose your plan, start learning at your own pace.
-          </p>
-          <div className="step-cards">
-            {STEPS.map((s, i) => (
-              <div key={s.n} style={{ display: "contents" }}>
-                <div className="step-card">
-                  <div className="step-card-top">
-                    <span className="step-card-icon">
-                      <Icon name={s.ico} size={18} />
-                    </span>
-                    <span className="step-card-num">{s.n}</span>
-                  </div>
-                  <h4 className="step-card-title">{s.title}</h4>
-                  <p className="step-card-body">{s.body}</p>
-                  <span className="step-card-badge">Step {i + 1}</span>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <div className="step-card-arrow" aria-hidden="true">
-                    <span />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* COURSES */}
-      <section className="section section--white" id="courses">
-        <div className="container-x">
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-end",
-              flexWrap: "wrap",
-              gap: 16,
-            }}
-          >
-            <div>
-              <Eyebrow>Featured Courses</Eyebrow>
-              <h2 className="section-title">
-                Pick a subject and <span className="accent">start studying</span>.
-              </h2>
-            </div>
-            <Button
-              variant="secondary"
-              iconAfter="arrow-right"
-              onClick={() => router.push("/courses")}
-            >
-              View All Courses
-            </Button>
-          </div>
-          <div className="course-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-            {featured.loading && featured.items.length === 0 && (
-              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 40, color: "var(--color-body-green)" }}>
-                <Icon name="loader" size={22} />
-                <p style={{ marginTop: 10, fontFamily: "var(--font-body)" }}>Loading courses…</p>
-              </div>
-            )}
-            {!featured.loading && featured.items.length === 0 && (
-              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 40, color: "var(--color-body-green)", fontFamily: "var(--font-body)" }}>
-                No published courses yet.
-              </div>
-            )}
-            {featured.items.map((c) => (
-              <article
-                key={c.id}
-                className="course-card"
-                onClick={() => router.push(`/courses/${c.id}`)}
-              >
-                <CourseCover title={c.title} alt={c.title} />
-                <div className="body">
-                  <div className="meta">
-                    <span>
-                      <Icon name="layers" size={12} />
-                      {c.semesterCount} {c.semesterCount === 1 ? "semester" : "semesters"}
-                    </span>
-                  </div>
-                  <h3>{c.title}</h3>
-                  <ArrowLink>Learn More</ArrowLink>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="section section--white" id="faq">
+      {/* ─── FAQ ───────────────────────────────────────────────────── */}
+      <section className="section section--light" id="faq">
         <div className="container-x">
           <div style={{ textAlign: "center" }}>
             <Eyebrow>Common Questions</Eyebrow>
@@ -277,7 +296,7 @@ export default function PublicHomePage() {
         </div>
       </section>
 
-      {/* FINAL CTA */}
+      {/* ─── FINAL CTA ──────────────────────────────────────────────── */}
       <section className="section section--dark final-cta">
         <div className="ring" />
         <Avatar
@@ -301,17 +320,16 @@ export default function PublicHomePage() {
           style={{ position: "absolute", bottom: "24%", right: "20%", border: "3px solid #BCE955", transform: "rotate(-3deg)" }}
         />
         <div className="container-x" style={{ position: "relative" }}>
-          <Eyebrow dark>Get Started Today</Eyebrow>
+          <Eyebrow dark>Join TCCR</Eyebrow>
           <h2 className="section-title section-title--center" style={{ marginTop: 18 }}>
-            Ready to start your <span className="accent">learning journey</span>?
+            Ready to <span className="accent">be part</span> of the family?
           </h2>
           <p className="section-sub" style={{ margin: "20px auto 28px", textAlign: "center" }}>
-            Join thousands of learners who took control of their education with structured plans
-            and real progress tracking.
+            One account, both modules. Sign up takes under a minute.
           </p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
             <Button size="lg" iconAfter="arrow-right" onClick={goRegister}>
-              Start Learning
+              Create Account
             </Button>
             <Button size="lg" variant="secondary-light" onClick={goLogin}>
               Sign In
@@ -320,19 +338,28 @@ export default function PublicHomePage() {
         </div>
       </section>
 
-      {/* FOOTER */}
+      {/* ─── FOOTER ─────────────────────────────────────────────────── */}
       <footer className="footer footer--minimal">
         <div className="footer-bottom footer-bottom--solo">
-          <Logo variant="reversed" height={26} />
-          <nav className="footer-nav-links">
-            <Link href="/">Home</Link>
-            <Link href="/#why">About</Link>
-            <Link href="/courses">Courses</Link>
-            <Link href="/#faq">Contact</Link>
-          </nav>
-          <span>© 2026 EduPath. All rights reserved.</span>
+          <TccrWordmark variant="reversed" />
+          <span>© 2026 The Christian Center Rathmalana. All rights reserved.</span>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/* ─── Sub-components ────────────────────────────────────────────────── */
+
+function Stat({ num, suffix, label, sub }: { num: string; suffix?: string; label: string; sub: string }) {
+  return (
+    <div className="stat">
+      <div className="num">
+        {num}
+        {suffix && <span className="accent">{suffix}</span>}
+      </div>
+      <div className="lab">{label}</div>
+      <div className="sub">{sub}</div>
     </div>
   );
 }

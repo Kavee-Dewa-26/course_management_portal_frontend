@@ -31,6 +31,12 @@ export function AuthGuard({ allowedRoles, children }: Props) {
   const hasAccess = useMemo(() => {
     if (!user) return false;
     if (user.status !== "approved") return false;
+    // Dev/demo bypass — users signed in via DevLoginPanel (uid prefix `dev-`)
+    // can navigate every guarded route regardless of their mock roles, so the
+    // demo can showcase Member → Leader → G12 → Admin surfaces without
+    // resigning. Real users (Firebase uids never start with `dev-`) are
+    // unaffected.
+    if (user.uid?.startsWith("dev-")) return true;
     const effective = (activeRole ?? user.role) as Role;
     return allowedRoles.includes(effective);
   }, [user, activeRole, allowedRoles]);

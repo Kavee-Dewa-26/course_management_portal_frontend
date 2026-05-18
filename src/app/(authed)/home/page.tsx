@@ -15,7 +15,8 @@ export default function MemberHomePage() {
   const user = useAppSelector((s) => s.session.user);
 
   const hasStudent = user?.roles?.includes("student") ?? false;
-  const hasLeader = (user?.roles?.includes("leader") || user?.roles?.includes("g12")) ?? false;
+  const isG12 = user?.roles?.includes("g12") ?? false;
+  const hasLeader = (user?.roles?.includes("leader") || isG12) ?? false;
 
   const pendingStudentRequest = useMemo(() => {
     if (!user || hasStudent) return null;
@@ -27,7 +28,7 @@ export default function MemberHomePage() {
 
   const onBibleSchool = () => {
     if (hasStudent) {
-      router.push("/dashboard");
+      router.push("/browse-courses");
     } else if (pendingStudentRequest) {
       router.push(`/apply/student/pending?req=${pendingStudentRequest.id}`);
     } else {
@@ -87,15 +88,21 @@ export default function MemberHomePage() {
         <ModuleTile
           variant="cg"
           label="CELL GROUPS"
-          title={hasLeader ? "Lead your cells" : "My Cells"}
+          title={isG12 ? "Oversee your network" : hasLeader ? "Lead your cells" : "My Cells"}
           body={
-            hasLeader
+            isG12
+              ? "Manage your G12 network — review leader reports, attendance trends, and promote new leaders."
+              : hasLeader
               ? "Manage members, file weekly reports, and see attendance trends across your cells."
               : "View the cells you belong to. Leaders post weekly reports and updates here."
           }
           glyph="users"
           onClick={onCellGroups}
-          pills={[{ label: hasLeader ? "Open" : "View my cells", onClick: onCellGroups, icon: "arrow-right" }]}
+          pills={[{
+            label: isG12 ? "Open G12 view" : hasLeader ? "Open" : "View my cells",
+            onClick: onCellGroups,
+            icon: "arrow-right",
+          }]}
         />
       </ModuleTiles>
 
