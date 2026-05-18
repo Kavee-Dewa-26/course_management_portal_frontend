@@ -30,35 +30,34 @@ export const STUDENT_NAV: NavItem[] = [
   { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
 ];
 
+// V2: V1's "Registrations" page is repurposed as the Role Requests queue
+// (Member → Student approval). The route /admin/registrations stays so the
+// existing useRegistrationQueue API integration keeps working — only the
+// nav label and on-page title/copy change to the V2 wording.
+// "Students" stays at /admin/students but is rebranded "Users" since V2
+// shows all roles in that table, not just students.
 export const ADMIN_NAV: NavItem[] = [
   { group: "Approvals" },
   { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/admin/dashboard" },
   {
     id: "registrations",
-    label: "Registrations",
+    label: "Role Requests",
     ico: "user-plus",
     count: 8,
-    hint: "New sign-ups",
+    hint: "Member → student",
     href: "/admin/registrations",
   },
   {
     id: "enrollments",
-    label: "Enrollments",
+    label: "Enrolments",
     ico: "clipboard-list",
     count: 6,
     hint: "Course access",
     href: "/admin/enrollments",
   },
-  {
-    id: "role-requests",
-    label: "Role Requests",
-    ico: "user-check",
-    hint: "Member → student",
-    href: "/admin/role-requests",
-  },
   { group: "Content" },
   { id: "courses", label: "Courses", ico: "book-open", href: "/admin/courses" },
-  { id: "students", label: "Students", ico: "users", href: "/admin/students" },
+  { id: "students", label: "Users", ico: "users", href: "/admin/students" },
   { group: "System" },
   { id: "profile", label: "Profile", ico: "user", href: "/admin/profile" },
 ];
@@ -119,21 +118,22 @@ export const SUPERADMIN_NAV: NavItem[] = [
   { group: "Approvals" },
   {
     id: "registrations",
-    label: "Registrations",
+    label: "Role Requests",
     ico: "user-plus",
     count: 8,
+    hint: "Member → student",
     href: "/super-admin/registrations",
   },
   {
     id: "enrollments",
-    label: "Enrollments",
+    label: "Enrolments",
     ico: "clipboard-list",
     count: 6,
     href: "/super-admin/enrollments",
   },
   { group: "Content" },
   { id: "courses", label: "Courses", ico: "book-open", href: "/super-admin/courses" },
-  { id: "students", label: "Students", ico: "users", href: "/super-admin/students" },
+  { id: "students", label: "Users", ico: "users", href: "/super-admin/students" },
   { group: "System" },
   { id: "profile", label: "Profile", ico: "user", href: "/super-admin/profile" },
   { id: "audit", label: "Audit Log", ico: "history", href: "/super-admin/audit-log" },
