@@ -338,8 +338,8 @@ export default function BrowseCourseDetailPage() {
                 Ready to enrol?
               </h2>
               <p style={{ margin: "0 0 20px", fontFamily: "var(--font-body)", fontSize: 14, color: "var(--color-body-green)", lineHeight: 1.6 }}>
-                Submit a request — an admin will approve it within 24 hours. Once approved you'll get
-                instant access to the first semester's content.
+                Submit a request — an admin will approve it within 24 hours. Once approved you&apos;ll get
+                instant access to the first semester&apos;s content.
               </p>
               {openBatch && (
                 <div className="batch-row" style={{ marginBottom: 20 }}>
