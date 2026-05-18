@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { TccrWordmark } from "@/components/ui/TccrWordmark";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 
 interface Props {
   initialActive?: string;
@@ -78,9 +79,12 @@ export function FloatingNav({ initialActive = "home", onSignUp }: Props) {
           </a>
         ))}
       </div>
-      <Button size="sm" onClick={onSignUp}>
-        {t("signUp")}
-      </Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <LanguageSwitcher />
+        <Button size="sm" onClick={onSignUp}>
+          {t("signUp")}
+        </Button>
+      </div>
     </nav>
   );
 }
