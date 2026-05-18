@@ -63,13 +63,13 @@ export const ADMIN_NAV: NavItem[] = [
 export const MEMBER_NAV: NavItem[] = [
   { group: "Main" },
   { id: "home", label: "Home", ico: "home", href: "/home" },
-  { id: "school", label: "Bible School", ico: "book-open", href: "/home" },
   { id: "cells", label: "Cell Groups", ico: "users", href: "/my-cells" },
-  { group: "Account" },
   { id: "requests", label: "My Requests", ico: "file-text", href: "/my-requests" },
-  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
-  { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
 ];
+// NOTE: Profile + Notifications are intentionally omitted from MEMBER_NAV until
+// the universal /profile and /notifications routes are split out from (student)/
+// into the (authed) group. Pure-member users would 404 today; the V2 prototype's
+// linked-accounts / notification-prefs profile lives in a follow-up branch.
 
 export const LEADER_NAV: NavItem[] = [
   { group: "Main" },
