@@ -8,6 +8,7 @@ import { useSessionUser } from "@/application/hooks/useSessionUser";
 
 const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
   { test: /^\/home/, title: "Home" },
+  { test: /^\/school/, title: "Bible School" },
   { test: /^\/apply\/student\/pending/, title: "Application Submitted" },
   { test: /^\/apply\/student/, title: "Apply to Become a Student" },
   { test: /^\/my-requests/, title: "My Requests" },

@@ -60,39 +60,44 @@ export const ADMIN_NAV: NavItem[] = [
 
 // ---------- V2: Member / Leader / G12 navs ----------
 
+// NAV arrays mirror src/ui_structure/v2/project/tccr-screens-member.jsx
+// (MEMBER_NAV / LEADER_NAV / G12_NAV). Bible School is a cross-module link
+// from every role's sidebar — /school is a tiny router page that sends the
+// user to /dashboard if they have `student`, else /home.
+
 export const MEMBER_NAV: NavItem[] = [
   { group: "Main" },
   { id: "home", label: "Home", ico: "home", href: "/home" },
+  { id: "school", label: "Bible School", ico: "book-open", href: "/school" },
   { id: "cells", label: "Cell Groups", ico: "users", href: "/my-cells" },
   { id: "requests", label: "My Requests", ico: "file-text", href: "/my-requests" },
+  { group: "Account" },
+  { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
+  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
 ];
-// NOTE: Profile + Notifications are intentionally omitted from MEMBER_NAV until
-// the universal /profile and /notifications routes are split out from (student)/
-// into the (authed) group. Pure-member users would 404 today; the V2 prototype's
-// linked-accounts / notification-prefs profile lives in a follow-up branch.
 
 export const LEADER_NAV: NavItem[] = [
   { group: "Main" },
   { id: "home", label: "Home", ico: "home", href: "/home" },
   { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/leader/dashboard" },
-  { id: "cells", label: "My Cells", ico: "users", href: "/cells" },
-  { id: "analytics", label: "Analytics", ico: "bar-chart-3", href: "/leader/analytics" },
+  { id: "cells", label: "Cells", ico: "users", href: "/cells" },
+  { id: "school", label: "Bible School", ico: "book-open", href: "/school" },
   { group: "Account" },
-  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
   { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
+  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
 ];
 
 export const G12_NAV: NavItem[] = [
   { group: "Main" },
   { id: "home", label: "Home", ico: "home", href: "/home" },
   { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/g12/dashboard" },
-  { id: "cells", label: "My Cells", ico: "users", href: "/cells" },
-  { id: "network", label: "Network", ico: "share-2", href: "/g12/network" },
+  { id: "cells", label: "Cells", ico: "users", href: "/cells" },
+  { id: "network", label: "Leaders Network", ico: "share-2", href: "/g12/network" },
   { id: "promote", label: "Promote", ico: "user-plus", href: "/g12/promote" },
-  { id: "analytics", label: "Analytics", ico: "bar-chart-3", href: "/g12/analytics" },
+  { id: "school", label: "Bible School", ico: "book-open", href: "/school" },
   { group: "Account" },
-  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
   { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
+  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
 ];
 
 export const SUPERADMIN_NAV: NavItem[] = [
