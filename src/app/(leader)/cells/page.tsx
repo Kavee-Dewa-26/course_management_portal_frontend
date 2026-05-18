@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CellCard } from "@/components/cells/CellCard";
+import { SwitchBanner } from "@/components/member/SwitchBanner";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { listCells, listCellsForLeader, type CellType } from "@/lib/mock/cells";
 
@@ -55,6 +56,16 @@ export default function LeaderCellsPage() {
         </Link>
       </header>
 
+      {/* G12 viewers should always see the cross-link to their richer
+          G12 dashboard, regardless of which cells surface they're on. */}
+      {isG12 && (
+        <SwitchBanner
+          title="You're also a G12 Leader."
+          body="Switch to your G12 dashboard for full access — add cells, edit members, file and review reports."
+          ctaLabel="Continue as  G12 Leader"
+          onCta={() => router.push("/g12/dashboard")}
+        />
+      )}
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ flex: 1, minWidth: 240 }}>

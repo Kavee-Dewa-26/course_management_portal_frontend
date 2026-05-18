@@ -8,12 +8,10 @@ import { Spinner } from "@/components/ui/Spinner";
 /**
  * Tiny router page hit by the "Bible School" link in every role's sidebar.
  *
- * - User has `student` → /dashboard (existing integrated student section)
- * - User has a pending student-role request → /apply/student/pending
- * - Otherwise → /apply/student
- *
- * The Member home (/home) shows the same routing logic on the Bible School
- * tile; this page just makes the sidebar link work in one click instead of two.
+ * - User has `student` → /browse-courses (the catalogue — what "Bible School"
+ *   means conceptually, matching tccr-screens-member.jsx and the prototype's
+ *   STUDENT_NAV_V2 "school" → Browse Courses mapping)
+ * - Otherwise → /apply/student (request Student access first)
  */
 export default function SchoolRouterPage() {
   const router = useRouter();
@@ -23,7 +21,7 @@ export default function SchoolRouterPage() {
     if (!user) return;
     const hasStudent = user.roles?.includes("student");
     if (hasStudent) {
-      router.replace("/dashboard");
+      router.replace("/browse-courses");
     } else {
       router.replace("/apply/student");
     }

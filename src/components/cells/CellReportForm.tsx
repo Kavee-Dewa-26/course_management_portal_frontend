@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { AttendanceEditor } from "./AttendanceEditor";
 import { SatisfactionStars } from "./SatisfactionStars";
+import { useSessionUser } from "@/application/hooks/useSessionUser";
 import type { Cell } from "@/lib/mock/cells";
 import type { AttendanceEntry, CellReportLanguage } from "@/lib/mock/cellReports";
 
@@ -68,6 +70,11 @@ export function CellReportForm({ cell, onSubmit, onCancel }: Props) {
   const [followUpNotes, setFollowUpNotes] = useState("");
   const [satisfaction, setSatisfaction] = useState<1 | 2 | 3 | 4 | 5>(4);
 
+  // Form creator — pulled from the current session. Displayed at the top of
+  // the form so the leader knows the report will be attributed to them.
+  const sessionUser = useSessionUser();
+  const filerName = sessionUser.name || "Current user";
+
   const stepIdx = STEPS.findIndex((s) => s.id === step);
   const isLast = stepIdx === STEPS.length - 1;
   const isFirst = stepIdx === 0;
@@ -125,6 +132,28 @@ export function CellReportForm({ cell, onSubmit, onCancel }: Props) {
       </nav>
 
       <div className="rf-card">
+        {/* Filer pill — surfaces the current session user so the leader can see
+            the report will be attributed to them, picked up from the system. */}
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "6px 12px 6px 6px",
+            background: "var(--color-stroke-2)",
+            borderRadius: 9999,
+            marginBottom: 18,
+            fontFamily: "var(--font-body)",
+            fontSize: 12,
+            color: "var(--color-body-green)",
+          }}
+        >
+          <Avatar src={sessionUser.avatar} name={filerName} size="sm" />
+          <span>
+            Filed by <b style={{ color: "var(--color-primary)" }}>{filerName}</b>
+          </span>
+        </div>
+
         {step === "met" && (
           <>
             <h2>Did the cell meet this week?</h2>
@@ -269,6 +298,7 @@ export function CellReportForm({ cell, onSubmit, onCancel }: Props) {
             <p className="sub">Quick recap before you send it to your G12 leader.</p>
             <ReviewSummary
               cell={cell}
+              filerName={filerName}
               didMeet={didMeet}
               notMetReason={notMetReason}
               meetingDate={meetingDate}
@@ -333,6 +363,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function ReviewSummary(props: {
   cell: Cell;
+  filerName: string;
   didMeet: boolean;
   notMetReason: string;
   meetingDate: string;
@@ -352,6 +383,7 @@ function ReviewSummary(props: {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)" }}>
       <SummaryRow k="Cell" v={props.cell.name} />
+      <SummaryRow k="Filed by" v={props.filerName} />
       <SummaryRow k="Date" v={`${props.meetingDate} · ${props.language.toUpperCase()}`} />
       <SummaryRow k="Did meet" v={props.didMeet ? "Yes" : `No — ${props.notMetReason || "(no reason)"}`} />
       {props.didMeet && (

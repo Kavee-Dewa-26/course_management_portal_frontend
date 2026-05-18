@@ -5,11 +5,9 @@ import { useMemo, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Icon } from "@/components/ui/Icon";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
 import { listCells } from "@/lib/mock/cells";
-import { listCellReports } from "@/lib/mock/cellReports";
 import { TCCR_DIRECTORY } from "@/lib/mock/tccrDirectory";
 
 interface LeaderRow {
@@ -18,13 +16,6 @@ interface LeaderRow {
   avatar: string;
   phone: string;
   cells: number;
-  members: number;
-  lastReportDate: string;
-  attendancePct: number;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
 export default function G12NetworkPage() {
@@ -34,23 +25,15 @@ export default function G12NetworkPage() {
 
   const rows: LeaderRow[] = useMemo(() => {
     const cells = listCells();
-    const byLeader = new Map<string, { name: string; avatar: string; cells: number; members: number }>();
+    const byLeader = new Map<string, { name: string; avatar: string; cells: number }>();
 
     for (const c of cells) {
-      const cur = byLeader.get(c.leaderId) ?? { name: c.leaderName, avatar: c.leaderAvatar, cells: 0, members: 0 };
+      const cur = byLeader.get(c.leaderId) ?? { name: c.leaderName, avatar: c.leaderAvatar, cells: 0 };
       cur.cells += 1;
-      cur.members += c.members.length;
       byLeader.set(c.leaderId, cur);
     }
 
     return Array.from(byLeader.entries()).map(([id, info]) => {
-      const leaderCells = cells.filter((c) => c.leaderId === id);
-      const reports = leaderCells.flatMap((c) => listCellReports({ cellId: c.id, voided: false }));
-      const lastReport = reports.sort((a, b) => new Date(b.meetingDate).getTime() - new Date(a.meetingDate).getTime())[0];
-      const att = reports
-        .filter((r) => r.didMeet && r.attendance.length > 0)
-        .map((r) => r.attendance.filter((a) => a.status === "present").length / r.attendance.length);
-      const attendancePct = att.length > 0 ? Math.round((att.reduce((s, v) => s + v, 0) / att.length) * 100) : 0;
       const dirEntry = TCCR_DIRECTORY.find((d) => d.id === id);
       return {
         id,
@@ -58,9 +41,6 @@ export default function G12NetworkPage() {
         avatar: info.avatar,
         phone: dirEntry?.phone ?? "+94 77 000 0000",
         cells: info.cells,
-        members: info.members,
-        lastReportDate: lastReport?.meetingDate ?? "—",
-        attendancePct,
       };
     });
   }, []);
@@ -107,9 +87,6 @@ export default function G12NetworkPage() {
                 <Th>Leader</Th>
                 <Th>Phone</Th>
                 <Th>Cells</Th>
-                <Th>Members</Th>
-                <Th>Last report</Th>
-                <Th>Attendance</Th>
                 <Th right>Action</Th>
               </tr>
             </thead>
@@ -125,20 +102,10 @@ export default function G12NetworkPage() {
                       </div>
                     </div>
                   </Td>
-                  <Td muted>
-                    <Icon name="smartphone" size={12} style={{ marginRight: 4, verticalAlign: "middle" }} />
-                    {r.phone}
-                  </Td>
+                  <Td muted>{r.phone}</Td>
                   <Td>{r.cells}</Td>
-                  <Td>{r.members}</Td>
-                  <Td muted>{r.lastReportDate === "—" ? "—" : formatDate(r.lastReportDate)}</Td>
-                  <Td>
-                    <span style={{ color: r.attendancePct >= 70 ? "var(--color-success-deep)" : "var(--color-warning)", fontWeight: 600 }}>
-                      {r.attendancePct}%
-                    </span>
-                  </Td>
                   <Td right>
-                    <Button size="sm" variant="secondary-light" onClick={() => promote(r)}>
+                    <Button size="sm" onClick={() => promote(r)}>
                       Promote to G12
                     </Button>
                   </Td>
@@ -146,7 +113,7 @@ export default function G12NetworkPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ padding: 32, textAlign: "center", fontFamily: "var(--font-body)", color: "var(--color-muted)" }}>
+                  <td colSpan={4} style={{ padding: 32, textAlign: "center", fontFamily: "var(--font-body)", color: "var(--color-muted)" }}>
                     No leaders match your search.
                   </td>
                 </tr>

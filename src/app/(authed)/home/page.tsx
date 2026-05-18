@@ -28,7 +28,7 @@ export default function MemberHomePage() {
 
   const onBibleSchool = () => {
     if (hasStudent) {
-      router.push("/dashboard");
+      router.push("/browse-courses");
     } else if (pendingStudentRequest) {
       router.push(`/apply/student/pending?req=${pendingStudentRequest.id}`);
     } else {

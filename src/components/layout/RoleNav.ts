@@ -15,13 +15,19 @@ export type NavItem = NavGroup | NavLink;
 
 export const isLink = (it: NavItem): it is NavLink => "id" in it;
 
+// V2 STUDENT_NAV — adds a "Home" link at the top so Member+Student users
+// can cross over to the Member section, and "My Requests" so they can
+// track role applications. Matches the prototype's STUDENT_NAV_V2
+// (src/ui_structure/v2/project/tccr-screens-member.jsx lines 20-30).
 export const STUDENT_NAV: NavItem[] = [
   { group: "Main" },
+  { id: "home", label: "Home", ico: "home", href: "/home" },
   { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/dashboard" },
   { id: "courses", label: "My Courses", ico: "book-open", href: "/my-courses" },
   { id: "browse", label: "Browse Courses", ico: "search", href: "/browse-courses" },
   { id: "profile", label: "Profile", ico: "user", href: "/profile" },
   { group: "Account" },
+  { id: "requests", label: "My Requests", ico: "file-text", href: "/my-requests" },
   { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
 ];
 
