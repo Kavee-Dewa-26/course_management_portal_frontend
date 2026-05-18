@@ -41,14 +41,10 @@ export default function MyCellsPage() {
 
       {hasLeaderRole && (
         <SwitchBanner
-          title={isG12 ? "You're also a G12 Leader" : "You also lead cells"}
-          body={
-            isG12
-              ? "Switch to the G12 view to oversee leaders, file reports, and manage promotions."
-              : "Switch to the Leader view to manage members and file reports."
-          }
-          ctaLabel={`Continue as ${leaderLabel}`}
-          onCta={() => router.push("/cells")}
+          title={`You're also a ${leaderLabel}.`}
+          body={`Switch to your ${isG12 ? "G12" : "Leader"} dashboard for full access — add cells, edit members, file and review reports.`}
+          ctaLabel={`Continue as  ${leaderLabel}`}
+          onCta={() => router.push(isG12 ? "/g12/dashboard" : "/leader/dashboard")}
         />
       )}
 

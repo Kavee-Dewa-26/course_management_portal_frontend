@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CellCard } from "@/components/cells/CellCard";
+import { SwitchBanner } from "@/components/member/SwitchBanner";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { listCells, listCellsForLeader, type CellType } from "@/lib/mock/cells";
 
@@ -37,23 +38,33 @@ export default function LeaderCellsPage() {
     });
   }, [user, isG12, isAdmin, typeFilter, search]);
 
-  const scopeLabel = isG12 || isAdmin ? "All cells" : "Cells you lead";
+  const scopeNoun = isG12 || isAdmin ? "all" : "you lead";
 
   return (
     <div className="page">
       <header className="page-header" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ margin: 0, fontFamily: "var(--font-heading)", fontSize: 32, color: "var(--color-primary)", letterSpacing: "-0.01em" }}>
-            My Cells
+            Cells
           </h1>
           <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 15, color: "var(--color-body-green)" }}>
-            {scopeLabel} · {cells.length} shown
+            <b style={{ color: "var(--color-primary)" }}>{cells.length}</b> cells {scopeNoun}.
           </p>
         </div>
         <Link href="/cells/new" className="btn btn--primary">
-          <Icon name="plus" size={16} /> New cell
+          <Icon name="plus" size={16} /> Create Cell
         </Link>
       </header>
+
+      {/* When a Leader is also a G12 leader, surface the upgrade path. */}
+      {isG12 && (
+        <SwitchBanner
+          title="You're also a G12 Leader."
+          body="Switch to your G12 dashboard for full access — add cells, edit members, file and review reports."
+          ctaLabel="Continue as  G12 Leader"
+          onCta={() => router.push("/g12/dashboard")}
+        />
+      )}
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ flex: 1, minWidth: 240 }}>
@@ -83,6 +94,10 @@ export default function LeaderCellsPage() {
           ))}
         </div>
       </div>
+
+      <h2 style={{ margin: "8px 0 14px", fontFamily: "var(--font-heading)", fontSize: 17, fontWeight: 600, color: "var(--color-primary)" }}>
+        My cells
+      </h2>
 
       {cells.length === 0 ? (
         <EmptyState

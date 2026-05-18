@@ -3,18 +3,8 @@
 import { usePathname } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import {
-  MEMBER_NAV,
-  LEADER_NAV,
-  G12_NAV,
-  STUDENT_NAV,
-  ADMIN_NAV,
-  SUPERADMIN_NAV,
-  type NavItem,
-} from "@/components/layout/RoleNav";
+import { MEMBER_NAV } from "@/components/layout/RoleNav";
 import { useSessionUser } from "@/application/hooks/useSessionUser";
-import { useAppSelector } from "@/application/hooks/useAppSelector";
-import { DASHBOARD_BY_ROLE, type Role } from "@/application/slices/sessionSlice";
 
 const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
   { test: /^\/home/, title: "Home" },
@@ -26,51 +16,30 @@ const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
   { test: /^\/my-cells/, title: "My Cells" },
 ];
 
-const NAV_BY_ROLE: Record<Role, NavItem[]> = {
-  member: MEMBER_NAV,
-  student: STUDENT_NAV,
-  leader: LEADER_NAV,
-  g12: G12_NAV,
-  admin: ADMIN_NAV,
-  super_admin: SUPERADMIN_NAV,
-};
-
-const ROLE_LABEL: Record<Role, string> = {
-  member: "Member",
-  student: "Student",
-  leader: "Leader",
-  g12: "G12 Leader",
-  admin: "Administrator",
-  super_admin: "Super Admin",
-};
-
 /**
- * Universal shell for the V2 member-context surfaces (/home, /apply/student,
- * /my-requests, /my-cells, /school, etc.).
+ * Member-section shell — the "home base" for every signed-in user, regardless
+ * of which elevated roles they hold. When a G12 / Leader / Student / Admin
+ * clicks "Home" from their own role's sidebar, they land here and see the
+ * **Member sidebar** + module tiles for cross-module navigation. From here
+ * they can dive into Bible School (→ /dashboard or /apply/student) or Cell
+ * Groups (→ /cells if leader/g12, else /my-cells).
  *
- * The sidebar adapts to the user's `activeRole` — a G12 user clicking "Home"
- * keeps their G12 sidebar, a leader keeps theirs, a pure member sees
- * MEMBER_NAV. This stops the nav from flipping between layouts as users
- * move between role surfaces.
+ * Their role-scoped surfaces ((leader)/, (g12)/, admin/, super-admin/, etc.)
+ * keep their own layouts and sidebars — this is purely the cross-module hub.
  */
 export default function AuthedLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const title = TITLE_MAP.find((m) => m.test.test(pathname))?.title ?? "TCCR";
   const user = useSessionUser();
-  const activeRole = useAppSelector((s) => s.session.activeRole) ?? "member";
-
-  const navItems = NAV_BY_ROLE[activeRole] ?? MEMBER_NAV;
-  const roleLabel = ROLE_LABEL[activeRole] ?? "Member";
-  const dashboardHref = DASHBOARD_BY_ROLE[activeRole] ?? "/home";
 
   return (
     <AuthGuard allowedRoles={["member", "student", "leader", "g12", "admin", "super_admin"]}>
       <AppShell
-        navItems={navItems}
+        navItems={MEMBER_NAV}
         user={user}
-        roleLabel={roleLabel}
+        roleLabel="Member"
         title={title}
-        dashboardHref={dashboardHref}
+        dashboardHref="/home"
       >
         {children}
       </AppShell>
