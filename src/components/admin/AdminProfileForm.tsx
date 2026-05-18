@@ -205,13 +205,15 @@ export function AdminProfileForm({ roleLabel = "Administrator", scope }: Props) 
             <div style={{ fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: 15, color: "var(--color-primary)", marginBottom: 4 }}>
               {fullName || P.user.email}
             </div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)", marginBottom: 14 }}>
-              {roleLabel} · {joinedAt && `Joined ${joinedAt}`}
-            </div>
+            {joinedAt && (
+              <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)", marginBottom: 14 }}>
+                Joined {joinedAt}
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <Button
                 type="button"
-                variant="secondary-light"
+                variant="secondary"
                 icon="upload-cloud"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
