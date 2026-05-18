@@ -1417,9 +1417,15 @@ svg.lucide { stroke-width: 1.75; }
   .report-form { grid-template-columns: 1fr !important; }
   .report-steps { position: static !important; }
 
-  /* Tables: allow horizontal scrolling rather than squishing into 1 col. */
+  /* Tables: allow horizontal scrolling rather than squishing into 1 col.
+     Cells get `white-space: nowrap` so columns size to their content and
+     the row doesn't stretch unpredictably; only the User cell (which has
+     wrapping text by design) keeps normal wrap behaviour. */
   .tbl-card { overflow-x: auto; }
   .tbl { min-width: 600px; }
+  .tbl thead th { white-space: nowrap; }
+  .tbl tbody td { white-space: nowrap; }
+  .tbl tbody td:first-child { white-space: normal; }
 
   /* Section padding tightens on phones. */
   .section { padding: 56px 18px; }
