@@ -44,11 +44,55 @@ export const ADMIN_NAV: NavItem[] = [
     hint: "Course access",
     href: "/admin/enrollments",
   },
+  {
+    id: "role-requests",
+    label: "Role Requests",
+    ico: "user-check",
+    hint: "Member → student",
+    href: "/admin/role-requests",
+  },
   { group: "Content" },
   { id: "courses", label: "Courses", ico: "book-open", href: "/admin/courses" },
   { id: "students", label: "Students", ico: "users", href: "/admin/students" },
   { group: "System" },
   { id: "profile", label: "Profile", ico: "user", href: "/admin/profile" },
+];
+
+// ---------- V2: Member / Leader / G12 navs ----------
+
+export const MEMBER_NAV: NavItem[] = [
+  { group: "Main" },
+  { id: "home", label: "Home", ico: "home", href: "/home" },
+  { id: "school", label: "Bible School", ico: "book-open", href: "/home" },
+  { id: "cells", label: "Cell Groups", ico: "users", href: "/my-cells" },
+  { group: "Account" },
+  { id: "requests", label: "My Requests", ico: "file-text", href: "/my-requests" },
+  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
+  { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
+];
+
+export const LEADER_NAV: NavItem[] = [
+  { group: "Main" },
+  { id: "home", label: "Home", ico: "home", href: "/home" },
+  { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/leader/dashboard" },
+  { id: "cells", label: "My Cells", ico: "users", href: "/cells" },
+  { id: "analytics", label: "Analytics", ico: "bar-chart-3", href: "/leader/analytics" },
+  { group: "Account" },
+  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
+  { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
+];
+
+export const G12_NAV: NavItem[] = [
+  { group: "Main" },
+  { id: "home", label: "Home", ico: "home", href: "/home" },
+  { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/g12/dashboard" },
+  { id: "cells", label: "My Cells", ico: "users", href: "/cells" },
+  { id: "network", label: "Network", ico: "share-2", href: "/g12/network" },
+  { id: "promote", label: "Promote", ico: "user-plus", href: "/g12/promote" },
+  { id: "analytics", label: "Analytics", ico: "bar-chart-3", href: "/g12/analytics" },
+  { group: "Account" },
+  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
+  { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
 ];
 
 export const SUPERADMIN_NAV: NavItem[] = [

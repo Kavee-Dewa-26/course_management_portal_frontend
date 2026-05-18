@@ -7,6 +7,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
+import { FederatedSignInButtons } from "./FederatedSignInButtons";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 
 export function RegisterForm() {
   const dispatch = useAppDispatch();
@@ -165,8 +167,16 @@ export function RegisterForm() {
 
   return (
     <>
-      <h3>Create your account</h3>
-      <p className="sub">It only takes a minute. No credit card required.</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
+        <div>
+          <h3 style={{ margin: 0 }}>Create your account</h3>
+          <p className="sub" style={{ margin: "4px 0 0" }}>It only takes a minute. No credit card required.</p>
+        </div>
+        <LanguageSwitcher />
+      </div>
+
+      <FederatedSignInButtons context="signup" disabled={loading} />
+
       <form onSubmit={onSubmit}>
         <div className="form-grid two" style={{ marginBottom: 0 }}>
           <Input

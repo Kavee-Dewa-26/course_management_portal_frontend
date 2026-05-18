@@ -1,8 +1,37 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { REHYDRATE } from "redux-persist";
 
-export type Role = "student" | "admin" | "super_admin";
+export type Role =
+  | "member"        // V2: every authenticated user holds this implicitly
+  | "student"
+  | "leader"        // V2: cell-group leader
+  | "g12"           // V2: senior leader overseeing leaders
+  | "admin"
+  | "super_admin";
 export type UserStatus = "pending_approval" | "approved" | "rejected" | "suspended";
+
+/** Where each role lands after login. Picked by the user's activeRole. */
+export const DASHBOARD_BY_ROLE: Record<Role, string> = {
+  member: "/home",
+  leader: "/cells",
+  g12: "/cells",
+  student: "/dashboard",
+  admin: "/admin/dashboard",
+  super_admin: "/super-admin/dashboard",
+};
+
+const ROLE_LITERALS: ReadonlySet<Role> = new Set<Role>([
+  "member",
+  "student",
+  "leader",
+  "g12",
+  "admin",
+  "super_admin",
+]);
+
+export function isRole(v: unknown): v is Role {
+  return typeof v === "string" && ROLE_LITERALS.has(v as Role);
+}
 
 export interface SessionUser {
   uid: string;
@@ -41,20 +70,24 @@ const initialState: SessionState = {
   authResolving: true,
 };
 
-/** Pick the highest assigned role as the default active role. */
+/** Pick the highest assigned role as the default active role.
+ *  Priority: super_admin > admin > g12 > leader > student > member. */
 function pickDefaultActiveRole(roles: string[] | undefined): Role {
   const set = new Set(roles ?? []);
   if (set.has("super_admin")) return "super_admin";
   if (set.has("admin")) return "admin";
-  return "student";
+  if (set.has("g12")) return "g12";
+  if (set.has("leader")) return "leader";
+  if (set.has("student")) return "student";
+  return "member";
 }
 
 /** Restore the user's last-selected active role from localStorage. */
 function readSavedActiveRole(uid: string): Role | null {
   if (typeof window === "undefined") return null;
   try {
-    const v = localStorage.getItem(`edupath.activeRole.${uid}`) as Role | null;
-    if (v === "student" || v === "admin" || v === "super_admin") return v;
+    const v = localStorage.getItem(`edupath.activeRole.${uid}`);
+    return isRole(v) ? v : null;
   } catch { /* ignore */ }
   return null;
 }
