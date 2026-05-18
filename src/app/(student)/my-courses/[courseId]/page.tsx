@@ -12,6 +12,7 @@ import { pushToast } from "@/application/slices/uiSlice";
 import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import { cn } from "@/lib/cn";
 import { YouTubePlayer } from "@/components/course/YouTubePlayer";
+import { listBatchesForCourse } from "@/lib/mock/batches";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -307,11 +308,65 @@ export default function StudentCourseViewerPage() {
   const embedUrl = youtubeId ? null : getYouTubeEmbedUrl(activeLesson?.youtubeVideoId);
   const activeLessonDone = activeLesson ? completedLessons.has(activeLesson.id) : false;
 
+  /* ── V2 Semester state logic ─────────────────────────────────────── */
+
+  const sortedSemesters = (course.semesters ?? [])
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  // "Current" = first semester that still has an uncompleted subject.
+  // "Past" = everything before it (all subjects completed).
+  // "Future" = everything after it.
+  let currentSemIdx = sortedSemesters.findIndex((sem) => {
+    const subjects = sem.subjects ?? [];
+    return subjects.length === 0 || subjects.some((sub) => !completedSubjectsApi.has(sub.id));
+  });
+  if (currentSemIdx === -1) currentSemIdx = sortedSemesters.length - 1; // all done → last is "current"
+
+  // Batch badge — show the first batch associated with this course (mock data).
+  const batches = listBatchesForCourse(course.id);
+  const activeBatch = batches.find((b) => b.state === "open") ?? batches[0] ?? null;
+
+  function formatBatchDate(iso: string) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  function getSemesterState(idx: number): "past" | "current" | "future" {
+    if (idx < currentSemIdx) return "past";
+    if (idx === currentSemIdx) return "current";
+    return "future";
+  }
+
   return (
     <div className="viewer">
       <aside className="viewer-side">
         <div className="head">
           <h2>{course.title}</h2>
+
+          {/* V2 intake badge */}
+          {activeBatch && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 12px",
+                background: "rgba(188,233,85,0.18)",
+                borderRadius: 9999,
+                fontFamily: "var(--font-body)",
+                fontWeight: 600,
+                fontSize: 12,
+                color: "var(--color-primary)",
+                marginBottom: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <Icon name="calendar-clock" size={13} />
+              {activeBatch.name} · {formatBatchDate(activeBatch.intakeStart)} → {formatBatchDate(activeBatch.intakeEnd)}
+            </div>
+          )}
+
           <div className="progress-row">
             <div className="bar">
               <i style={{ width: pct + "%", transition: "width 400ms ease" }} />
@@ -323,88 +378,120 @@ export default function StudentCourseViewerPage() {
           </div>
         </div>
 
-        {/* Semester → Subject → Lesson tree */}
-        {!course.semesters || course.semesters.length === 0 ? (
+        {/* V2 Semester → Subject → Lesson tree with Past / Current / Future states */}
+        {sortedSemesters.length === 0 ? (
           <div style={{ padding: "20px 16px", color: "var(--color-muted)", fontFamily: "var(--font-body)", fontSize: 13, textAlign: "center" }}>
             <Icon name="layers" size={22} style={{ opacity: 0.35, marginBottom: 8 }} />
             <p style={{ margin: 0 }}>No content yet.</p>
           </div>
         ) : (
-          course.semesters.map((sem) => (
-            <div className="semester" key={sem.id}>
-              <div className="semester-head">
-                {sem.title} <Icon name="chevron-down" size={14} />
-              </div>
-              {(sem.subjects ?? []).map((sub) => {
-                const subjectLessons = lessonsBySubject[sub.id] ?? [];
-                const allDone = subjectLessons.length > 0 && subjectLessons.every((l) => completedLessons.has(l.id));
-                const hasActive = active?.subjectId === sub.id;
-                return (
-                  <div key={sub.id}>
-                    <div
-                      className={cn(
-                        "subject",
-                        hasActive && "active",
-                        allDone && "completed",
-                        !allDone && !hasActive && "notstarted",
-                      )}
-                      style={{ cursor: subjectLessons[0] ? "pointer" : "default" }}
-                      onClick={() => subjectLessons[0] && setActiveLessonId(subjectLessons[0].id)}
-                    >
-                      <span className="dot">
-                        <Icon name={allDone ? "check-circle" : hasActive ? "play-circle" : "circle"} size={14} />
-                      </span>
-                      {sub.title}
+          sortedSemesters.map((sem, semIdx) => {
+            const state = getSemesterState(semIdx);
+            const isPast = state === "past";
+            const isFuture = state === "future";
+            const isLocked = isPast || isFuture;
+
+            return (
+              <div className="semester" key={sem.id} style={{ opacity: isLocked ? 0.65 : 1 }}>
+                {/* Semester header */}
+                <div className="semester-head" style={{ color: isLocked ? "var(--color-muted)" : "var(--color-primary)" }}>
+                  <span>
+                    {sem.title}
+                    <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 6, color: "var(--color-muted)" }}>
+                      · {isPast ? "Past" : isFuture ? "Future" : "Current"}
+                    </span>
+                  </span>
+                  {isLocked
+                    ? <Icon name="lock" size={13} style={{ color: "var(--color-muted)" }} />
+                    : <Icon name="chevron-down" size={14} />}
+                </div>
+
+                {/* Locked state: Past or Future */}
+                {isLocked ? (
+                  <div style={{ padding: "6px 24px 12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-muted)", marginBottom: 6 }}>
+                      <Icon name="lock" size={13} />
+                      {isPast ? "Closed: past content" : "Locked: future content"}
                     </div>
-                    {/* Lessons nested under their subject */}
-                    {subjectLessons.length > 0 && (
-                      <div>
-                        {subjectLessons.map((l) => {
-                          const lessonDone = completedLessons.has(l.id);
-                          const lessonActive = activeLessonId === l.id;
-                          return (
-                            <div
-                              key={l.id}
-                              onClick={() => setActiveLessonId(l.id)}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                padding: "6px 18px 6px 52px",
-                                cursor: "pointer",
-                                fontFamily: "var(--font-body)",
-                                fontSize: 13,
-                                color: lessonActive ? "var(--color-primary)" : "var(--color-body-green)",
-                                background: lessonActive ? "rgba(188,233,85,0.12)" : "transparent",
-                                fontWeight: lessonActive ? 600 : 400,
-                              }}
-                            >
-                              <Icon
-                                name={lessonDone ? "check-circle" : lessonActive ? "play-circle" : "circle"}
-                                size={12}
-                                style={{
-                                  color: lessonDone ? "#4ade80" : lessonActive ? "#BCE955" : "var(--color-muted)",
-                                  flexShrink: 0,
-                                }}
-                              />
-                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {l.title}
-                              </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font-body)", fontSize: 12, color: "var(--color-muted)", paddingLeft: 8 }}>
+                      <Icon name="lock" size={11} />
+                      {isPast ? "Past lesson" : "Locked lesson"}
+                    </div>
+                  </div>
+                ) : (
+                  /* Open (current) semester: render subjects + lessons */
+                  <>
+                    {(sem.subjects ?? []).map((sub) => {
+                      const subjectLessons = lessonsBySubject[sub.id] ?? [];
+                      const allDone = subjectLessons.length > 0 && subjectLessons.every((l) => completedLessons.has(l.id));
+                      const hasActive = active?.subjectId === sub.id;
+                      return (
+                        <div key={sub.id}>
+                          <div
+                            className={cn("subject", hasActive && "active", allDone && "completed", !allDone && !hasActive && "notstarted")}
+                            style={{ cursor: subjectLessons[0] ? "pointer" : "default" }}
+                            onClick={() => subjectLessons[0] && setActiveLessonId(subjectLessons[0].id)}
+                          >
+                            <span className="dot">
+                              <Icon name={allDone ? "check-circle" : hasActive ? "play-circle" : "play-circle"} size={14}
+                                style={{ color: allDone ? "var(--color-success-deep)" : "var(--color-accent)" }} />
+                            </span>
+                            {sub.title}
+                          </div>
+                          {subjectLessons.length > 0 && (
+                            <div>
+                              {subjectLessons.map((l) => {
+                                const lessonDone = completedLessons.has(l.id);
+                                const lessonActive = activeLessonId === l.id;
+                                return (
+                                  <div
+                                    key={l.id}
+                                    onClick={() => setActiveLessonId(l.id)}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 8,
+                                      padding: "7px 18px 7px 52px",
+                                      cursor: "pointer",
+                                      fontFamily: "var(--font-body)",
+                                      fontSize: 13,
+                                      color: lessonActive ? "var(--color-primary)" : "var(--color-body-green)",
+                                      background: lessonActive ? "rgba(188,233,85,0.15)" : "transparent",
+                                      fontWeight: lessonActive ? 700 : 400,
+                                      borderRadius: lessonActive ? 6 : 0,
+                                      margin: lessonActive ? "0 8px" : 0,
+                                      width: lessonActive ? "calc(100% - 16px)" : "100%",
+                                    }}
+                                  >
+                                    <Icon
+                                      name={lessonDone ? "check-circle" : lessonActive ? "play-circle" : "circle"}
+                                      size={13}
+                                      style={{
+                                        color: lessonDone ? "var(--color-success-deep)" : lessonActive ? "var(--color-accent)" : "var(--color-muted)",
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                      {l.title}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
+                          )}
+                        </div>
+                      );
+                    })}
+                    {(!sem.subjects || sem.subjects.length === 0) && (
+                      <div style={{ padding: "6px 18px 8px 36px", fontSize: 12, color: "var(--color-muted)", fontFamily: "var(--font-body)" }}>
+                        No subjects
                       </div>
                     )}
-                  </div>
-                );
-              })}
-              {(!sem.subjects || sem.subjects.length === 0) && (
-                <div style={{ padding: "6px 18px 8px 36px", fontSize: 12, color: "var(--color-muted)", fontFamily: "var(--font-body)" }}>
-                  No subjects
-                </div>
-              )}
-            </div>
-          ))
+                  </>
+                )}
+              </div>
+            );
+          })
         )}
       </aside>
 
