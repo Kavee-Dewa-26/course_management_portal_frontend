@@ -1368,3 +1368,92 @@ svg.lucide { stroke-width: 1.75; }
 .tccr-wordmark--reversed .mark { background: #BCE955; color: #152A24; }
 .dark .tccr-wordmark { color: #fff; }
 .dark .tccr-wordmark .name { color: #fff; }
+
+/* =========================================================================
+   Responsive helpers — collapse common V2 inline grids on small viewports.
+   We use inline `style={{ gridTemplateColumns: ... }}` in several pages
+   (course builder, profile cards, user-detail) which would otherwise stay
+   2-3 columns on phones. These selectors target stable structural patterns
+   and override the inline style at narrow widths.
+   ========================================================================= */
+
+@media (max-width: 760px) {
+  /* Page shells should never run flush to the edge on phones. */
+  .page { padding: 16px 14px 32px; }
+
+  /* Settings cards become full-bleed within the page padding. */
+  .settings-card { padding: 18px 16px; max-width: 100% !important; }
+
+  /* Page headers stack their right-side actions below the title block. */
+  .page-header { flex-direction: column !important; align-items: stretch !important; gap: 12px; }
+
+  /* Generic 2/3-column form grids inside cards collapse to a single column. */
+  .settings-card > div[style*="grid-template-columns"],
+  .settings-card form > div[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Two-column hero layouts (public landing + public course detail) stack. */
+  .hero-grid,
+  .public .container-x[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+  .hero { padding: 110px 18px 56px; }
+  .hero h1 { font-size: 42px !important; }
+
+  /* Switch banners + role banners + module tiles wrap their CTA below. */
+  .role-banner, .pending-callout, .switch-banner {
+    flex-wrap: wrap;
+  }
+  .role-banner > button, .switch-banner > button { flex-basis: 100%; }
+
+  /* Cell-detail header and report-form sidebar stack. */
+  .cd-header { padding: 22px 20px; }
+  .cd-actions { flex-direction: column; }
+  .cd-actions > button { width: 100%; }
+
+  /* Multi-step report form: the sticky step rail goes inline above the card. */
+  .report-form { grid-template-columns: 1fr !important; }
+  .report-steps { position: static !important; }
+
+  /* Tables: allow horizontal scrolling rather than squishing into 1 col. */
+  .tbl-card { overflow-x: auto; }
+  .tbl { min-width: 600px; }
+
+  /* Section padding tightens on phones. */
+  .section { padding: 56px 18px; }
+  .section-title { font-size: 32px !important; }
+  .section-title--center { font-size: 30px !important; }
+  .stats { grid-template-columns: 1fr 1fr !important; gap: 18px; }
+
+  /* Course / cell grid collapse. */
+  .course-grid { grid-template-columns: 1fr !important; }
+  .cell-grid { grid-template-columns: 1fr !important; }
+
+  /* Module tiles already collapse at 760px via their own rule — keep that. */
+
+  /* Footer in minimal mode wraps. */
+  .footer-bottom--solo { flex-direction: column; gap: 12px; text-align: center; }
+
+  /* Floating TopNav links wrap onto a second row on very narrow screens. */
+  .floating-nav { padding: 8px 12px; gap: 10px; }
+  .floating-nav .nav-links { gap: 12px; font-size: 13px; }
+
+  /* WFA centrepiece shrinks. */
+  .wfa-rings { width: 180px; height: 180px; }
+  .wfa-rings::before { width: 180px; height: 180px; }
+  .wfa-rings::after { width: 130px; height: 130px; }
+  .wfa-title { font-size: 24px !important; }
+}
+
+@media (max-width: 500px) {
+  /* Final squeeze for very small phones. */
+  .stats { grid-template-columns: 1fr !important; }
+  .hero h1 { font-size: 34px !important; }
+  .section-title { font-size: 26px !important; }
+  .floating-nav .nav-links { display: none; }
+  /* On the tightest viewports, hide secondary nav links and only show the
+     wordmark + Sign Up button. The user can still navigate via the in-page
+     CTAs. */
+}
