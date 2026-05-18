@@ -23,7 +23,10 @@ export default function MyCellsPage() {
     return listCells().filter((c) => !mySet.has(c.id));
   }, [user, myCells]);
 
-  const hasLeaderRole = (user?.roles?.includes("leader") || user?.roles?.includes("g12")) ?? false;
+  const isG12 = user?.roles?.includes("g12") ?? false;
+  const isLeader = user?.roles?.includes("leader") ?? false;
+  const hasLeaderRole = isLeader || isG12;
+  const leaderLabel = isG12 ? "G12 Leader" : "Leader";
 
   return (
     <div className="page">
@@ -38,9 +41,13 @@ export default function MyCellsPage() {
 
       {hasLeaderRole && (
         <SwitchBanner
-          title="You also lead cells"
-          body="Switch to the Leader view to manage members and file reports."
-          ctaLabel="Continue as Leader"
+          title={isG12 ? "You're also a G12 Leader" : "You also lead cells"}
+          body={
+            isG12
+              ? "Switch to the G12 view to oversee leaders, file reports, and manage promotions."
+              : "Switch to the Leader view to manage members and file reports."
+          }
+          ctaLabel={`Continue as ${leaderLabel}`}
           onCta={() => router.push("/cells")}
         />
       )}

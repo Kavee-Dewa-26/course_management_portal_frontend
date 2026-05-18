@@ -21,7 +21,6 @@ export default function ApplyStudentPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.session.user);
-  const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const hasPending = useMemo(() => {
@@ -41,7 +40,6 @@ export default function ApplyStudentPage() {
       applicantEmail: user.email,
       applicantAvatar: user.profilePhotoUrl ?? "",
       requestedRole: "student",
-      note: note.trim() || undefined,
     });
     dispatch(
       pushToast({
@@ -103,39 +101,22 @@ export default function ApplyStudentPage() {
               borderRadius: 18,
               padding: 24,
               marginTop: 24,
+              display: "flex",
+              gap: 16,
+              alignItems: "center",
+              flexWrap: "wrap",
+              justifyContent: "space-between",
             }}
           >
-            <h2 style={{ margin: "0 0 6px", fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 20, color: "var(--color-primary)" }}>
-              Anything you&apos;d like the admin to know?
-            </h2>
-            <p style={{ margin: "0 0 16px", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)" }}>
-              Optional — up to 200 characters. Mention which cell you attend or which course interests you most.
-            </p>
-
-            <textarea
-              className="textarea"
-              rows={4}
-              maxLength={200}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="I attend Tania's cell on Tuesdays and would like to start with Foundations of Faith."
-              style={{
-                width: "100%",
-                fontFamily: "var(--font-body)",
-                fontSize: 14,
-                padding: "12px 14px",
-                borderRadius: 10,
-                border: "1px solid var(--color-stroke)",
-                background: "#fff",
-                color: "var(--color-primary)",
-                resize: "vertical",
-              }}
-            />
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--color-muted)", marginTop: 6 }}>
-              {note.length} / 200
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <h2 style={{ margin: "0 0 4px", fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 20, color: "var(--color-primary)" }}>
+                Ready to apply?
+              </h2>
+              <p style={{ margin: 0, fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)" }}>
+                We&apos;ll send your request to an admin and email you the moment it&apos;s decided.
+              </p>
             </div>
-
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 22 }}>
+            <div style={{ display: "flex", gap: 10 }}>
               <Link href="/home" className="btn btn--ghost">
                 Cancel
               </Link>
