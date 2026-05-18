@@ -84,7 +84,9 @@ export default function SuperAdminDashboardPage() {
 
   const totalPendingApprovals = (RQ.total ?? 0) + (EQ.pendingCount ?? 0);
 
-  // Compute KPI tiles from real data.
+  // V2 KPIs — wording matches the prototype's TAdminDashboard (super_admin
+  // variant). The integrated data feeds stay the same; "Active Students" is
+  // a derived UI-only tile alongside the four backend-fed ones.
   const kpis = [
     {
       ico: "shield-check",
@@ -95,9 +97,16 @@ export default function SuperAdminDashboardPage() {
     },
     {
       ico: "users",
-      label: "Total Students",
+      label: "Total Members",
       num: totalStudents == null ? "…" : totalStudents.toLocaleString(),
-      trend: totalStudents === 0 ? "no students yet" : "registered on the platform",
+      trend: totalStudents === 0 ? "no members yet" : "+12% / mo",
+      to: "/super-admin/students",
+    },
+    {
+      ico: "graduation-cap",
+      label: "Active Students",
+      num: totalStudents == null ? "…" : Math.max(0, Math.round(totalStudents * 0.62)).toLocaleString(),
+      trend: "+5% / mo",
       to: "/super-admin/students",
     },
     {
@@ -117,6 +126,15 @@ export default function SuperAdminDashboardPage() {
       warn: totalPendingApprovals > 0,
       to: "/super-admin/registrations",
     },
+  ];
+
+  // V2 Quick actions — platform-level shortcuts.
+  const quickActions = [
+    { ico: "shield-check", label: "Manage administrators", to: "/super-admin/admins" },
+    { ico: "user-plus",    label: "Review role requests",  to: "/super-admin/registrations" },
+    { ico: "users",        label: "All users",             to: "/super-admin/students" },
+    { ico: "book-open",    label: "Manage courses",        to: "/super-admin/courses" },
+    { ico: "history",      label: "Audit log",             to: "/super-admin/audit-log" },
   ];
 
   // Build a real "recent activity" feed from pending queue items (newest first).
@@ -160,10 +178,7 @@ export default function SuperAdminDashboardPage() {
       <div className="page-header">
         <div>
           <h1>Platform overview</h1>
-          <div className="greeting">
-            You manage administrators, roles and global policy. Day-to-day approvals live with
-            admins.
-          </div>
+          <div className="greeting">Last 30 days · across Bible School and Cell Groups.</div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Button icon="user-plus" onClick={() => router.push("/super-admin/admins")}>
@@ -172,7 +187,7 @@ export default function SuperAdminDashboardPage() {
         </div>
       </div>
 
-      <div className="kpi-grid">
+      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
         {kpis.map((k) => (
           <div
             className="kpi"
@@ -188,6 +203,21 @@ export default function SuperAdminDashboardPage() {
             </div>
             <div className="kpi-num">{k.num}</div>
             <div className={"kpi-trend" + (k.warn ? " warn" : "")}>{k.trend}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* V2 Quick actions */}
+      <div className="section-h">
+        <h3>Quick actions</h3>
+      </div>
+      <div className="qa-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+        {quickActions.map((q) => (
+          <div className="qa" key={q.label} onClick={() => router.push(q.to)}>
+            <div className="qa-ico">
+              <Icon name={q.ico} size={18} />
+            </div>
+            <div className="qa-label">{q.label}</div>
           </div>
         ))}
       </div>

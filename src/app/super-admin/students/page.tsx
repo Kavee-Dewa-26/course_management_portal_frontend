@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { RowMenu } from "@/components/ui/RowMenu";
+import { RoleBadgeStack } from "@/components/user/RoleBadgeStack";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { pushToast } from "@/application/slices/uiSlice";
@@ -22,6 +23,9 @@ interface StudentUser {
   profilePhotoUrl?: string | null;
   createdAt?: string;
   enrollmentCount?: number;
+  // V2: every user has a roles array. Backend may not yet send this; default
+  // to ["member","student"] since the query filters by role=student.
+  roles?: string[];
 }
 
 interface StudentListResponse {
@@ -178,15 +182,30 @@ export default function SuperAdminStudentsPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Students</h1>
+          <h1>Users</h1>
           <div className="greeting">
-            <b style={{ color: "#152A24" }}>{studentsLoading ? "…" : allStudents.length}</b> total students
+            <b style={{ color: "#152A24" }}>{studentsLoading ? "…" : allStudents.length}</b> users registered.
+            Promote a Member to Leader or G12 here — roles are additive, so members keep their existing access.
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Button variant="secondary" icon="download" onClick={handleExport} disabled={students.length === 0}>
             Export CSV
           </Button>
+        </div>
+      </div>
+
+      {/* V2 promotions explainer banner */}
+      <div className="role-banner">
+        <div className="ico">
+          <Icon name="info" size={20} />
+        </div>
+        <div className="b-body">
+          <h3>How promotions work</h3>
+          <p>
+            Members ask a pastor or G12 leader in person to become a Leader or G12. The admin then
+            adds the role here — roles are additive (the user keeps Member &amp; Student access).
+          </p>
         </div>
       </div>
 
@@ -202,12 +221,19 @@ export default function SuperAdminStudentsPage() {
       </div>
 
       <div className="tbl-card">
-        <table className="tbl">
+        <table className="tbl" style={{ tableLayout: "fixed", width: "100%" }}>
+          <colgroup>
+            <col style={{ width: "30%" }} />  {/* User */}
+            <col style={{ width: "22%" }} />  {/* Roles */}
+            <col style={{ width: "12%" }} />  {/* Status */}
+            <col style={{ width: "12%" }} />  {/* Joined */}
+            <col style={{ width: "24%" }} />  {/* Action */}
+          </colgroup>
           <thead>
             <tr>
-              <th>Student</th>
+              <th>User</th>
+              <th>Roles</th>
               <th>Status</th>
-              <th>Courses</th>
               <th>Joined</th>
               <th style={{ textAlign: "right" }}>Action</th>
             </tr>
@@ -235,7 +261,31 @@ export default function SuperAdminStudentsPage() {
             )}
             {students.map((s) => {
               const fullName = `${s.firstName} ${s.lastName}`.trim();
-              const p = courseCountByStudent[s.uid];
+              const roles = s.roles && s.roles.length > 0 ? s.roles : ["member", "student"];
+              const hasLeader = roles.includes("leader");
+              const hasG12 = roles.includes("g12");
+
+              // V2 promote actions — UI-only (mock toast). When backend grows
+              // a role-mutation endpoint, swap these in.
+              const promoteToLeader = () => {
+                dispatch(
+                  pushToast({
+                    tone: "success",
+                    title: "Promoted to Leader",
+                    message: `${fullName} now holds the Leader role (UI only — backend pending).`,
+                  }),
+                );
+              };
+              const promoteToG12 = () => {
+                dispatch(
+                  pushToast({
+                    tone: "success",
+                    title: "Promoted to G12 Leader",
+                    message: `${fullName} now holds the G12 role (UI only — backend pending).`,
+                  }),
+                );
+              };
+
               return (
                 <tr key={s.uid}>
                   <td>
@@ -252,6 +302,9 @@ export default function SuperAdminStudentsPage() {
                     </div>
                   </td>
                   <td>
+                    <RoleBadgeStack roles={roles} />
+                  </td>
+                  <td>
                     {s.status === "suspended" ? (
                       <Badge tone="error">Suspended</Badge>
                     ) : s.status === "pending_approval" ? (
@@ -260,29 +313,30 @@ export default function SuperAdminStudentsPage() {
                       <Badge tone="success">Active</Badge>
                     )}
                   </td>
-                  <td>
-                    {p?.loading
-                      ? <span style={{ color: "var(--color-muted)" }}>…</span>
-                      : p?.courseCount ?? 0}
-                  </td>
-                  <td className="muted" style={{ whiteSpace: "nowrap" }}>{formatDate(s.createdAt)}</td>
+                  <td className="muted">{formatDate(s.createdAt)}</td>
                   <td style={{ textAlign: "right" }}>
-                    <RowMenu
-                      ariaLabel={`Actions for ${fullName}`}
-                      items={[
-                        {
-                          label: "View profile",
-                          ico: "user",
-                          onClick: () => router.push(`${base}/students/${s.uid}`),
-                        },
-                        // Upgrade-to-admin is super-admin-only.
-                        ...(base === "/super-admin" ? [{
-                          label: "Upgrade to admin",
-                          ico: "arrow-up-circle",
-                          onClick: () => router.push(`${base}/students/${s.uid}/upgrade`),
-                        }] : []),
-                      ]}
-                    />
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end", flexWrap: "wrap" }}>
+                      {!hasLeader && (
+                        <Button size="sm" variant="ghost" icon="chevron-up" onClick={promoteToLeader}>
+                          Make Leader
+                        </Button>
+                      )}
+                      {hasLeader && !hasG12 && (
+                        <Button size="sm" icon="chevron-up" onClick={promoteToG12}>
+                          Make G12
+                        </Button>
+                      )}
+                      <RowMenu
+                        ariaLabel={`Actions for ${fullName}`}
+                        items={[
+                          {
+                            label: "View profile",
+                            ico: "user",
+                            onClick: () => router.push(`${base}/students/${s.uid}`),
+                          },
+                        ]}
+                      />
+                    </div>
                   </td>
                 </tr>
               );

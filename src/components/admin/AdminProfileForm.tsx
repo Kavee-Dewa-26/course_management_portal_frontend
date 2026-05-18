@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { useProfile } from "@/application/hooks/useProfile";
+import { useAppDispatch } from "@/application/hooks/useAppDispatch";
+import { pushToast } from "@/application/slices/uiSlice";
 
 interface Props {
   roleLabel?: string;
@@ -21,11 +23,40 @@ function formatJoined(iso: string | undefined): string {
 
 export function AdminProfileForm({ roleLabel = "Administrator", scope }: Props) {
   const P = useProfile();
+  const dispatch = useAppDispatch();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
   const [dirty, setDirty] = useState(false);
+
+  // File picker ref — hidden input triggered by clicking the avatar area.
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  /** Reads a File from the device and stores it as a base64 data URL so it
+   *  persists across renders and can be sent to the backend (or displayed
+   *  locally if the backend doesn't accept data URLs yet). */
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      dispatch(pushToast({ tone: "warning", title: "Invalid file", message: "Please pick an image (JPG, PNG, WebP…)" }));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      dispatch(pushToast({ tone: "warning", title: "File too large", message: "Max 5 MB. Please resize the image first." }));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setProfilePhotoUrl(dataUrl);
+      setDirty(true);
+    };
+    reader.readAsDataURL(file);
+    // Reset the input so selecting the same file again triggers onChange.
+    e.target.value = "";
+  };
 
   // Password fields
   const [currentPw, setCurrentPw] = useState("");
@@ -125,16 +156,94 @@ export function AdminProfileForm({ roleLabel = "Administrator", scope }: Props) 
         </p>
 
         <div className="avatar-row">
-          <Avatar src={profilePhotoUrl || undefined} size="xl" name={fullName || P.user.email} />
+          {/* Hidden file input — triggered by the avatar / button clicks */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            style={{ display: "none" }}
+            onChange={handleFileChange}
+          />
+
+          {/* Clickable avatar — click to open device file picker */}
+          <button
+            type="button"
+            title="Click to change photo"
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              position: "relative",
+              flexShrink: 0,
+              borderRadius: "50%",
+            }}
+          >
+            <Avatar src={profilePhotoUrl || undefined} size="xl" name={fullName || P.user.email} />
+            {/* Camera overlay on hover */}
+            <span
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: "50%",
+                background: "rgba(21,42,36,0.45)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: 0,
+                transition: "opacity 150ms",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.opacity = "1")}
+              onMouseOut={(e) => (e.currentTarget.style.opacity = "0")}
+            >
+              <Icon name="upload-cloud" size={22} style={{ color: "#BCE955" }} />
+            </span>
+          </button>
+
           <div style={{ flex: 1 }}>
-            <Input
-              label="Profile photo URL"
-              type="url"
-              placeholder="https://..."
-              value={profilePhotoUrl}
-              onChange={(e) => onFieldChange(setProfilePhotoUrl)(e.target.value)}
-              hint="Public HTTPS URL. Leave blank to remove."
-            />
+            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: 15, color: "var(--color-primary)", marginBottom: 4 }}>
+              {fullName || P.user.email}
+            </div>
+            {joinedAt && (
+              <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)", marginBottom: 14 }}>
+                Joined {joinedAt}
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <Button
+                type="button"
+                variant="secondary"
+                icon="upload-cloud"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload photo
+              </Button>
+              {profilePhotoUrl && (
+                <button
+                  type="button"
+                  onClick={() => { setProfilePhotoUrl(""); setDirty(true); }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-body)",
+                    fontSize: 12,
+                    color: "var(--color-error)",
+                    padding: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Icon name="trash-2" size={12} /> Remove
+                </button>
+              )}
+            </div>
+            <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 11, color: "var(--color-muted)" }}>
+              JPG, PNG or WebP · max 5 MB
+            </p>
           </div>
         </div>
 
@@ -163,11 +272,6 @@ export function AdminProfileForm({ roleLabel = "Administrator", scope }: Props) 
             value={P.user.email}
             disabled
             hint="Email cannot be changed."
-          />
-          <Input
-            label="Role"
-            value={roleLabel}
-            disabled
           />
         </div>
 

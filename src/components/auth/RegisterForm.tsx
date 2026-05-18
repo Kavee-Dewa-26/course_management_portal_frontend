@@ -1,14 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
+import { FederatedSignInButtons } from "./FederatedSignInButtons";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 
+/**
+ * Phase 2: registration no longer goes through admin approval. Every user who
+ * signs up is a Member from the moment the account is created. On success the
+ * form pushes a toast and routes the user to /login so they can sign in and
+ * land on the Member dashboard.
+ */
 export function RegisterForm() {
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -17,7 +27,6 @@ export function RegisterForm() {
   const [confirmPw, setConfirmPw] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
-  const [pending, setPending] = useState<{ name: string; email: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -40,22 +49,6 @@ export function RegisterForm() {
     else if (pw !== confirmPw) e.confirmPw = "Passwords do not match.";
     setErrors(e);
     return Object.keys(e).length === 0;
-  };
-
-  const submit = (provider: "password" | "google") => {
-    const finalEmail = email.trim() || "you@example.com";
-    const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || "there";
-    setPending({ name: fullName, email: finalEmail });
-    dispatch(
-      pushToast({
-        tone: "success",
-        title: "Application received",
-        message:
-          provider === "google"
-            ? "We'll match your Google email and review shortly."
-            : "An admin will review your sign-up shortly.",
-      }),
-    );
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -89,7 +82,14 @@ export function RegisterForm() {
         return;
       }
 
-      submit("password");
+      dispatch(
+        pushToast({
+          tone: "success",
+          title: "Welcome to TCCR",
+          message: "Account created. Sign in to continue to your Member dashboard.",
+        }),
+      );
+      router.push(`/login?email=${encodeURIComponent(email.trim())}`);
     } catch {
       dispatch(pushToast({ tone: "warning", title: "Network error", message: "Could not reach the server. Check your connection and try again." }));
     } finally {
@@ -97,76 +97,18 @@ export function RegisterForm() {
     }
   };
 
-  if (pending) {
-    return (
-      <div className="auth-pending">
-        <div className="pending-orbit" aria-hidden="true">
-          <span className="ring" />
-          <span className="ring r2" />
-          <span className="ring r3" />
-          <div className="orbit-center">
-            <Icon name="clock" size={28} />
-          </div>
-        </div>
-
-        <h3 style={{ textAlign: "center" }}>Waiting for approval</h3>
-        <p className="sub" style={{ textAlign: "center" }}>
-          Thanks{pending.name !== "there" ? `, ${pending.name.split(" ")[0]}` : ""}. An
-          administrator is reviewing your sign-up. We&apos;ll email <b>{pending.email}</b> as soon
-          as you&apos;re approved, usually within <b>24 hours</b>.
-        </p>
-
-        <ol className="pending-steps">
-          <li className="done">
-            <span className="step-ico">
-              <Icon name="check" size={14} />
-            </span>
-            <div>
-              <b>Application submitted</b>
-              <span>Just now</span>
-            </div>
-          </li>
-          <li className="active">
-            <span className="step-ico spin">
-              <Icon name="clock" size={14} />
-            </span>
-            <div>
-              <b>In review by admin</b>
-              <span>We&apos;re verifying your details</span>
-            </div>
-          </li>
-          <li>
-            <span className="step-ico">
-              <Icon name="user-check" size={14} />
-            </span>
-            <div>
-              <b>Approved</b>
-              <span>Email sent with a one-time sign-in link</span>
-            </div>
-          </li>
-        </ol>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22 }}>
-          <Link href="/login" className="btn btn--primary btn--full">
-            <Icon name="log-in" size={16} /> I already have access · Sign in
-          </Link>
-          <button
-            type="button"
-            className="btn btn--ghost btn--full"
-            onClick={() => setPending(null)}
-          >
-            <Icon name="arrow-left" size={16} /> Back to the form
-          </button>
-        </div>
-
-      </div>
-    );
-  }
-
   return (
     <>
-      <h3>Create your account</h3>
-      <p className="sub">It only takes a minute. No credit card required.</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
+        <div>
+          <h3 style={{ margin: 0 }}>Create your account</h3>
+          <p className="sub" style={{ margin: "4px 0 0" }}>Sign up as a Member — apply to become a Student later.</p>
+        </div>
+        <LanguageSwitcher />
+      </div>
+
+      <FederatedSignInButtons context="signup" disabled={loading} />
+
       <form onSubmit={onSubmit}>
         <div className="form-grid two" style={{ marginBottom: 0 }}>
           <Input

@@ -1,32 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
-import { Logo } from "@/components/ui/Logo";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
+import { TccrWordmark } from "@/components/ui/TccrWordmark";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 
 interface Props {
   initialActive?: string;
   onSignUp: () => void;
 }
 
+// V2 labels — Home / Bible School / Cell Groups / Contact.
+// Targets are section ids on the landing page that the floating nav
+// smooth-scrolls to (top, modules grid, modules grid, FAQ). Labels are
+// resolved per-locale via the `nav.*` keys in src/messages/*.json.
 const LINKS = [
-  { id: "home", label: "Home", target: "top" },
-  { id: "about", label: "About", target: "why" },
-  { id: "courses", label: "Courses", target: "courses" },
-  { id: "contact", label: "Contact", target: "faq" },
+  { id: "home", labelKey: "home", target: "top" },
+  { id: "school", labelKey: "bibleSchool", target: "modules" },
+  { id: "cells", labelKey: "cellGroups", target: "modules" },
+  { id: "contact", labelKey: "contact", target: "faq" },
 ] as const;
 
 export function FloatingNav({ initialActive = "home", onSignUp }: Props) {
   const [active, setActive] = useState(initialActive);
-  const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname() ?? "/";
-
-  useEffect(() => setMounted(true), []);
-  const logoVariant = mounted && resolvedTheme === "dark" ? "reversed" : "default";
+  const t = useTranslations("nav");
 
   const handleNav = (id: string, target: string) => {
     setActive(id);
@@ -40,7 +41,6 @@ export function FloatingNav({ initialActive = "home", onSignUp }: Props) {
       return;
     }
 
-    // Scroll to section on home page (About, Courses, Contact)
     if (pathname === "/") {
       const el = document.getElementById(target);
       if (el) {
@@ -60,9 +60,9 @@ export function FloatingNav({ initialActive = "home", onSignUp }: Props) {
           e.preventDefault();
           handleNav("home", "top");
         }}
-        style={{ display: "flex", alignItems: "center", gap: 8 }}
+        style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
       >
-        <Logo variant={logoVariant} height={26} />
+        <TccrWordmark />
       </a>
       <div className="nav-links">
         {LINKS.map((l) => (
@@ -75,13 +75,16 @@ export function FloatingNav({ initialActive = "home", onSignUp }: Props) {
               handleNav(l.id, l.target);
             }}
           >
-            {l.label}
+            {t(l.labelKey)}
           </a>
         ))}
       </div>
-      <Button size="sm" onClick={onSignUp}>
-        Sign Up
-      </Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <LanguageSwitcher />
+        <Button size="sm" onClick={onSignUp}>
+          {t("signUp")}
+        </Button>
+      </div>
     </nav>
   );
 }

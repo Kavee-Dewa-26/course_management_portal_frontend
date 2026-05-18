@@ -3,53 +3,61 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Avatar } from "@/components/ui/Avatar";
-import { apiRequest } from "@/infrastructure/api/request";
 import { Button } from "@/components/ui/Button";
-import { ArrowLink } from "@/components/ui/ArrowLink";
-import { CourseCover } from "@/components/ui/CourseCover";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Icon } from "@/components/ui/Icon";
-import { Logo } from "@/components/ui/Logo";
+import { TccrWordmark } from "@/components/ui/TccrWordmark";
 import { FloatingNav } from "@/components/layout/FloatingNav";
-import { useCourses } from "@/application/hooks/useCourses";
+import { apiRequest } from "@/infrastructure/api/request";
 import { avatarUrl } from "@/lib/kit";
 
-const FEATURES = [
-  { ico: "layers", title: "Structured Course Plans", body: "Multi-module roadmaps with clear topic ordering. No guesswork on what to learn next." },
-  { ico: "trending-up", title: "Track Your Progress", body: "Module-level completion shown across every course so you always know where you stand." },
-  { ico: "shield-check", title: "Verified Materials", body: "Lessons, code labs and project briefs curated by working software and data engineers." },
-  { ico: "terminal", title: "Hands-on Labs", body: "Browser-based notebooks and sandboxes. Write real code and run real queries from lesson one." },
-  { ico: "video", title: "Lecture Recordings", body: "Watch on demand. Every lesson stays available throughout your subscription." },
-  { ico: "smartphone", title: "Learn on Any Device", body: "The platform works across desktop, tablet and phone with no install required." },
+/**
+ * TCCR public landing page. Mirrors
+ * src/ui_structure/v2/project/tccr-screens-public.jsx (TPublicHomePage):
+ *
+ *   TopNav · Hero · Stats · Modules · How it works · Why · FAQ · Final CTA · Footer
+ *
+ * All copy is read from `src/messages/{en,si,ta}.json` via next-intl's
+ * `useTranslations`. The structural data (module variants, glyph icons,
+ * step active flags) stays in code; only user-visible strings live in JSON.
+ */
+
+const MODULE_KEYS = [
+  { variant: "bs" as const, glyph: "book-open", titleKey: "modules.bs.title", bodyKey: "modules.bs.body" },
+  { variant: "cg" as const, glyph: "users", titleKey: "modules.cg.title", bodyKey: "modules.cg.body" },
 ];
 
-const STEPS = [
-  { n: "01", title: "Create Your Account", body: "Submit your registration and wait for admin approval. Once approved you can sign in and get started.", ico: "user-plus" },
-  { n: "02", title: "Pick Your Course Plan", body: "Browse module-by-module tracks built around your engineering goals.", ico: "layers" },
-  { n: "03", title: "Start Learning", body: "Watch lessons, complete labs and track progress across every module.", ico: "play-circle" },
+const STEP_KEYS = [
+  { active: false, numberKey: "how.step1.number", titleKey: "how.step1.title", bodyKey: "how.step1.body" },
+  { active: true, numberKey: "how.step2.number", titleKey: "how.step2.title", bodyKey: "how.step2.body" },
+  { active: false, numberKey: "how.step3.number", titleKey: "how.step3.title", bodyKey: "how.step3.body" },
 ];
 
-const FAQS = [
-  { q: "Do I need a CS degree to start?", a: "No. Foundation courses assume only basic familiarity with a programming language. Our SQL and analytics tracks have no prerequisites at all." },
-  { q: "How long does each course take?", a: "Most modules are designed for 5–12 hours of focused study, plus labs. A full programme typically takes 3–6 months at part-time pace." },
-  { q: "Can I switch courses later?", a: "Yes. You can request any published course at any time. Your progress is saved per-module. Switching tracks never resets your work." },
-  { q: "What about the labs? Do I need to install anything?", a: "No. Every lab runs in your browser. Notebooks, terminals and databases are spun up on demand and persist between sessions." },
+const FEATURE_KEYS = [
+  { ico: "layers", titleKey: "why.features.hierarchy.title", bodyKey: "why.features.hierarchy.body" },
+  { ico: "calendar-clock", titleKey: "why.features.semesters.title", bodyKey: "why.features.semesters.body" },
+  { ico: "shield-check", titleKey: "why.features.access.title", bodyKey: "why.features.access.body" },
+  { ico: "clipboard-list", titleKey: "why.features.reports.title", bodyKey: "why.features.reports.body" },
+  { ico: "bar-chart-3", titleKey: "why.features.analytics.title", bodyKey: "why.features.analytics.body" },
+  { ico: "languages", titleKey: "why.features.languages.title", bodyKey: "why.features.languages.body" },
 ];
+
+const FAQ_KEYS = ["q1", "q2", "q3", "q4"] as const;
 
 export default function PublicHomePage() {
   const router = useRouter();
+  const t = useTranslations("publicHome");
+  const tCommon = useTranslations("common");
   const goLogin = () => router.push("/login");
   const goRegister = () => router.push("/register");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const featured = useCourses({ limit: 4, authenticated: false, state: "published" });
 
-  // Public stats — student & course counts. Both endpoints accept unauthenticated
-  // requests for the published catalog & user count (limit=1 is enough — we just
-  // read `total`). Silent fallback if either 401/403s.
-  const [stats, setStats] = useState<{ students: number | null; courses: number | null }>({
-    students: null,
+  // Live stats — backend may or may not respond. Falls back to the static
+  // copy from the prototype if either endpoint 401/403s.
+  const [stats, setStats] = useState<{ members: number | null; courses: number | null }>({
+    members: null,
     courses: null,
   });
   useEffect(() => {
@@ -61,7 +69,7 @@ export default function PublicHomePage() {
       ]);
       if (cancelled) return;
       setStats({
-        students: usersRes.status === "fulfilled" ? usersRes.value.total : null,
+        members: usersRes.status === "fulfilled" ? usersRes.value.total : null,
         courses: coursesRes.status === "fulfilled" ? coursesRes.value.total : null,
       });
     })();
@@ -72,193 +80,187 @@ export default function PublicHomePage() {
     <div className="public">
       <FloatingNav onSignUp={goRegister} />
 
-      {/* HERO */}
+      {/* ─── HERO ───────────────────────────────────────────────────── */}
       <section className="section section--dark hero">
         <div className="container-x hero-grid">
           <div>
-            <Eyebrow dark>★ Learn at your own pace</Eyebrow>
+            <Eyebrow dark>{t("hero.eyebrow")}</Eyebrow>
             <h1>
-              Engineering &amp; data skills,
+              {t("hero.titleLine1")}
               <br />
-              on <span className="accent">your schedule</span>.
+              <span className="accent">{t("hero.titleAccent")}</span> {t("hero.titleLine2Suffix")}
             </h1>
-            <p>
-              Multi-module course programmes in software, ML and analytics. Real instructor
-              lectures, browser-based labs, and progress tracking that keep you focused from
-              your first commit to your final project.
-            </p>
+            <p>{t("hero.body")}</p>
             <div className="hero-cta">
               <Button size="lg" iconAfter="arrow-right" onClick={goRegister}>
-                Start Learning
+                {t("hero.ctaCreate")}
               </Button>
               <Button size="lg" variant="secondary-light" icon="log-in" onClick={goLogin}>
-                Sign In
+                {t("hero.ctaSignIn")}
               </Button>
+            </div>
+            <div className="hero-proof">
+              <div className="stack">
+                {[5, 14, 32, 47].map((n) => (
+                  <Avatar key={n} src={avatarUrl(n)} size="sm" />
+                ))}
+              </div>
+              <span>
+                <b style={{ color: "#fff" }}>{t("hero.proofStat")}</b> {t("hero.proofSuffix")}
+              </span>
             </div>
           </div>
           <div className="hero-img">
-            <img src="/team-working.webp" alt="Students collaborating on a laptop" />
+            <img src="/team-working.webp" alt={t("hero.imageAlt")} />
+            <div className="hero-badge">
+              <div>
+                <div className="num">{t("hero.badgeNum")}</div>
+                <div className="stars">{t("hero.badgeStars")}</div>
+              </div>
+              <div className="lab">
+                {t("hero.badgeLabel1")}
+                <br />
+                {t("hero.badgeLabel2")}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* STATS */}
+      {/* ─── STATS strip ────────────────────────────────────────────── */}
       <section className="section section--white" style={{ paddingTop: 64, paddingBottom: 64 }}>
         <div className="container-x">
-          <div className="stats" style={{ gridTemplateColumns: "repeat(2, 1fr)", maxWidth: 720, margin: "0 auto" }}>
-            <div className="stat">
-              <div className="num">
-                {stats.students == null ? "…" : stats.students.toLocaleString()}
-              </div>
-              <div className="lab">Enrolled Students</div>
-              <div className="sub">Active learners on the platform</div>
+          <div className="stats">
+            <Stat
+              num={stats.members == null ? "3,200" : stats.members.toLocaleString()}
+              suffix="+"
+              label={t("stats.members")}
+              sub={t("stats.membersSub")}
+            />
+            <Stat num="142" label={t("stats.cellGroups")} sub={t("stats.cellGroupsSub")} />
+            <Stat
+              num={stats.courses == null ? "21" : stats.courses.toLocaleString()}
+              label={t("stats.courses")}
+              sub={t("stats.coursesSub")}
+            />
+            <Stat num="94" suffix="%" label={t("stats.attendance")} sub={t("stats.attendanceSub")} />
+          </div>
+        </div>
+      </section>
+
+      {/* ─── MODULES ────────────────────────────────────────────────── */}
+      <section className="section section--light" id="modules">
+        <div className="container-x">
+          <div style={{ textAlign: "center" }}>
+            <Eyebrow>{t("modules.eyebrow")}</Eyebrow>
+            <h2 className="section-title section-title--center">
+              {t("modules.titleLine1")}
+              <br />
+              <span className="accent">{t("modules.titleAccent")}</span> {t("modules.titleLine2Suffix")}
+            </h2>
+            <p className="section-sub" style={{ margin: "16px auto 0", textAlign: "center" }}>
+              {t("modules.subtitle")}
+            </p>
+          </div>
+          <div className="module-tiles" style={{ marginTop: 48 }}>
+            {MODULE_KEYS.map((m) => (
+              <button key={m.variant} type="button" className={`mod-tile ${m.variant}`} onClick={goRegister}>
+                <div>
+                  <div className="label">{t("modules.moduleLabel")}</div>
+                  <h2>{t(m.titleKey)}</h2>
+                  <p>{t(m.bodyKey)}</p>
+                </div>
+                <div className="pill-row">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      goRegister();
+                    }}
+                  >
+                    {t("modules.getStarted")} <Icon name="arrow-right" size={14} />
+                  </button>
+                </div>
+                <div className="glyph" aria-hidden="true">
+                  <Icon name={m.glyph} size={200} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── HOW IT WORKS ───────────────────────────────────────────── */}
+      <section className="section section--deep">
+        <div className="container-x">
+          <Eyebrow dark>{t("how.eyebrow")}</Eyebrow>
+          <h2 className="section-title">
+            {t("how.title")} <span className="accent">{t("how.titleAccent")}</span> {t("how.titleSuffix")}
+          </h2>
+          <p className="section-sub">{t("how.subtitle")}</p>
+          <div className="process-grid">
+            <div className="steps">
+              {STEP_KEYS.map((s) => (
+                <div key={s.numberKey} className={`step${s.active ? " active" : ""}`}>
+                  <div className="num">{t(s.numberKey)}</div>
+                  <div>
+                    <h4>{t(s.titleKey)}</h4>
+                    <p>{t(s.bodyKey)}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="stat">
-              <div className="num">
-                {stats.courses == null ? "…" : stats.courses.toLocaleString()}
-              </div>
-              <div className="lab">Published Courses</div>
-              <div className="sub">Available right now</div>
+            <div className="hero-img" style={{ aspectRatio: "1/1", borderRadius: 24 }}>
+              <img
+                src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&q=80"
+                alt={t("how.imageAlt")}
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* WHY */}
-      <section className="section section--light" id="why">
+      {/* ─── WHY ────────────────────────────────────────────────────── */}
+      <section className="section section--white" id="why">
         <div className="container-x">
           <div style={{ textAlign: "center" }}>
-            <Eyebrow>Why Choose Us</Eyebrow>
+            <Eyebrow>{t("why.eyebrow")}</Eyebrow>
             <h2 className="section-title section-title--center">
-              Everything you need to <span className="accent">level up</span>
+              {t("why.titleLine1")} <span className="accent">{t("why.titleAccent1")}</span>
               <br />
-              and ship, all in one place.
+              {t("why.titleLine2Prefix")} <span className="accent">{t("why.titleAccent2")}</span>{" "}
+              {t("why.titleLine2Suffix")}
             </h2>
           </div>
           <div className="feature-grid">
-            {FEATURES.map((f) => (
-              <div className="feature-card" key={f.title}>
+            {FEATURE_KEYS.map((f) => (
+              <div className="feature-card" key={f.titleKey}>
                 <div className="ico">
                   <Icon name={f.ico} size={26} />
                 </div>
-                <h3>{f.title}</h3>
-                <p>{f.body}</p>
+                <h3>{t(f.titleKey)}</h3>
+                <p>{t(f.bodyKey)}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* HOW */}
-      <section className="section section--deep">
-        <div className="container-x">
-          <Eyebrow dark>Our Process</Eyebrow>
-          <h2 className="section-title">
-            How <span className="accent">EduPath</span> works.
-          </h2>
-          <p className="section-sub">
-            Three simple steps: sign up, choose your plan, start learning at your own pace.
-          </p>
-          <div className="step-cards">
-            {STEPS.map((s, i) => (
-              <div key={s.n} style={{ display: "contents" }}>
-                <div className="step-card">
-                  <div className="step-card-top">
-                    <span className="step-card-icon">
-                      <Icon name={s.ico} size={18} />
-                    </span>
-                    <span className="step-card-num">{s.n}</span>
-                  </div>
-                  <h4 className="step-card-title">{s.title}</h4>
-                  <p className="step-card-body">{s.body}</p>
-                  <span className="step-card-badge">Step {i + 1}</span>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <div className="step-card-arrow" aria-hidden="true">
-                    <span />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* COURSES */}
-      <section className="section section--white" id="courses">
-        <div className="container-x">
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-end",
-              flexWrap: "wrap",
-              gap: 16,
-            }}
-          >
-            <div>
-              <Eyebrow>Featured Courses</Eyebrow>
-              <h2 className="section-title">
-                Pick a subject and <span className="accent">start studying</span>.
-              </h2>
-            </div>
-            <Button
-              variant="secondary"
-              iconAfter="arrow-right"
-              onClick={() => router.push("/courses")}
-            >
-              View All Courses
-            </Button>
-          </div>
-          <div className="course-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-            {featured.loading && featured.items.length === 0 && (
-              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 40, color: "var(--color-body-green)" }}>
-                <Icon name="loader" size={22} />
-                <p style={{ marginTop: 10, fontFamily: "var(--font-body)" }}>Loading courses…</p>
-              </div>
-            )}
-            {!featured.loading && featured.items.length === 0 && (
-              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 40, color: "var(--color-body-green)", fontFamily: "var(--font-body)" }}>
-                No published courses yet.
-              </div>
-            )}
-            {featured.items.map((c) => (
-              <article
-                key={c.id}
-                className="course-card"
-                onClick={() => router.push(`/courses/${c.id}`)}
-              >
-                <CourseCover title={c.title} alt={c.title} />
-                <div className="body">
-                  <div className="meta">
-                    <span>
-                      <Icon name="layers" size={12} />
-                      {c.semesterCount} {c.semesterCount === 1 ? "semester" : "semesters"}
-                    </span>
-                  </div>
-                  <h3>{c.title}</h3>
-                  <ArrowLink>Learn More</ArrowLink>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="section section--white" id="faq">
+      {/* ─── FAQ ───────────────────────────────────────────────────── */}
+      <section className="section section--light" id="faq">
         <div className="container-x">
           <div style={{ textAlign: "center" }}>
-            <Eyebrow>Common Questions</Eyebrow>
+            <Eyebrow>{t("faq.eyebrow")}</Eyebrow>
             <h2 className="section-title section-title--center">
-              Frequently asked <span className="accent">questions</span>.
+              {t("faq.titleLine1")} <span className="accent">{t("faq.titleAccent")}</span>
+              {t("faq.titleSuffix")}
             </h2>
           </div>
           <div className="faq-list">
-            {FAQS.map((f, i) => {
+            {FAQ_KEYS.map((key, i) => {
               const isOpen = openFaq === i;
               return (
-                <div key={f.q} className={`faq${isOpen ? " open" : ""}`}>
+                <div key={key} className={`faq${isOpen ? " open" : ""}`}>
                   <button
                     className="faq-summary"
                     onClick={() => setOpenFaq(isOpen ? null : i)}
@@ -267,9 +269,9 @@ export default function PublicHomePage() {
                     <span className="ico">
                       <Icon name={isOpen ? "minus" : "plus"} size={18} />
                     </span>
-                    {f.q}
+                    {t(`faq.items.${key}.q`)}
                   </button>
-                  {isOpen && <div className="body">{f.a}</div>}
+                  {isOpen && <div className="body">{t(`faq.items.${key}.a`)}</div>}
                 </div>
               );
             })}
@@ -277,7 +279,7 @@ export default function PublicHomePage() {
         </div>
       </section>
 
-      {/* FINAL CTA */}
+      {/* ─── FINAL CTA ──────────────────────────────────────────────── */}
       <section className="section section--dark final-cta">
         <div className="ring" />
         <Avatar
@@ -301,38 +303,47 @@ export default function PublicHomePage() {
           style={{ position: "absolute", bottom: "24%", right: "20%", border: "3px solid #BCE955", transform: "rotate(-3deg)" }}
         />
         <div className="container-x" style={{ position: "relative" }}>
-          <Eyebrow dark>Get Started Today</Eyebrow>
+          <Eyebrow dark>{t("finalCta.eyebrow")}</Eyebrow>
           <h2 className="section-title section-title--center" style={{ marginTop: 18 }}>
-            Ready to start your <span className="accent">learning journey</span>?
+            {t("finalCta.titleLine1")} <span className="accent">{t("finalCta.titleAccent")}</span>{" "}
+            {t("finalCta.titleSuffix")}
           </h2>
           <p className="section-sub" style={{ margin: "20px auto 28px", textAlign: "center" }}>
-            Join thousands of learners who took control of their education with structured plans
-            and real progress tracking.
+            {t("finalCta.subtitle")}
           </p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
             <Button size="lg" iconAfter="arrow-right" onClick={goRegister}>
-              Start Learning
+              {t("hero.ctaCreate")}
             </Button>
             <Button size="lg" variant="secondary-light" onClick={goLogin}>
-              Sign In
+              {t("hero.ctaSignIn")}
             </Button>
           </div>
         </div>
       </section>
 
-      {/* FOOTER */}
+      {/* ─── FOOTER ─────────────────────────────────────────────────── */}
       <footer className="footer footer--minimal">
         <div className="footer-bottom footer-bottom--solo">
-          <Logo variant="reversed" height={26} />
-          <nav className="footer-nav-links">
-            <Link href="/">Home</Link>
-            <Link href="/#why">About</Link>
-            <Link href="/courses">Courses</Link>
-            <Link href="/#faq">Contact</Link>
-          </nav>
-          <span>© 2026 EduPath. All rights reserved.</span>
+          <TccrWordmark variant="reversed" />
+          <span>{tCommon("footer.copyright")}</span>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/* ─── Sub-components ────────────────────────────────────────────────── */
+
+function Stat({ num, suffix, label, sub }: { num: string; suffix?: string; label: string; sub: string }) {
+  return (
+    <div className="stat">
+      <div className="num">
+        {num}
+        {suffix && <span className="accent">{suffix}</span>}
+      </div>
+      <div className="lab">{label}</div>
+      <div className="sub">{sub}</div>
     </div>
   );
 }
