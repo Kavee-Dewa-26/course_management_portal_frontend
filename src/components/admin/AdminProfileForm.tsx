@@ -201,40 +201,47 @@ export function AdminProfileForm({ roleLabel = "Administrator", scope }: Props) 
             </span>
           </button>
 
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
-            <Button
-              type="button"
-              variant="secondary-light"
-              icon="upload-cloud"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Upload from device
-            </Button>
-            <p style={{ margin: 0, fontFamily: "var(--font-body)", fontSize: 12, color: "var(--color-muted)" }}>
-              JPG, PNG or WebP · max 5 MB. Click the photo or the button above.
-            </p>
-            {profilePhotoUrl && (
-              <button
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: 15, color: "var(--color-primary)", marginBottom: 4 }}>
+              {fullName || P.user.email}
+            </div>
+            <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)", marginBottom: 14 }}>
+              {roleLabel} · {joinedAt && `Joined ${joinedAt}`}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <Button
                 type="button"
-                onClick={() => { setProfilePhotoUrl(""); setDirty(true); }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "var(--font-body)",
-                  fontSize: 12,
-                  color: "var(--color-error)",
-                  padding: 0,
-                  textAlign: "left",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
+                variant="secondary-light"
+                icon="upload-cloud"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
               >
-                <Icon name="trash-2" size={12} /> Remove photo
-              </button>
-            )}
+                Upload photo
+              </Button>
+              {profilePhotoUrl && (
+                <button
+                  type="button"
+                  onClick={() => { setProfilePhotoUrl(""); setDirty(true); }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-body)",
+                    fontSize: 12,
+                    color: "var(--color-error)",
+                    padding: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Icon name="trash-2" size={12} /> Remove
+                </button>
+              )}
+            </div>
+            <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 11, color: "var(--color-muted)" }}>
+              JPG, PNG or WebP · max 5 MB
+            </p>
           </div>
         </div>
 
