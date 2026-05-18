@@ -1,0 +1,3 @@
+{
+  "_README": "Sinhala (සිංහල) translations. Mirror the key structure of en.json — leave any key empty or missing to fall back to English. When a key is present but its value is the empty string \"\", the UI renders nothing, so prefer omitting the key entirely if you haven't translated it yet."
+}

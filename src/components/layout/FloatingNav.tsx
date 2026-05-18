@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { TccrWordmark } from "@/components/ui/TccrWordmark";
 
@@ -12,18 +13,20 @@ interface Props {
 
 // V2 labels — Home / Bible School / Cell Groups / Contact.
 // Targets are section ids on the landing page that the floating nav
-// smooth-scrolls to (top, modules grid, modules grid, FAQ).
+// smooth-scrolls to (top, modules grid, modules grid, FAQ). Labels are
+// resolved per-locale via the `nav.*` keys in src/messages/*.json.
 const LINKS = [
-  { id: "home", label: "Home", target: "top" },
-  { id: "school", label: "Bible School", target: "modules" },
-  { id: "cells", label: "Cell Groups", target: "modules" },
-  { id: "contact", label: "Contact", target: "faq" },
+  { id: "home", labelKey: "home", target: "top" },
+  { id: "school", labelKey: "bibleSchool", target: "modules" },
+  { id: "cells", labelKey: "cellGroups", target: "modules" },
+  { id: "contact", labelKey: "contact", target: "faq" },
 ] as const;
 
 export function FloatingNav({ initialActive = "home", onSignUp }: Props) {
   const [active, setActive] = useState(initialActive);
   const router = useRouter();
   const pathname = usePathname() ?? "/";
+  const t = useTranslations("nav");
 
   const handleNav = (id: string, target: string) => {
     setActive(id);
@@ -71,12 +74,12 @@ export function FloatingNav({ initialActive = "home", onSignUp }: Props) {
               handleNav(l.id, l.target);
             }}
           >
-            {l.label}
+            {t(l.labelKey)}
           </a>
         ))}
       </div>
       <Button size="sm" onClick={onSignUp}>
-        Sign Up
+        {t("signUp")}
       </Button>
     </nav>
   );

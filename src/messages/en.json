@@ -1,0 +1,149 @@
+{
+  "common": {
+    "appName": "TCCR",
+    "appFullName": "The Christian Center Rathmalana",
+    "footer": {
+      "copyright": "© 2026 The Christian Center Rathmalana. All rights reserved."
+    }
+  },
+  "nav": {
+    "home": "Home",
+    "bibleSchool": "Bible School",
+    "cellGroups": "Cell Groups",
+    "contact": "Contact",
+    "signUp": "Sign Up"
+  },
+  "publicHome": {
+    "hero": {
+      "eyebrow": "★ The Christian Center Rathmalana",
+      "titleLine1": "One community.",
+      "titleAccent": "Two ways",
+      "titleLine2Suffix": "to grow.",
+      "body": "TCCR brings Bible School learning and Cell Group fellowship into a single platform. Enrol in structured course batches, gather weekly with your cell, and let leaders track every meeting in seconds.",
+      "ctaCreate": "Create Account",
+      "ctaSignIn": "Sign In",
+      "proofStat": "3,200+ members",
+      "proofSuffix": "across cells & courses",
+      "badgeNum": "4.9",
+      "badgeStars": "★ ★ ★ ★ ★",
+      "badgeLabel1": "Avg. cell-meeting",
+      "badgeLabel2": "satisfaction",
+      "imageAlt": "TCCR community"
+    },
+    "stats": {
+      "members": "Members",
+      "membersSub": "Across cells & courses",
+      "cellGroups": "Cell Groups",
+      "cellGroupsSub": "Meeting weekly",
+      "courses": "Bible School Courses",
+      "coursesSub": "Live in catalog",
+      "attendance": "Avg. attendance",
+      "attendanceSub": "Last 8 weeks"
+    },
+    "modules": {
+      "eyebrow": "The Platform",
+      "titleLine1": "Two modules,",
+      "titleAccent": "one",
+      "titleLine2Suffix": "account.",
+      "subtitle": "Bible School and Cell Groups share a single sign-in. Switch between them in one click — and language any time.",
+      "moduleLabel": "Module",
+      "bs": {
+        "title": "Bible School",
+        "body": "Structured programmes with semester-by-semester learning. Multi-batch intakes, browser-based labs and lecture recordings on every lesson."
+      },
+      "cg": {
+        "title": "Cell Groups",
+        "body": "Stay connected to your G12 leader, attend weekly cells, and let your leader file reports in seconds — on web or mobile."
+      },
+      "getStarted": "Get started"
+    },
+    "how": {
+      "eyebrow": "Our Process",
+      "title": "How",
+      "titleAccent": "TCCR",
+      "titleSuffix": "works.",
+      "subtitle": "Three quick steps from sign-up to your first lesson — or your first cell meeting.",
+      "step1": {
+        "number": "01",
+        "title": "Create your account",
+        "body": "Sign up in under a minute — you'll join as a Member straight away."
+      },
+      "step2": {
+        "number": "02",
+        "title": "Pick a course or join a cell",
+        "body": "Apply to enrol in a course batch, or wait to be added to your cell."
+      },
+      "step3": {
+        "number": "03",
+        "title": "Learn & connect",
+        "body": "Watch lessons, complete labs, attend cells, and grow with your community."
+      },
+      "imageAlt": "Members gathering"
+    },
+    "why": {
+      "eyebrow": "What's in v2",
+      "titleLine1": "Everything you need to",
+      "titleAccent1": "learn",
+      "titleLine2Prefix": "and",
+      "titleAccent2": "connect",
+      "titleLine2Suffix": "— in one place.",
+      "features": {
+        "hierarchy": {
+          "title": "Course → Batch → Semester",
+          "body": "Pick the intake that fits your schedule. Past intakes auto-close so you always join the right cohort."
+        },
+        "semesters": {
+          "title": "Time-bound semesters",
+          "body": "Each semester has a clear start and end date. Once a semester closes, content locks for that cohort."
+        },
+        "access": {
+          "title": "Approved access",
+          "body": "Admins verify each request — for Student role, course enrolment, or leader promotion — within 24 hours."
+        },
+        "reports": {
+          "title": "Weekly cell reports",
+          "body": "Leaders and G12 leaders file a single, structured weekly report — attendance, subject, follow-ups in one form."
+        },
+        "analytics": {
+          "title": "Live analytics",
+          "body": "Leader, G12 and admin dashboards refresh weekly with attendance, growth and participation insights."
+        },
+        "languages": {
+          "title": "සිංහල · தமிழ் · English",
+          "body": "Switch language any time. Notifications and emails arrive in your preferred language."
+        }
+      }
+    },
+    "faq": {
+      "eyebrow": "Common Questions",
+      "titleLine1": "Frequently asked",
+      "titleAccent": "questions",
+      "titleSuffix": ".",
+      "items": {
+        "q1": {
+          "q": "Do I need to be a student to join a cell?",
+          "a": "No — every registered user is a Member by default and can be added to a cell group. Student role is only required to enrol in Bible School courses."
+        },
+        "q2": {
+          "q": "How does a course intake work?",
+          "a": "Each course runs as multiple Batches. You apply to a specific Batch that fits your schedule. Past Batches auto-close, so you'll only see future or open intakes when applying."
+        },
+        "q3": {
+          "q": "Who can file a cell report?",
+          "a": "Only the cell's Leader or G12 Leader. Members can view past reports of their own cell, but they cannot edit or file new ones."
+        },
+        "q4": {
+          "q": "How do I become a Leader or G12?",
+          "a": "Existing G12 Leaders can promote a Member or Leader from their network. Admins and Super Admins can also assign these roles directly."
+        }
+      }
+    },
+    "finalCta": {
+      "eyebrow": "Join TCCR",
+      "titleLine1": "Ready to",
+      "titleAccent": "be part",
+      "titleSuffix": "of the family?",
+      "subtitle": "One account, both modules. Sign up takes under a minute."
+    }
+  }
+}
