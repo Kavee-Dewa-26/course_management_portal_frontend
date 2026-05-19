@@ -1,5 +1,5 @@
-import { AdminProfileForm } from "@/components/admin/AdminProfileForm";
+import { redirect } from "next/navigation";
 
-export default function SuperAdminProfilePage() {
-  return <AdminProfileForm roleLabel="Super Admin" scope="instructors" />;
+export default function SuperAdminProfileRedirect() {
+  redirect("/profile");
 }

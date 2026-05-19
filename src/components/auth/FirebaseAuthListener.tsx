@@ -13,6 +13,39 @@ import {
 } from "@/application/slices/sessionSlice";
 import { tokenService } from "@/infrastructure/firebase/tokenService";
 
+/** Module-level cache so logout can pass the token to DELETE /me/fcm-token. */
+let _cachedFcmToken: string | null = null;
+export function getCachedFcmToken() { return _cachedFcmToken; }
+export function clearCachedFcmToken() { _cachedFcmToken = null; }
+
+/**
+ * Register the FCM push token after login (best-effort — never blocks the login
+ * flow). Requires Notification permission and a NEXT_PUBLIC_FCM_VAPID_KEY env.
+ */
+async function registerFcmToken() {
+  try {
+    if (typeof window === "undefined") return;
+    if (!("Notification" in window)) return;
+    const vapidKey = process.env.NEXT_PUBLIC_FCM_VAPID_KEY;
+    if (!vapidKey) return; // not configured — skip silently
+
+    const { getMessaging, getToken } = await import("firebase/messaging");
+    const messaging = getMessaging();
+
+    if (Notification.permission === "default") {
+      await Notification.requestPermission();
+    }
+    if (Notification.permission !== "granted") return;
+
+    const token = await getToken(messaging, { vapidKey });
+    if (!token) return;
+    _cachedFcmToken = token;
+    await apiRequest("/me/fcm-token", { method: "POST", body: { token } }).catch(() => null);
+  } catch {
+    // FCM errors are non-fatal — swallow silently
+  }
+}
+
 /**
  * Listens to Firebase auth state changes.
  *
@@ -86,6 +119,10 @@ export function FirebaseAuthListener({ children }: { children: React.ReactNode }
         }
 
         dispatch(setUser(me));
+
+        // Register FCM push token after every successful sign-in.
+        // Best-effort — never blocks the login flow.
+        void registerFcmToken();
       } catch (err) {
         if (err instanceof ApiRequestError && (err.status === 401 || err.status === 403)) {
           await auth.signOut();

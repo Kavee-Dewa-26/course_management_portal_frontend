@@ -46,7 +46,7 @@ export const ADMIN_NAV: NavItem[] = [
   { id: "courses",  labelKey: "courses",  ico: "book-open", href: "/admin/courses" },
   { id: "students", labelKey: "users",    ico: "users",     href: "/admin/students" },
   { group: "System" },
-  { id: "profile",  labelKey: "profile",  ico: "user",      href: "/admin/profile" },
+  { id: "profile",  labelKey: "profile",  ico: "user",      href: "/profile" },
 ];
 
 // ---------- V2: Member / Leader / G12 navs ----------
@@ -102,6 +102,6 @@ export const SUPERADMIN_NAV: NavItem[] = [
   { id: "courses",  labelKey: "courses",   ico: "book-open", href: "/super-admin/courses" },
   { id: "students", labelKey: "users",     ico: "users",     href: "/super-admin/students" },
   { group: "System" },
-  { id: "profile",  labelKey: "profile",   ico: "user",     href: "/super-admin/profile" },
+  { id: "profile",  labelKey: "profile",   ico: "user",     href: "/profile" },
   { id: "audit",    labelKey: "auditLog",  ico: "history",  href: "/super-admin/audit-log" },
 ];

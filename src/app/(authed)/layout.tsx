@@ -8,6 +8,8 @@ import {
   STUDENT_NAV,
   LEADER_NAV,
   G12_NAV,
+  ADMIN_NAV,
+  SUPERADMIN_NAV,
   type NavItem,
 } from "@/components/layout/RoleNav";
 import { useSessionUser } from "@/application/hooks/useSessionUser";
@@ -21,6 +23,7 @@ const TITLE_MAP: Array<{ test: RegExp; title: string }> = [
   { test: /^\/my-requests/, title: "My Requests" },
   { test: /^\/my-cells\/[^/]+/, title: "Cell" },
   { test: /^\/my-cells/, title: "My Cells" },
+  { test: /^\/profile/, title: "Profile" },
 ];
 
 /**
@@ -42,16 +45,27 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
   const user = useSessionUser();
   const roles = useAppSelector((s) => s.session.user?.roles ?? []);
 
-  // /my-requests is the user's own request list — keep them in their own
-  // role's sidebar instead of swapping to MEMBER_NAV.
-  const isMyRequests = pathname.startsWith("/my-requests");
+  // /my-requests and /profile keep the user's active role sidebar context
+  // so clicking "Profile" or "My Requests" from any role's nav doesn't
+  // snap the sidebar back to MEMBER_NAV unexpectedly.
+  const keepRoleNav =
+    pathname.startsWith("/my-requests") ||
+    pathname.startsWith("/profile");
 
   let navItems: NavItem[] = MEMBER_NAV;
   let roleLabel = "Member";
   let dashboardHref = "/home";
 
-  if (isMyRequests) {
-    if (roles.includes("g12")) {
+  if (keepRoleNav) {
+    if (roles.includes("super_admin")) {
+      navItems = SUPERADMIN_NAV;
+      roleLabel = "Super Admin";
+      dashboardHref = "/super-admin/dashboard";
+    } else if (roles.includes("admin")) {
+      navItems = ADMIN_NAV;
+      roleLabel = "Administrator";
+      dashboardHref = "/admin/dashboard";
+    } else if (roles.includes("g12")) {
       navItems = G12_NAV;
       roleLabel = "G12 Leader";
       dashboardHref = "/g12/dashboard";
@@ -64,8 +78,6 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
       roleLabel = "Student";
       dashboardHref = "/dashboard";
     }
-    // Pure member or admin-only: stay with MEMBER_NAV (admin has its own
-    // separate route group for admin work, so this rarely matters).
   }
 
   return (
