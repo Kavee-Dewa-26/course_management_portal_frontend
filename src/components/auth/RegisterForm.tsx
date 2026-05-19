@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
@@ -11,15 +12,11 @@ import { pushToast } from "@/application/slices/uiSlice";
 import { FederatedSignInButtons } from "./FederatedSignInButtons";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 
-/**
- * Phase 2: registration no longer goes through admin approval. Every user who
- * signs up is a Member from the moment the account is created. On success the
- * form pushes a toast and routes the user to /login so they can sign in and
- * land on the Member dashboard.
- */
 export function RegisterForm() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const t = useTranslations("auth.register");
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -37,16 +34,16 @@ export function RegisterForm() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!firstName.trim()) e.firstName = "First name is required.";
-    if (!lastName.trim()) e.lastName = "Last name is required.";
-    if (!email.trim()) e.email = "Email is required.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = "Enter a valid email address.";
-    if (!pw) e.pw = "Password is required.";
-    else if (pw.length < 10) e.pw = "Password must be at least 10 characters.";
+    if (!firstName.trim()) e.firstName = t("firstNameRequired");
+    if (!lastName.trim()) e.lastName = t("lastNameRequired");
+    if (!email.trim()) e.email = t("emailRequired");
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = t("emailInvalid");
+    if (!pw) e.pw = t("passwordRequired");
+    else if (pw.length < 10) e.pw = t("passwordTooShort");
     else if (!/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9])/.test(pw))
-      e.pw = "Use uppercase, lowercase, numbers and at least one symbol.";
-    if (!confirmPw) e.confirmPw = "Please confirm your password.";
-    else if (pw !== confirmPw) e.confirmPw = "Passwords do not match.";
+      e.pw = t("passwordRequirements");
+    if (!confirmPw) e.confirmPw = t("confirmPasswordRequired");
+    else if (pw !== confirmPw) e.confirmPw = t("passwordsMismatch");
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -73,11 +70,11 @@ export function RegisterForm() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         if (res.status === 409) {
-          setFieldError("email", "An account with this email already exists.");
+          setFieldError("email", t("emailExists"));
         } else if (res.status === 400 && err?.field) {
           setFieldError(err.field, err.message);
         } else {
-          dispatch(pushToast({ tone: "warning", title: "Sign-up failed", message: err?.message ?? "Something went wrong. Please try again." }));
+          dispatch(pushToast({ tone: "warning", title: t("signUpFailed"), message: err?.message ?? "" }));
         }
         return;
       }
@@ -85,13 +82,13 @@ export function RegisterForm() {
       dispatch(
         pushToast({
           tone: "success",
-          title: "Welcome to TCCR",
-          message: "Account created. Sign in to continue to your Member dashboard.",
+          title: t("welcomeToast"),
+          message: t("welcomeMessage"),
         }),
       );
       router.push(`/login?email=${encodeURIComponent(email.trim())}`);
     } catch {
-      dispatch(pushToast({ tone: "warning", title: "Network error", message: "Could not reach the server. Check your connection and try again." }));
+      dispatch(pushToast({ tone: "warning", title: t("signUpFailed"), message: t("networkError") }));
     } finally {
       setLoading(false);
     }
@@ -101,8 +98,8 @@ export function RegisterForm() {
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
         <div>
-          <h3 style={{ margin: 0 }}>Create your account</h3>
-          <p className="sub" style={{ margin: "4px 0 0" }}>Sign up as a Member — apply to become a Student later.</p>
+          <h3 style={{ margin: 0 }}>{t("title")}</h3>
+          <p className="sub" style={{ margin: "4px 0 0" }}>{t("subtitle")}</p>
         </div>
         <LanguageSwitcher />
       </div>
@@ -112,51 +109,51 @@ export function RegisterForm() {
       <form onSubmit={onSubmit}>
         <div className="form-grid two" style={{ marginBottom: 0 }}>
           <Input
-            label="First name"
-            placeholder="Priya"
+            label={t("firstName")}
+            placeholder={t("firstNamePlaceholder")}
             value={firstName}
             error={errors.firstName}
             onChange={(e) => { setFirstName(e.target.value); clearField("firstName"); }}
           />
           <Input
-            label="Last name"
-            placeholder="Mendis"
+            label={t("lastName")}
+            placeholder={t("lastNamePlaceholder")}
             value={lastName}
             error={errors.lastName}
             onChange={(e) => { setLastName(e.target.value); clearField("lastName"); }}
           />
         </div>
         <Input
-          label="Email"
+          label={t("email")}
           type="email"
-          placeholder="you@example.com"
+          placeholder={t("emailPlaceholder")}
           value={email}
           error={errors.email}
           onChange={(e) => { setEmail(e.target.value); clearField("email"); }}
         />
         <Input
-          label="Password"
+          label={t("password")}
           type={showPw ? "text" : "password"}
-          placeholder="At least 10 characters"
+          placeholder={t("passwordPlaceholder")}
           value={pw}
           error={errors.pw}
           onChange={(e) => { setPw(e.target.value); clearField("pw"); }}
-          hint={errors.pw ? undefined : "Mix uppercase, lowercase, numbers and symbols."}
+          hint={errors.pw ? undefined : t("passwordHint")}
           rightSlot={
             <button
               type="button"
               onClick={() => setShowPw((v) => !v)}
               style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--color-body-green)", display: "flex" }}
-              aria-label={showPw ? "Hide password" : "Show password"}
+              aria-label={showPw ? t("hidePassword") : t("showPassword")}
             >
               <Icon name={showPw ? "eye-off" : "eye"} size={16} />
             </button>
           }
         />
         <Input
-          label="Confirm password"
+          label={t("confirmPassword")}
           type={showConfirmPw ? "text" : "password"}
-          placeholder="Re-enter your password"
+          placeholder={t("confirmPasswordPlaceholder")}
           value={confirmPw}
           onChange={(e) => { setConfirmPw(e.target.value); clearField("confirmPw"); }}
           error={errors.confirmPw}
@@ -165,7 +162,7 @@ export function RegisterForm() {
               type="button"
               onClick={() => setShowConfirmPw((v) => !v)}
               style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--color-body-green)", display: "flex" }}
-              aria-label={showConfirmPw ? "Hide password" : "Show password"}
+              aria-label={showConfirmPw ? t("hidePassword") : t("showPassword")}
             >
               <Icon name={showConfirmPw ? "eye-off" : "eye"} size={16} />
             </button>
@@ -173,15 +170,15 @@ export function RegisterForm() {
         />
         <div style={{ marginTop: 22 }}>
           <Button full size="lg" type="submit" disabled={loading}>
-            {loading ? "Creating account…" : "Create Account"}
+            {loading ? t("creating") : t("createAccount")}
           </Button>
         </div>
       </form>
       <div className="alt">
-        Already have an account? <Link href="/login">Sign in</Link>
+        {t("alreadyHaveAccount")} <Link href="/login">{t("signIn")}</Link>
         <div style={{ marginTop: 14 }}>
           <Link href="/" style={{ color: "inherit" }}>
-            ← Back to home
+            {t("backHome")}
           </Link>
         </div>
       </div>
