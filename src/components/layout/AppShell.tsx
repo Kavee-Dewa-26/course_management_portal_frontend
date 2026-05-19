@@ -22,6 +22,7 @@ import {
 import { auth } from "@/infrastructure/firebase/auth";
 import { apiRequest } from "@/infrastructure/api/request";
 import { tokenService } from "@/infrastructure/firebase/tokenService";
+import { getCachedFcmToken, clearCachedFcmToken } from "@/components/auth/FirebaseAuthListener";
 
 interface Props {
   navItems: NavItem[];
@@ -69,11 +70,14 @@ export function AppShell({
   const performSignOut = useCallback(
     async (redirectTo: string) => {
       try {
-        // Best-effort: revoke refresh tokens server-side.
+        // Deregister FCM push token before signing out.
+        const fcmToken = getCachedFcmToken();
+        if (fcmToken) {
+          await apiRequest("/me/fcm-token", { method: "DELETE", body: { token: fcmToken } }).catch(() => null);
+          clearCachedFcmToken();
+        }
+        // Revoke Firebase refresh tokens server-side.
         await apiRequest("/auth/logout", { method: "POST" }).catch(() => null);
-        // Sprint 2 will populate the FCM token + DELETE call. For now this is a
-        // no-op stub so the logout sequence is in its final shape.
-        // await apiRequest("/me/fcm-token", { method: "DELETE", body: { token } }).catch(() => null);
       } finally {
         await signOut(auth).catch(() => null);
         tokenService.clear();
