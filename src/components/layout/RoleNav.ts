@@ -4,7 +4,8 @@ export interface NavGroup {
 
 export interface NavLink {
   id: string;
-  label: string;
+  /** Key inside the `nav` translation namespace (src/messages/*.json "nav"). */
+  labelKey: string;
   ico: string;
   count?: number;
   hint?: string;
@@ -21,13 +22,13 @@ export const isLink = (it: NavItem): it is NavLink => "id" in it;
 // surface from their Member-section sidebar.
 export const STUDENT_NAV: NavItem[] = [
   { group: "Main" },
-  { id: "home", label: "Home", ico: "home", href: "/home" },
-  { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/dashboard" },
-  { id: "courses", label: "My Courses", ico: "book-open", href: "/my-courses" },
-  { id: "browse", label: "Browse Courses", ico: "search", href: "/browse-courses" },
-  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
+  { id: "home",          labelKey: "home",          ico: "home",             href: "/home" },
+  { id: "dashboard",     labelKey: "dashboard",      ico: "layout-dashboard", href: "/dashboard" },
+  { id: "courses",       labelKey: "myCourses",      ico: "book-open",        href: "/my-courses" },
+  { id: "browse",        labelKey: "browseCourses",  ico: "search",           href: "/browse-courses" },
+  { id: "profile",       labelKey: "profile",        ico: "user",             href: "/profile" },
   { group: "Account" },
-  { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
+  { id: "notifications", labelKey: "notifications",  ico: "bell",             href: "/notifications" },
 ];
 
 // V2: V1's "Registrations" page is repurposed as the Role Requests queue
@@ -38,28 +39,14 @@ export const STUDENT_NAV: NavItem[] = [
 // shows all roles in that table, not just students.
 export const ADMIN_NAV: NavItem[] = [
   { group: "Approvals" },
-  { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/admin/dashboard" },
-  {
-    id: "registrations",
-    label: "Role Requests",
-    ico: "user-plus",
-    count: 8,
-    hint: "Member → student",
-    href: "/admin/registrations",
-  },
-  {
-    id: "enrollments",
-    label: "Enrolments",
-    ico: "clipboard-list",
-    count: 6,
-    hint: "Course access",
-    href: "/admin/enrollments",
-  },
+  { id: "dashboard",     labelKey: "dashboard",   ico: "layout-dashboard", href: "/admin/dashboard" },
+  { id: "registrations", labelKey: "roleRequests", ico: "user-plus",       count: 8, hint: "Member → student", href: "/admin/registrations" },
+  { id: "enrollments",   labelKey: "enrolments",  ico: "clipboard-list",  count: 6, hint: "Course access",     href: "/admin/enrollments" },
   { group: "Content" },
-  { id: "courses", label: "Courses", ico: "book-open", href: "/admin/courses" },
-  { id: "students", label: "Users", ico: "users", href: "/admin/students" },
+  { id: "courses",  labelKey: "courses",  ico: "book-open", href: "/admin/courses" },
+  { id: "students", labelKey: "users",    ico: "users",     href: "/admin/students" },
   { group: "System" },
-  { id: "profile", label: "Profile", ico: "user", href: "/admin/profile" },
+  { id: "profile",  labelKey: "profile",  ico: "user",      href: "/admin/profile" },
 ];
 
 // ---------- V2: Member / Leader / G12 navs ----------
@@ -71,70 +58,50 @@ export const ADMIN_NAV: NavItem[] = [
 
 export const MEMBER_NAV: NavItem[] = [
   { group: "Main" },
-  { id: "home", label: "Home", ico: "home", href: "/home" },
-  { id: "school", label: "Bible School", ico: "book-open", href: "/school" },
-  { id: "cells", label: "Cell Groups", ico: "users", href: "/my-cells" },
-  { id: "requests", label: "My Requests", ico: "file-text", href: "/my-requests" },
+  { id: "home",          labelKey: "home",         ico: "home",      href: "/home" },
+  { id: "school",        labelKey: "bibleSchool",  ico: "book-open", href: "/school" },
+  { id: "cells",         labelKey: "cellGroups",   ico: "users",     href: "/my-cells" },
+  { id: "requests",      labelKey: "myRequests",   ico: "file-text", href: "/my-requests" },
   { group: "Account" },
-  { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
-  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
+  { id: "notifications", labelKey: "notifications", ico: "bell",     href: "/notifications" },
+  { id: "profile",       labelKey: "profile",       ico: "user",     href: "/profile" },
 ];
 
 export const LEADER_NAV: NavItem[] = [
   { group: "Main" },
-  { id: "home", label: "Home", ico: "home", href: "/home" },
-  { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/leader/dashboard" },
-  { id: "cells", label: "Cells", ico: "users", href: "/cells" },
-  { id: "school", label: "Bible School", ico: "book-open", href: "/school" },
+  { id: "home",          labelKey: "home",          ico: "home",             href: "/home" },
+  { id: "dashboard",     labelKey: "dashboard",     ico: "layout-dashboard", href: "/leader/dashboard" },
+  { id: "cells",         labelKey: "cells",         ico: "users",            href: "/cells" },
+  { id: "school",        labelKey: "bibleSchool",   ico: "book-open",        href: "/school" },
   { group: "Account" },
-  { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
-  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
+  { id: "notifications", labelKey: "notifications", ico: "bell",             href: "/notifications" },
+  { id: "profile",       labelKey: "profile",       ico: "user",             href: "/profile" },
 ];
 
 export const G12_NAV: NavItem[] = [
   { group: "Main" },
-  { id: "home", label: "Home", ico: "home", href: "/home" },
-  { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/g12/dashboard" },
-  { id: "cells", label: "Cells", ico: "users", href: "/cells" },
-  { id: "network", label: "Leaders Network", ico: "share-2", href: "/g12/network" },
-  { id: "promote", label: "Promote", ico: "user-plus", href: "/g12/promote" },
-  { id: "school", label: "Bible School", ico: "book-open", href: "/school" },
+  { id: "home",          labelKey: "home",           ico: "home",             href: "/home" },
+  { id: "dashboard",     labelKey: "dashboard",      ico: "layout-dashboard", href: "/g12/dashboard" },
+  { id: "cells",         labelKey: "cells",          ico: "users",            href: "/cells" },
+  { id: "network",       labelKey: "leadersNetwork", ico: "share-2",          href: "/g12/network" },
+  { id: "promote",       labelKey: "promote",        ico: "user-plus",        href: "/g12/promote" },
+  { id: "school",        labelKey: "bibleSchool",    ico: "book-open",        href: "/school" },
   { group: "Account" },
-  { id: "notifications", label: "Notifications", ico: "bell", href: "/notifications" },
-  { id: "profile", label: "Profile", ico: "user", href: "/profile" },
+  { id: "notifications", labelKey: "notifications",  ico: "bell",             href: "/notifications" },
+  { id: "profile",       labelKey: "profile",        ico: "user",             href: "/profile" },
 ];
 
 export const SUPERADMIN_NAV: NavItem[] = [
   { group: "Platform" },
-  { id: "dashboard", label: "Dashboard", ico: "layout-dashboard", href: "/super-admin/dashboard" },
-  {
-    id: "admins",
-    label: "Administrators",
-    ico: "shield-check",
-    count: 2,
-    hint: "Pending invites",
-    href: "/super-admin/admins",
-  },
+  { id: "dashboard",     labelKey: "dashboard",     ico: "layout-dashboard", href: "/super-admin/dashboard" },
+  { id: "admins",        labelKey: "administrators", ico: "shield-check",    count: 2, hint: "Pending invites", href: "/super-admin/admins" },
   { group: "Approvals" },
-  {
-    id: "registrations",
-    label: "Role Requests",
-    ico: "user-plus",
-    count: 8,
-    hint: "Member → student",
-    href: "/super-admin/registrations",
-  },
-  {
-    id: "enrollments",
-    label: "Enrolments",
-    ico: "clipboard-list",
-    count: 6,
-    href: "/super-admin/enrollments",
-  },
+  { id: "registrations", labelKey: "roleRequests",  ico: "user-plus",       count: 8, hint: "Member → student", href: "/super-admin/registrations" },
+  { id: "enrollments",   labelKey: "enrolments",    ico: "clipboard-list",  count: 6, href: "/super-admin/enrollments" },
   { group: "Content" },
-  { id: "courses", label: "Courses", ico: "book-open", href: "/super-admin/courses" },
-  { id: "students", label: "Users", ico: "users", href: "/super-admin/students" },
+  { id: "courses",  labelKey: "courses",   ico: "book-open", href: "/super-admin/courses" },
+  { id: "students", labelKey: "users",     ico: "users",     href: "/super-admin/students" },
   { group: "System" },
-  { id: "profile", label: "Profile", ico: "user", href: "/super-admin/profile" },
-  { id: "audit", label: "Audit Log", ico: "history", href: "/super-admin/audit-log" },
+  { id: "profile",  labelKey: "profile",   ico: "user",     href: "/super-admin/profile" },
+  { id: "audit",    labelKey: "auditLog",  ico: "history",  href: "/super-admin/audit-log" },
 ];

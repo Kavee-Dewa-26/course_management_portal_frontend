@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Icon } from "@/components/ui/Icon";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
 import type { NotificationItem } from "@/lib/mock/notifications";
@@ -75,7 +76,6 @@ export function TopNav({
 
         {/* Dual-role quick switcher — shown only when user has multiple roles */}
         {roles && roles.length > 1 && onSwitchRole && activeRole && (() => {
-          // Pick the "other" role to switch to (cycle through if 3 roles exist).
           const otherRole = (roles.find((r) => r !== activeRole) as Role | undefined);
           if (!otherRole) return null;
           const label = otherRole === "super_admin" ? "Super admin"
@@ -106,6 +106,8 @@ export function TopNav({
             </button>
           );
         })()}
+
+        <LanguageSwitcher />
 
         <button
           className="icon-btn"
