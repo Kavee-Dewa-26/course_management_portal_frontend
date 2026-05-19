@@ -4,8 +4,21 @@ import {
   persistReducer,
   FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER,
 } from "redux-persist";
-import storage from "redux-persist/lib/storage";
 import rootReducer, { RootReducerState } from "./rootReducer";
+
+import createWebStorage from "redux-persist/lib/storage/createWebStorage";
+
+// createWebStorage("local") uses localStorage on the client. On the server
+// (SSR / Node.js) localStorage doesn't exist, so we return a no-op that
+// fulfils the same interface — silences the redux-persist fallback warning.
+const storage =
+  typeof window !== "undefined"
+    ? createWebStorage("local")
+    : {
+        getItem:    (_key: string) => Promise.resolve(null),
+        setItem:    (_key: string, _value: string) => Promise.resolve(),
+        removeItem: (_key: string) => Promise.resolve(),
+      };
 
 const persistConfig = {
   key: "edupath",

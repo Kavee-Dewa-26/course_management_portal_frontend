@@ -7,11 +7,11 @@ import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import {
   setUser,
-  setToken,
   setAuthResolving,
   clearSession,
   type SessionUser,
 } from "@/application/slices/sessionSlice";
+import { tokenService } from "@/infrastructure/firebase/tokenService";
 
 /**
  * Listens to Firebase auth state changes.
@@ -42,6 +42,7 @@ export function FirebaseAuthListener({ children }: { children: React.ReactNode }
         }
         // Actual sign-out event — clear immediately.
         clearTimeout(safetyTimer);
+        tokenService.clear();
         dispatch(clearSession());
         dispatch(setAuthResolving(false));
         return;
@@ -51,16 +52,15 @@ export function FirebaseAuthListener({ children }: { children: React.ReactNode }
       firstEvent = false;
 
       try {
-        const token = await fbUser.getIdToken();
-        dispatch(setToken(token));
+        // Warm the in-memory token cache; apiRequest pulls from tokenService.
+        await tokenService.get();
 
         const me = await apiRequest<SessionUser>("/me");
 
-        if (me.status !== "approved") {
+        // V2: only `suspended` accounts are blocked. No approval queue.
+        if (me.status === "suspended") {
           await auth.signOut();
           dispatch(clearSession());
-          // Only redirect to /login if the user is currently on a PROTECTED route.
-          // Public pages (/, /login, /register, /courses) must be free to visit.
           if (typeof window !== "undefined") {
             const path = window.location.pathname;
             const isProtected =
@@ -69,17 +69,17 @@ export function FirebaseAuthListener({ children }: { children: React.ReactNode }
               path.startsWith("/browse-courses") ||
               path.startsWith("/profile") ||
               path.startsWith("/notifications") ||
+              path.startsWith("/home") ||
+              path.startsWith("/my-cells") ||
+              path.startsWith("/my-requests") ||
+              path.startsWith("/cells") ||
+              path.startsWith("/leader") ||
+              path.startsWith("/g12") ||
               path.startsWith("/admin") ||
-              path.startsWith("/super-admin");
+              path.startsWith("/super-admin") ||
+              path.startsWith("/apply");
             if (isProtected) {
-              const reason = me.status === "suspended"
-                ? "suspended"
-                : me.status === "pending_approval"
-                  ? "pending"
-                  : me.status === "rejected"
-                    ? "rejected"
-                    : "unauthorized";
-              window.location.href = `/login?reason=${reason}`;
+              window.location.href = "/login?reason=suspended";
             }
           }
           return;

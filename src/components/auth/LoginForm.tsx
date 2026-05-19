@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/Input";
 import { auth } from "@/infrastructure/firebase/auth";
 import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
+import { store } from "@/application/store";
 import { pushToast } from "@/application/slices/uiSlice";
 import {
   setUser,
@@ -22,6 +23,7 @@ import {
 } from "@/application/slices/sessionSlice";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
 import { FederatedSignInButtons } from "./FederatedSignInButtons";
+import { LockoutBanner } from "./LockoutBanner";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { DevLoginPanel } from "./DevLoginPanel";
 
@@ -39,14 +41,16 @@ export function LoginForm() {
   const [emailError, setEmailError] = useState("");
   const [pwError, setPwError] = useState("");
   const [formError, setFormError] = useState("");
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
 
-  // Read ?reason=... set by FirebaseAuthListener when a session is forcibly ended.
+  // Read ?reason=... set by FirebaseAuthListener / inactivity timer / 401 handler.
+  // V2 only has: suspended, inactive, expired.
   useEffect(() => {
     const reason = searchParams?.get("reason");
     if (!reason) return;
     if (reason === "suspended") setFormError(t("accountSuspended"));
-    else if (reason === "pending") setFormError(t("pendingApproval"));
-    else if (reason === "rejected") setFormError(t("notApproved"));
+    else if (reason === "inactive") setFormError(t("inactive"));
+    else if (reason === "expired") setFormError(t("authFailed"));
   }, [searchParams, t]);
 
   const clearErrors = () => {
@@ -82,63 +86,62 @@ export function LoginForm() {
 
       const me = await apiRequest<SessionUser>("/me");
 
-      if (me.status === "pending_approval") {
-        await auth.signOut();
-        setFormError(t("pendingApproval"));
-        return;
-      }
+      // V2: no approval queue. Only suspended accounts are blocked.
       if (me.status === "suspended") {
         await auth.signOut();
         setFormError(t("accountSuspended"));
         return;
       }
-      if (me.status === "rejected") {
-        await auth.signOut();
-        setFormError(t("notApproved"));
-        return;
-      }
 
+      // Dispatch — setUser normalises roles and computes activeRole.
+      // Read activeRole from the store immediately after to pick the right
+      // landing page (avoids reading stale raw backend roles).
       dispatch(setUser(me));
-      dispatch(
-        pushToast({
-          tone: "success",
-          title: `Welcome back, ${me.firstName}`,
-          message: "Loading your dashboard…",
-        }),
-      );
+      dispatch(pushToast({ tone: "success", title: `Welcome back, ${me.firstName}` }));
 
-      let savedRole: Role | null = null;
-      try {
-        const v = typeof window !== "undefined"
-          ? localStorage.getItem(`edupath.activeRole.${me.uid}`)
-          : null;
-        if (isRole(v) && me.roles?.includes(v)) savedRole = v;
-      } catch { /* ignore */ }
-      const target: Role = savedRole
-        ?? (me.roles?.includes("super_admin") ? "super_admin"
-          : me.roles?.includes("admin")       ? "admin"
-          : me.roles?.includes("g12")         ? "g12"
-          : me.roles?.includes("leader")      ? "leader"
-          : me.roles?.includes("student")     ? "student"
-          :                                      "member");
-      router.push(DASHBOARD_BY_ROLE[target]);
+      const activeRoleAfterLogin = store.getState().session.activeRole ?? "member";
+      router.push(DASHBOARD_BY_ROLE[activeRoleAfterLogin]);
     } catch (err: unknown) {
       if (err instanceof FirebaseError) {
         switch (err.code) {
           case "auth/invalid-credential":
           case "auth/wrong-password":
           case "auth/user-not-found":
-          case "auth/invalid-email":
+          case "auth/invalid-email": {
             setFormError(t("invalidCredentials"));
+            // Fire-and-forget: tell the server about this failed attempt so
+            // it can enforce the 10-strikes-per-15-min lock (FR-A-005).
+            // We DON'T await — login UX shouldn't depend on this call.
+            if (email.trim()) {
+              void apiRequest<{ locked: boolean; attempts: number }>(
+                "/auth/track-failure",
+                { method: "POST", auth: false, body: { email: email.trim() } },
+              )
+                .then((res) => {
+                  if (res?.locked) {
+                    // Server doesn't return remaining seconds — assume the
+                    // full 15-minute window from the most recent failure.
+                    setLockoutSeconds(15 * 60);
+                  }
+                })
+                .catch(() => null);
+            }
             break;
+          }
           case "auth/user-disabled":
             setFormError(t("accountSuspended"));
             break;
           case "auth/too-many-requests":
             setFormError(t("tooManyAttempts"));
+            setLockoutSeconds(15 * 60);
             break;
           case "auth/network-request-failed":
             setFormError(t("networkError"));
+            break;
+          case "auth/user-not-found":
+            // Account exists in DB but has no Firebase Auth entry — typically
+            // an admin-created account that was seeded without Firebase Auth.
+            setFormError(t("accountNotSetUp"));
             break;
           default:
             setFormError(t("signInFailed"));
@@ -170,7 +173,18 @@ export function LoginForm() {
         <LanguageSwitcher />
       </div>
 
-      <FederatedSignInButtons context="signin" disabled={loading} />
+      <FederatedSignInButtons context="signin" disabled={loading || lockoutSeconds > 0} />
+
+      {lockoutSeconds > 0 && (
+        <LockoutBanner
+          initialSeconds={lockoutSeconds}
+          onClear={() => setLockoutSeconds(0)}
+          onReset={() => {
+            setLockoutSeconds(0);
+            setForgotOpen(true);
+          }}
+        />
+      )}
 
       {formError && (
         <div
@@ -251,7 +265,7 @@ export function LoginForm() {
           </button>
         </div>
         <div style={{ marginTop: 22 }}>
-          <Button full size="lg" type="submit" disabled={loading}>
+          <Button full size="lg" type="submit" disabled={loading || lockoutSeconds > 0}>
             {loading ? t("signingIn") : t("signIn")}
           </Button>
         </div>

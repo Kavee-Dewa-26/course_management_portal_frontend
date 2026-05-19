@@ -1,8 +1,10 @@
 import { signOut } from "firebase/auth";
 import { auth } from "@/infrastructure/firebase/auth";
-import { getIdToken } from "@/infrastructure/firebase/getToken";
+import { tokenService } from "@/infrastructure/firebase/tokenService";
 
 const API_PREFIX = process.env.NEXT_PUBLIC_API_PREFIX ?? "/api/v1";
+const LOCALE_STORAGE_KEY = "edupath.locale";
+const SUPPORTED_LOCALES = new Set(["en", "si", "ta"]);
 
 export interface ApiError {
   code: string;
@@ -30,30 +32,89 @@ export class ApiRequestError extends Error implements ApiError {
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
   auth?: boolean;
+  /** Sent as `X-Idempotency-Key` — required for cell-report submits, optional elsewhere. */
+  idempotencyKey?: string;
 };
+
+/** Read the current locale from localStorage so the header survives SSR boundaries. */
+function currentLocale(): string {
+  if (typeof window === "undefined") return "en";
+  try {
+    const v = localStorage.getItem(LOCALE_STORAGE_KEY);
+    return v && SUPPORTED_LOCALES.has(v) ? v : "en";
+  } catch {
+    return "en";
+  }
+}
+
+function isProtectedPath(path: string): boolean {
+  return (
+    path.startsWith("/dashboard") ||
+    path.startsWith("/my-courses") ||
+    path.startsWith("/browse-courses") ||
+    path.startsWith("/profile") ||
+    path.startsWith("/notifications") ||
+    path.startsWith("/home") ||
+    path.startsWith("/my-cells") ||
+    path.startsWith("/my-requests") ||
+    path.startsWith("/cells") ||
+    path.startsWith("/leader") ||
+    path.startsWith("/g12") ||
+    path.startsWith("/admin") ||
+    path.startsWith("/super-admin") ||
+    path.startsWith("/apply")
+  );
+}
 
 /**
  * Base API request helper.
- * - Prepends API prefix
- * - Attaches Authorization: Bearer <id-token> by default
- * - On 401 (token revoked/expired): signs out Firebase and redirects to /login
- * - Serialises JSON body
- * - Throws ApiRequestError on non-2xx
+ *
+ * - Prepends API prefix (`NEXT_PUBLIC_API_PREFIX`, default `/api/v1`).
+ * - Attaches `Authorization: Bearer <id-token>` (V2: pulled via tokenService).
+ * - Attaches `Accept-Language` from the active locale so backend can render
+ *   notifications and emails in the user's preferred language (FR-A-009).
+ * - Optional `X-Idempotency-Key` — used by cell-report submission to make
+ *   offline retries safe (FR-CR-015 / NFR-AVA-004).
+ * - On 401 with a token attached, refreshes once and retries; second 401 →
+ *   signs out and (if on a protected path) sends user to /login.
+ * - Returns `undefined` on 204; throws `ApiRequestError` on non-2xx.
  */
 export async function apiRequest<T = unknown>(
   path: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { body, auth: useAuth = true, headers, ...rest } = options;
+  const { body, auth: useAuth = true, headers, idempotencyKey, ...rest } = options;
+  return executeRequest<T>(path, { body, useAuth, headers, idempotencyKey, rest }, false);
+}
+
+interface ExecuteOptions {
+  body: unknown;
+  useAuth: boolean;
+  headers: HeadersInit | undefined;
+  idempotencyKey: string | undefined;
+  rest: Omit<RequestInit, "body" | "headers">;
+}
+
+async function executeRequest<T>(
+  path: string,
+  opts: ExecuteOptions,
+  isRetry: boolean,
+): Promise<T> {
+  const { body, useAuth, headers, idempotencyKey, rest } = opts;
 
   const finalHeaders: Record<string, string> = {
     "Content-Type": "application/json",
+    "Accept-Language": currentLocale(),
     ...(headers as Record<string, string> | undefined),
   };
 
   if (useAuth) {
-    const token = await getIdToken();
+    const token = isRetry ? await tokenService.refresh() : await tokenService.get();
     if (token) finalHeaders.Authorization = `Bearer ${token}`;
+  }
+
+  if (idempotencyKey) {
+    finalHeaders["X-Idempotency-Key"] = idempotencyKey;
   }
 
   const res = await fetch(`${API_PREFIX}${path}`, {
@@ -71,25 +132,18 @@ export async function apiRequest<T = unknown>(
   if (!res.ok) {
     const err = (json as { error?: { code?: string; message?: string; details?: Record<string, string[]> }; requestId?: string }).error;
 
-    // Session revoked or token expired — sign out, and only force-redirect to
-    // /login when the user is on a PROTECTED route. Public pages (landing,
-    // catalog, login, register) must stay reachable so 401s on background
-    // requests don't kick visitors out of the public site.
+    // 401: token may have just expired between cache hits — try once with a
+    // forced refresh before giving up. Second failure means the session is
+    // genuinely revoked (suspended account, server-side logout, etc.).
+    if (res.status === 401 && useAuth && !isRetry) {
+      return executeRequest<T>(path, opts, true);
+    }
+
     if (res.status === 401) {
       signOut(auth).catch(() => null);
-      if (typeof window !== "undefined") {
-        const path = window.location.pathname;
-        const isProtected =
-          path.startsWith("/dashboard") ||
-          path.startsWith("/my-courses") ||
-          path.startsWith("/browse-courses") ||
-          path.startsWith("/profile") ||
-          path.startsWith("/notifications") ||
-          path.startsWith("/admin") ||
-          path.startsWith("/super-admin");
-        if (isProtected) {
-          window.location.href = "/login";
-        }
+      tokenService.clear();
+      if (typeof window !== "undefined" && isProtectedPath(window.location.pathname)) {
+        window.location.href = "/login?reason=expired";
       }
     }
 

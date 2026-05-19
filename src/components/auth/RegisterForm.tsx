@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
+import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { pushToast } from "@/application/slices/uiSlice";
 import { FederatedSignInButtons } from "./FederatedSignInButtons";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
@@ -16,6 +17,7 @@ export function RegisterForm() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const t = useTranslations("auth.register");
+  const preferredLanguage = useAppSelector((s) => s.locale.current);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -63,6 +65,7 @@ export function RegisterForm() {
             lastName: lastName.trim(),
             email: email.trim(),
             password: pw,
+            preferredLanguage,
           }),
         },
       );

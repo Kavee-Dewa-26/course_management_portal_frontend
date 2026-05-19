@@ -3,7 +3,8 @@
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
-import type { Role } from "@/application/slices/sessionSlice";
+import { useRoles } from "@/application/hooks/useRoles";
+import { DASHBOARD_BY_ROLE, type Role } from "@/application/slices/sessionSlice";
 
 interface Props {
   /** One or more roles permitted to view this layout. */
@@ -26,20 +27,25 @@ interface Props {
  */
 export function AuthGuard({ allowedRoles, children }: Props) {
   const router = useRouter();
-  const { user, activeRole, authResolving } = useAppSelector((s) => s.session);
+  const user = useAppSelector((s) => s.session.user);
+  const authResolving = useAppSelector((s) => s.session.authResolving);
+  const { can, primary } = useRoles();
 
   const hasAccess = useMemo(() => {
     if (!user) return false;
-    if (user.status !== "approved") return false;
+    // V2: the only blocking status is `suspended`. Every other status (including
+    // legacy `pending_approval` from V1 accounts) is treated as an active user
+    // — V2 has no admin-approval queue (FR-A-001).
+    if (user.status === "suspended") return false;
     // Dev/demo bypass — users signed in via DevLoginPanel (uid prefix `dev-`)
     // can navigate every guarded route regardless of their mock roles, so the
     // demo can showcase Member → Leader → G12 → Admin surfaces without
     // resigning. Real users (Firebase uids never start with `dev-`) are
     // unaffected.
     if (user.uid?.startsWith("dev-")) return true;
-    const effective = (activeRole ?? user.role) as Role;
-    return allowedRoles.includes(effective);
-  }, [user, activeRole, allowedRoles]);
+    // Union match with super_admin → admin inheritance baked in.
+    return can(allowedRoles);
+  }, [user, can, allowedRoles]);
 
   useEffect(() => {
     if (authResolving) return;
@@ -50,14 +56,10 @@ export function AuthGuard({ allowedRoles, children }: Props) {
     if (!hasAccess) {
       // User is authenticated but is currently in a different role view.
       // Send them to their active role's home (instead of a confusing /login).
-      const effective = (activeRole ?? user.role) as Role;
-      const home =
-        effective === "super_admin" ? "/super-admin/dashboard"
-        : effective === "admin"     ? "/admin/dashboard"
-        :                              "/dashboard";
+      const home = primary ? DASHBOARD_BY_ROLE[primary] : "/home";
       router.replace(home);
     }
-  }, [authResolving, user, activeRole, hasAccess, router]);
+  }, [authResolving, user, hasAccess, primary, router]);
 
   if (authResolving || !user || !hasAccess) {
     return (

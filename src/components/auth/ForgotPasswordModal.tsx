@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
+
+const RESEND_THROTTLE_SECONDS = 60;
 
 interface Props {
   open: boolean;
@@ -22,6 +24,15 @@ export function ForgotPasswordModal({ open, initialEmail = "", onClose }: Props)
   const [emailError, setEmailError] = useState("");
   const [otpError, setOtpError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Tick the resend cooldown each second until it hits zero. Started right
+  // after every successful (or silently-failed) password-reset request.
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = setTimeout(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [resendCooldown]);
 
   const handleClose = () => {
     setStep("email");
@@ -30,6 +41,7 @@ export function ForgotPasswordModal({ open, initialEmail = "", onClose }: Props)
     setEmailError("");
     setOtpError("");
     setLoading(false);
+    setResendCooldown(0);
     onClose();
   };
 
@@ -53,9 +65,11 @@ export function ForgotPasswordModal({ open, initialEmail = "", onClose }: Props)
         body: { email: email.trim() },
       });
       setStep("otp");
+      setResendCooldown(RESEND_THROTTLE_SECONDS);
     } catch {
       // Even on network error we proceed — same UX as backend's enumeration-proof design
       setStep("otp");
+      setResendCooldown(RESEND_THROTTLE_SECONDS);
     } finally {
       setLoading(false);
     }
@@ -96,6 +110,7 @@ export function ForgotPasswordModal({ open, initialEmail = "", onClose }: Props)
   };
 
   const resendCode = async () => {
+    if (resendCooldown > 0) return;
     setOtpError("");
     setOtp("");
     setLoading(true);
@@ -109,6 +124,7 @@ export function ForgotPasswordModal({ open, initialEmail = "", onClose }: Props)
       /* anti-enumeration — always silent */
     } finally {
       setLoading(false);
+      setResendCooldown(RESEND_THROTTLE_SECONDS);
     }
   };
 
@@ -179,18 +195,18 @@ export function ForgotPasswordModal({ open, initialEmail = "", onClose }: Props)
               <button
                 type="button"
                 onClick={resendCode}
-                disabled={loading}
+                disabled={loading || resendCooldown > 0}
                 style={{
                   background: "none",
                   border: "none",
                   padding: 0,
-                  cursor: "pointer",
+                  cursor: resendCooldown > 0 ? "not-allowed" : "pointer",
                   fontWeight: 600,
-                  color: "var(--color-primary)",
-                  textDecoration: "underline",
+                  color: resendCooldown > 0 ? "var(--color-muted)" : "var(--color-primary)",
+                  textDecoration: resendCooldown > 0 ? "none" : "underline",
                 }}
               >
-                Resend
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend"}
               </button>
             </div>
             <div className="form-actions" style={{ justifyContent: "center", borderTop: "none" }}>

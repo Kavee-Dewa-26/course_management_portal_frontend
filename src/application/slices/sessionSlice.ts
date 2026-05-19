@@ -8,7 +8,9 @@ export type Role =
   | "g12"           // V2: senior leader overseeing leaders
   | "admin"
   | "super_admin";
-export type UserStatus = "pending_approval" | "approved" | "rejected" | "suspended";
+/** V2 statuses. pending_approval is a V1 legacy value the backend may still
+ *  return during migration — treated client-side as a plain Member. */
+export type UserStatus = "approved" | "suspended" | "pending_approval" | "rejected";
 
 /** Where each role lands after login. Picked by the user's activeRole. */
 export const DASHBOARD_BY_ROLE: Record<Role, string> = {
@@ -36,8 +38,13 @@ export function isRole(v: unknown): v is Role {
 export interface SessionUser {
   uid: string;
   email: string;
-  role: Role;
+  /** V1 scalar — backend may still send it; kept optional. Read roles[] instead. */
+  role?: Role;
   roles: string[];
+  /** V2 user profile additions. */
+  preferredLanguage?: "si" | "ta" | "en";
+  providers?: string[];
+  notificationPreferences?: { email: boolean; push: boolean };
   status: UserStatus;
   firstName: string;
   lastName: string;
@@ -50,23 +57,18 @@ export interface SessionUser {
 
 export interface SessionState {
   user: SessionUser | null;
-  role: Role | null;
   /**
-   * The role the user is currently acting as. Differs from `role` when a
-   * dual-role user (e.g. promoted student with `roles: ["student", "admin"]`)
-   * has switched views. Used by the sidebar, layout guards, and dashboard
-   * redirect logic.
+   * The role the user is currently acting as. Picked from the user's roles[]
+   * at login (highest assigned, or last-saved preference from localStorage).
+   * Used by the sidebar, route guards, and dashboard redirect logic.
    */
   activeRole: Role | null;
-  token: string | null;
   authResolving: boolean;
 }
 
 const initialState: SessionState = {
   user: null,
-  role: null,
   activeRole: null,
-  token: null,
   authResolving: true,
 };
 
@@ -99,28 +101,42 @@ const sessionSlice = createSlice({
     setUser(state, action: PayloadAction<SessionUser | null>) {
       if (action.payload) {
         const u = action.payload;
+
+        // V2 role normalisation.
+        //
+        // The V2 backend assigns roles: ["member"] + status: "approved" on
+        // registration immediately. While the backend is still being migrated,
+        // it may return the old V1 shape (role: "student", status:
+        // "pending_approval"). In that case, ignore the assigned roles and
+        // treat the user as a plain Member until the backend sends "approved".
+        //
+        // Once the backend is fully V2, `status` will always be "approved" and
+        // this branch will never fire.
+        let raw: string[];
+        if (u.status === "pending_approval") {
+          raw = ["member"];
+        } else {
+          raw = u.roles?.length ? u.roles : (u.role ? [u.role] : []);
+        }
+        const effectiveRoles = raw.includes("member") ? raw : ["member", ...raw];
+
         state.user = {
           ...u,
+          roles: effectiveRoles,
           name: u.name ?? `${u.firstName} ${u.lastName}`.trim(),
         };
-        state.role = u.role;
-        // Compute activeRole: saved preference if valid for this user's roles,
-        // otherwise the highest assigned role.
+
         const saved = readSavedActiveRole(u.uid);
-        const defaultActive = pickDefaultActiveRole(u.roles);
-        if (saved && u.roles.includes(saved)) {
-          state.activeRole = saved;
+        const defaultActive = pickDefaultActiveRole(effectiveRoles);
+        if (saved && effectiveRoles.includes(saved)) {
+          state.activeRole = saved as Role;
         } else {
           state.activeRole = defaultActive;
         }
       } else {
         state.user = null;
-        state.role = null;
         state.activeRole = null;
       }
-    },
-    setRole(state, action: PayloadAction<Role | null>) {
-      state.role = action.payload;
     },
     setActiveRole(state, action: PayloadAction<Role>) {
       // Only switch if the user actually holds that role.
@@ -133,17 +149,17 @@ const sessionSlice = createSlice({
         } catch { /* ignore */ }
       }
     },
-    setToken(state, action: PayloadAction<string | null>) {
-      state.token = action.payload;
-    },
     setAuthResolving(state, action: PayloadAction<boolean>) {
       state.authResolving = action.payload;
     },
     clearSession(state) {
+      if (state.user && typeof window !== "undefined") {
+        try {
+          localStorage.removeItem(`edupath.activeRole.${state.user.uid}`);
+        } catch { /* ignore */ }
+      }
       state.user = null;
-      state.role = null;
       state.activeRole = null;
-      state.token = null;
       state.authResolving = false;
     },
   },
@@ -156,5 +172,5 @@ const sessionSlice = createSlice({
   },
 });
 
-export const { setUser, setRole, setActiveRole, setToken, setAuthResolving, clearSession } = sessionSlice.actions;
+export const { setUser, setActiveRole, setAuthResolving, clearSession } = sessionSlice.actions;
 export default sessionSlice.reducer;
