@@ -54,6 +54,8 @@
   --font-heading: "Figtree", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-sinhala: "Noto Sans Sinhala", system-ui, sans-serif;
+  --font-tamil: "Noto Sans Tamil", system-ui, sans-serif;
 
   /* heading scale */
   --fs-h1: 64px; --lh-h1: 70.4px; --fw-h1: 700;
@@ -122,6 +124,22 @@ body {
   font-family: var(--font-body);
   color: var(--color-primary);
   -webkit-font-smoothing: antialiased;
+}
+
+/* ── Script-specific fonts (wired up by LocaleHtmlSync via html[lang]) ── */
+html[lang="si"] body,
+html[lang="si"] h1, html[lang="si"] h2, html[lang="si"] h3,
+html[lang="si"] h4, html[lang="si"] h5, html[lang="si"] h6,
+html[lang="si"] p, html[lang="si"] button, html[lang="si"] input,
+html[lang="si"] label, html[lang="si"] span {
+  font-family: var(--font-sinhala);
+}
+html[lang="ta"] body,
+html[lang="ta"] h1, html[lang="ta"] h2, html[lang="ta"] h3,
+html[lang="ta"] h4, html[lang="ta"] h5, html[lang="ta"] h6,
+html[lang="ta"] p, html[lang="ta"] button, html[lang="ta"] input,
+html[lang="ta"] label, html[lang="ta"] span {
+  font-family: var(--font-tamil);
 }
 
 h1, .h1 { font-family: var(--font-heading); font-size: var(--fs-h1); line-height: var(--lh-h1); font-weight: var(--fw-h1); color: var(--color-primary); letter-spacing: -0.02em; }

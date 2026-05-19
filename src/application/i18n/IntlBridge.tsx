@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
@@ -61,14 +61,17 @@ function mergeWithFallback(
   return out;
 }
 
+// Runs as useLayoutEffect on the client (before paint) and falls back to
+// useEffect on the server where useLayoutEffect is not available.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 export function IntlBridge({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
   const locale = useAppSelector((s) => s.locale.current);
 
-  // Hydrate from localStorage on first client render. SSR initial value is
-  // "en"; if the user previously picked Sinhala / Tamil the swap happens
-  // within the first microtask after mount.
-  useEffect(() => {
+  // Hydrate from localStorage before the first browser paint so there is no
+  // visible English flash when the user previously selected Sinhala or Tamil.
+  useIsomorphicLayoutEffect(() => {
     dispatch(hydrateLocale());
   }, [dispatch]);
 
