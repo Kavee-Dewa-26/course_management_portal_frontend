@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { Sidebar } from "./Sidebar";
@@ -11,10 +11,17 @@ import type { NotificationItem } from "@/lib/mock/notifications";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { useNotifications } from "@/application/hooks/useNotifications";
+import { useInactivityTimer } from "@/application/hooks/useInactivityTimer";
 import { pushToast } from "@/application/slices/uiSlice";
-import { clearSession, setActiveRole, type Role } from "@/application/slices/sessionSlice";
+import {
+  clearSession,
+  setActiveRole,
+  DASHBOARD_BY_ROLE,
+  type Role,
+} from "@/application/slices/sessionSlice";
 import { auth } from "@/infrastructure/firebase/auth";
 import { apiRequest } from "@/infrastructure/api/request";
+import { tokenService } from "@/infrastructure/firebase/tokenService";
 
 interface Props {
   navItems: NavItem[];
@@ -54,24 +61,51 @@ export function AppShell({
       tone: "success",
       title: `Switched to ${newRole === "super_admin" ? "super admin" : newRole} view`,
     }));
-    const home =
-      newRole === "super_admin" ? "/super-admin/dashboard"
-      : newRole === "admin"     ? "/admin/dashboard"
-      :                            "/dashboard";
-    router.push(home);
+    // Use the canonical per-role landing page so Member / Leader / G12 don't
+    // accidentally end up on the Student dashboard.
+    router.push(DASHBOARD_BY_ROLE[newRole]);
   };
 
+  const performSignOut = useCallback(
+    async (redirectTo: string) => {
+      try {
+        // Best-effort: revoke refresh tokens server-side.
+        await apiRequest("/auth/logout", { method: "POST" }).catch(() => null);
+        // Sprint 2 will populate the FCM token + DELETE call. For now this is a
+        // no-op stub so the logout sequence is in its final shape.
+        // await apiRequest("/me/fcm-token", { method: "DELETE", body: { token } }).catch(() => null);
+      } finally {
+        await signOut(auth).catch(() => null);
+        tokenService.clear();
+        dispatch(clearSession());
+        router.push(redirectTo);
+      }
+    },
+    [dispatch, router],
+  );
+
   const onLogout = async () => {
-    try {
-      // Best-effort revoke refresh tokens server-side; ignore failure.
-      await apiRequest("/auth/logout", { method: "POST" }).catch(() => null);
-    } finally {
-      await signOut(auth).catch(() => null);
-      dispatch(clearSession());
-      dispatch(pushToast({ tone: "success", title: "Signed out" }));
-      router.push("/login");
-    }
+    await performSignOut("/login");
+    dispatch(pushToast({ tone: "success", title: "Signed out" }));
   };
+
+  // 30-minute inactivity timeout (FR-A-008 / NFR-SEC-002). Only armed when a
+  // user is actually signed in — public pages don't reach AppShell anyway,
+  // but the explicit `enabled` guards against edge cases.
+  useInactivityTimer({
+    minutes: 30,
+    enabled: Boolean(sessionUser),
+    onTimeout: () => {
+      dispatch(
+        pushToast({
+          tone: "warning",
+          title: "Signed out for inactivity",
+          message: "Please sign in again to continue.",
+        }),
+      );
+      void performSignOut("/login?reason=inactive");
+    },
+  });
 
   // Map real API notifications into the NotificationItem shape the bell expects.
   const mappedNotifications: NotificationItem[] = liveNotifications.map((n) => {

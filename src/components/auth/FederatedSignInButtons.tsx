@@ -1,32 +1,96 @@
 "use client";
 
+import { useState } from "react";
+import {
+  GoogleAuthProvider,
+  OAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
+import { auth } from "@/infrastructure/firebase/auth";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { AppleIcon } from "./AppleIcon";
 
 interface Props {
-  /** Override the toast / handler text. */
   context?: "signin" | "signup";
   disabled?: boolean;
 }
 
 /**
- * UI-only federated sign-in buttons (Google + Apple) with an "OR CONTINUE WITH EMAIL"
- * divider. Real Firebase popup wiring is deferred — click handlers stub a toast.
+ * Google + Apple sign-in buttons.
+ *
+ * Flow: signInWithPopup → Firebase session created → FirebaseAuthListener
+ * picks up onIdTokenChanged → calls GET /me → routes by roles[].
+ *
+ * No custom-token exchange needed — Firebase handles the session directly.
+ * When the backend ships POST /auth/federated/* for user creation/linking,
+ * that can be wired in here without changing the routing logic.
  */
 export function FederatedSignInButtons({ context = "signin", disabled }: Props) {
   const dispatch = useAppDispatch();
+  const [busy, setBusy] = useState<"google" | "apple" | null>(null);
 
-  const onClick = (provider: "Google" | "Apple") => {
-    dispatch(
-      pushToast({
-        tone: "warning",
-        title: `${provider} sign-${context === "signin" ? "in" : "up"} coming soon`,
-        message: "Federated sign-in is being wired up. Use email/password for now.",
-      }),
-    );
-  };
+  async function handleFederated(provider: "google" | "apple") {
+    if (busy) return;
+    setBusy(provider);
+
+    const label = provider === "google" ? "Google" : "Apple";
+    const action = context === "signin" ? "sign-in" : "sign-up";
+
+    try {
+      const authProvider =
+        provider === "google"
+          ? (() => {
+              const gp = new GoogleAuthProvider();
+              gp.addScope("email");
+              gp.addScope("profile");
+              return gp;
+            })()
+          : (() => {
+              const ap = new OAuthProvider("apple.com");
+              ap.addScope("email");
+              ap.addScope("name");
+              return ap;
+            })();
+
+      // signInWithPopup completes the Firebase session. FirebaseAuthListener
+      // (onIdTokenChanged) calls GET /me and dispatches setUser → router.push.
+      await signInWithPopup(auth, authProvider);
+
+    } catch (err) {
+      const code = (err as { code?: string })?.code ?? "unknown";
+      // Log every error so we can diagnose the exact Firebase error code.
+      console.error(`[FederatedSignIn] ${provider} error:`, code, err);
+
+      // Don't show a toast when the user simply closed the popup themselves.
+      if (
+        code === "auth/popup-closed-by-user" ||
+        code === "auth/cancelled-popup-request"
+      ) {
+        return;
+      }
+
+      let message = "Something went wrong. Please use email + password instead.";
+      if (code === "auth/operation-not-allowed") {
+        message = `${label} sign-in is not enabled in Firebase console yet. Go to Firebase → Authentication → Sign-in method → enable Google.`;
+      } else if (code === "auth/account-exists-with-different-credential") {
+        message = "An account with this email uses a different sign-in method. Sign in that way first.";
+      } else if (code === "auth/network-request-failed") {
+        message = "Network error. Check your connection and try again.";
+      }
+
+      dispatch(
+        pushToast({
+          tone: "warning",
+          title: `${label} ${action} failed`,
+          message,
+        }),
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <>
@@ -34,22 +98,22 @@ export function FederatedSignInButtons({ context = "signin", disabled }: Props) 
         <button
           type="button"
           className="fed-btn"
-          disabled={disabled}
-          onClick={() => onClick("Google")}
+          disabled={disabled || busy !== null}
+          onClick={() => handleFederated("google")}
           aria-label="Continue with Google"
         >
           <GoogleIcon size={18} />
-          Google
+          {busy === "google" ? "Signing in…" : "Google"}
         </button>
         <button
           type="button"
           className="fed-btn"
-          disabled={disabled}
-          onClick={() => onClick("Apple")}
+          disabled={disabled || busy !== null}
+          onClick={() => handleFederated("apple")}
           aria-label="Continue with Apple"
         >
           <AppleIcon size={18} />
-          Apple
+          {busy === "apple" ? "Signing in…" : "Apple"}
         </button>
       </div>
       <div className="fed-divider">OR CONTINUE WITH EMAIL</div>
