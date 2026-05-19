@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
@@ -28,6 +29,8 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
+  const t = useTranslations("auth.login");
+
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -41,14 +44,10 @@ export function LoginForm() {
   useEffect(() => {
     const reason = searchParams?.get("reason");
     if (!reason) return;
-    if (reason === "suspended") {
-      setFormError("Your account has been suspended. Please contact support if you believe this is a mistake.");
-    } else if (reason === "pending") {
-      setFormError("Your account is still pending admin approval. You will receive an email once approved.");
-    } else if (reason === "rejected") {
-      setFormError("Your account registration was rejected. Please contact support.");
-    }
-  }, [searchParams]);
+    if (reason === "suspended") setFormError(t("accountSuspended"));
+    else if (reason === "pending") setFormError(t("pendingApproval"));
+    else if (reason === "rejected") setFormError(t("notApproved"));
+  }, [searchParams, t]);
 
   const clearErrors = () => {
     setEmailError("");
@@ -79,30 +78,26 @@ export function LoginForm() {
 
     setLoading(true);
     try {
-      // Step 1: Firebase auth
       await signInWithEmailAndPassword(auth, email.trim(), pw);
 
-      // Step 2: Get profile from backend
       const me = await apiRequest<SessionUser>("/me");
 
-      // Step 3: Check account status before allowing access
       if (me.status === "pending_approval") {
         await auth.signOut();
-        setFormError("Your account is pending admin approval. You will receive an email once approved.");
+        setFormError(t("pendingApproval"));
         return;
       }
       if (me.status === "suspended") {
         await auth.signOut();
-        setFormError("Your account has been suspended. Please contact support.");
+        setFormError(t("accountSuspended"));
         return;
       }
       if (me.status === "rejected") {
         await auth.signOut();
-        setFormError("Your registration was not approved. Please contact support.");
+        setFormError(t("notApproved"));
         return;
       }
 
-      // Step 4: Store and redirect
       dispatch(setUser(me));
       dispatch(
         pushToast({
@@ -111,9 +106,7 @@ export function LoginForm() {
           message: "Loading your dashboard…",
         }),
       );
-      // Redirect to the dashboard of the user's effective active role.
-      // For dual-role users, this respects the saved preference (set by
-      // sessionSlice.setUser) and otherwise defaults to highest assigned role.
+
       let savedRole: Role | null = null;
       try {
         const v = typeof window !== "undefined"
@@ -131,38 +124,36 @@ export function LoginForm() {
       router.push(DASHBOARD_BY_ROLE[target]);
     } catch (err: unknown) {
       if (err instanceof FirebaseError) {
-        // Avoid disclosing which field is wrong — that enables email enumeration.
-        // Show a single generic message for all credential / account-lookup errors.
         switch (err.code) {
           case "auth/invalid-credential":
           case "auth/wrong-password":
           case "auth/user-not-found":
           case "auth/invalid-email":
-            setFormError("Email or password is incorrect.");
+            setFormError(t("invalidCredentials"));
             break;
           case "auth/user-disabled":
-            setFormError("Your account has been suspended. Please contact support.");
+            setFormError(t("accountSuspended"));
             break;
           case "auth/too-many-requests":
-            setFormError("Too many failed attempts. Please wait a moment and try again.");
+            setFormError(t("tooManyAttempts"));
             break;
           case "auth/network-request-failed":
-            setFormError("Could not reach the server. Check your connection and try again.");
+            setFormError(t("networkError"));
             break;
           default:
-            setFormError("Sign in failed. Please try again.");
+            setFormError(t("signInFailed"));
         }
       } else if (err instanceof ApiRequestError) {
         if (err.status === 403) {
-          setFormError("Your account is not approved yet. Please wait for admin approval.");
+          setFormError(t("notApproved"));
         } else if (err.status === 401) {
-          setFormError("Authentication failed. Please try again.");
+          setFormError(t("authFailed"));
         } else {
-          setFormError(err.message || "Could not load your profile.");
+          setFormError(err.message || t("signInFailed"));
         }
         await auth.signOut();
       } else {
-        setFormError("Something went wrong. Please try again.");
+        setFormError(t("signInFailed"));
       }
     } finally {
       setLoading(false);
@@ -173,8 +164,8 @@ export function LoginForm() {
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
         <div>
-          <h3 style={{ margin: 0 }}>Sign in to your account</h3>
-          <p className="sub" style={{ margin: "4px 0 0" }}>Enter your credentials to continue.</p>
+          <h3 style={{ margin: 0 }}>{t("title")}</h3>
+          <p className="sub" style={{ margin: "4px 0 0" }}>{t("subtitle")}</p>
         </div>
         <LanguageSwitcher />
       </div>
@@ -204,17 +195,17 @@ export function LoginForm() {
 
       <form onSubmit={onSubmit}>
         <Input
-          label="Email"
+          label={t("email")}
           type="email"
-          placeholder="you@example.com"
+          placeholder={t("emailPlaceholder")}
           value={email}
           error={emailError}
           onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(""); }}
         />
         <Input
-          label="Password"
+          label={t("password")}
           type={showPw ? "text" : "password"}
-          placeholder="••••••••"
+          placeholder={t("passwordPlaceholder")}
           value={pw}
           error={pwError}
           onChange={(e) => { setPw(e.target.value); if (pwError) setPwError(""); }}
@@ -223,7 +214,7 @@ export function LoginForm() {
               type="button"
               onClick={() => setShowPw((v) => !v)}
               style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--color-body-green)", display: "flex" }}
-              aria-label={showPw ? "Hide password" : "Show password"}
+              aria-label={showPw ? t("hidePassword") : t("showPassword")}
             >
               <Icon name={showPw ? "eye-off" : "eye"} size={16} />
             </button>
@@ -240,7 +231,7 @@ export function LoginForm() {
           }}
         >
           <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input type="checkbox" defaultChecked /> Remember me
+            <input type="checkbox" defaultChecked /> {t("rememberMe")}
           </label>
           <button
             type="button"
@@ -256,20 +247,20 @@ export function LoginForm() {
               fontSize: 13,
             }}
           >
-            Forgot password?
+            {t("forgotPassword")}
           </button>
         </div>
         <div style={{ marginTop: 22 }}>
           <Button full size="lg" type="submit" disabled={loading}>
-            {loading ? "Signing in…" : "Sign In"}
+            {loading ? t("signingIn") : t("signIn")}
           </Button>
         </div>
       </form>
       <div className="alt">
-        Don&apos;t have an account? <Link href="/register">Register</Link>
+        {t("noAccount")} <Link href="/register">{t("register")}</Link>
         <div style={{ marginTop: 14 }}>
           <Link href="/" style={{ color: "inherit" }}>
-            ← Back to home
+            {t("backHome")}
           </Link>
         </div>
       </div>

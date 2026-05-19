@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Icon } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
 import { Avatar } from "@/components/ui/Avatar";
@@ -19,6 +20,8 @@ interface Props {
 
 export function Sidebar({ navItems, user, roleLabel, onLogout, open, onClose }: Props) {
   const pathname = usePathname() ?? "";
+  const t = useTranslations("nav");
+
   return (
     <aside className={cn("sidebar", open && "is-open")}>
       <div className="sidebar-logo">
@@ -46,7 +49,7 @@ export function Sidebar({ navItems, user, roleLabel, onLogout, open, onClose }: 
               )}
             >
               <Icon name={it.ico} size={18} />
-              <span style={{ flex: 1 }}>{it.label}</span>
+              <span style={{ flex: 1 }}>{t(it.labelKey)}</span>
               {it.count != null && (
                 <span
                   style={{
