@@ -34,18 +34,24 @@ export function useBatches(courseId: string | undefined) {
   const dispatch = useAppDispatch();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const fetchBatches = useCallback(async () => {
     if (!courseId) return;
     setLoading(true);
+    setFetchError(null);
     try {
-      const res = await apiRequest<{ items: Batch[]; total: number }>(
-        `/courses/${courseId}/batches?limit=100`,
+      // Backend may return { items: Batch[] } or Batch[] directly.
+      const res = await apiRequest<{ items: Batch[] } | Batch[]>(
+        `/courses/${courseId}/batches`,
       );
-      setBatches(res.items ?? []);
-    } catch {
-      setBatches([]);
+      const list = Array.isArray(res) ? res : ((res as { items?: Batch[] }).items ?? []);
+      setBatches(list);
+    } catch (err) {
+      // Don't wipe existing batches on failure — batches added this session stay visible.
+      const msg = err instanceof ApiRequestError ? err.message : "Failed to load";
+      setFetchError(msg);
     } finally {
       setLoading(false);
     }
@@ -59,12 +65,14 @@ export function useBatches(courseId: string | undefined) {
     if (!courseId) return false;
     setBusy("creating");
     try {
-      await apiRequest<Batch>(`/courses/${courseId}/batches`, {
+      const created = await apiRequest<Batch>(`/courses/${courseId}/batches`, {
         method: "POST",
         body: input,
       });
+      // Show immediately from POST response, then sync from GET in background.
+      setBatches((prev) => [...prev, created]);
       dispatch(pushToast({ tone: "success", title: "Batch created" }));
-      await fetchBatches();
+      void fetchBatches().catch(() => null);
       return true;
     } catch (err) {
       const msg = err instanceof ApiRequestError ? err.message : "Failed to create batch.";
@@ -119,5 +127,5 @@ export function useBatches(courseId: string | undefined) {
     }
   }, [dispatch, fetchBatches]);
 
-  return { batches, loading, busy, createBatch, updateBatch, openBatch, closeBatch, refetch: fetchBatches };
+  return { batches, loading, fetchError, busy, createBatch, updateBatch, openBatch, closeBatch, refetch: fetchBatches };
 }

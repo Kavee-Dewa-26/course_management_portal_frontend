@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { useCourse } from "@/application/hooks/useCourses";
+import { useBatches } from "@/application/hooks/useBatches";
 import { useAdminCourseProgress } from "@/application/hooks/useProgress";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
@@ -74,6 +75,7 @@ export default function AdminCourseViewPage() {
   const params = useParams<{ courseId: string }>();
   const sessionUser = useAppSelector((s) => s.session.user);
   const { course, loading, error } = useCourse(sessionUser ? params.courseId : undefined);
+  const { batches } = useBatches(sessionUser ? params.courseId : undefined);
   const { items: progressRows, total: progressTotal, loading: progressLoading } =
     useAdminCourseProgress(sessionUser ? params.courseId : undefined);
 
@@ -168,6 +170,10 @@ export default function AdminCourseViewPage() {
       <div className="settings-card">
         <div style={{ display: "flex", gap: 32, flexWrap: "wrap", fontFamily: "var(--font-body)", fontSize: 14 }}>
           <div>
+            <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-muted)", marginBottom: 4 }}>Batches</div>
+            <div style={{ fontWeight: 600 }}>{batches.length || (course.batchCount ?? "—")}</div>
+          </div>
+          <div>
             <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-muted)", marginBottom: 4 }}>Semesters</div>
             <div style={{ fontWeight: 600 }}>{course.semesterCount}</div>
           </div>
@@ -190,6 +196,30 @@ export default function AdminCourseViewPage() {
         </div>
       </div>
 
+      {/* Batches */}
+      {batches.length > 0 && (
+        <div className="settings-card">
+          <h2>Batches &amp; intakes</h2>
+          <div className="batches" style={{ marginTop: 12 }}>
+            {batches.map((b) => (
+              <div key={b.id} className={`batch-row${b.state === "closed" ? " closed" : ""}`}>
+                <div className="ico"><Icon name="calendar-clock" size={18} /></div>
+                <div className="b-body">
+                  <div className="name">{b.name}</div>
+                  <div className="window">
+                    <span>{formatDate(b.intakeStart)} → {formatDate(b.intakeEnd)}</span>
+                    {b.capacity && <><span className="sep">·</span><span>Cap: {b.capacity}</span></>}
+                  </div>
+                </div>
+                <Badge tone={b.state === "open" ? "success" : b.state === "closed" ? "archive" : "warning"}>
+                  {b.state}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Full structure (semesters → subjects → lessons) */}
       <div className="settings-card">
         <h2>Course structure</h2>
@@ -205,7 +235,14 @@ export default function AdminCourseViewPage() {
                 {/* Semester header */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "var(--color-light-gray)" }}>
                   <span style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(188,233,85,0.15)", border: "1px solid rgba(188,233,85,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 12, color: "#BCE955", flexShrink: 0 }}>{si + 1}</span>
-                  <div style={{ fontWeight: 600, fontFamily: "var(--font-body)" }}>{sem.title}</div>
+                  <div style={{ fontWeight: 600, fontFamily: "var(--font-body)" }}>
+                    {sem.name ?? sem.title}
+                  </div>
+                  {(sem.openDate || sem.endDate) && (
+                    <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--color-body-green)" }}>
+                      {formatDate(sem.openDate)} → {formatDate(sem.endDate)}
+                    </div>
+                  )}
                   <div style={{ marginLeft: "auto" }}>
                     <Badge tone="info">
                       {sem.subjectCount ?? sem.subjects?.length ?? 0} {(sem.subjectCount ?? sem.subjects?.length ?? 0) === 1 ? "subject" : "subjects"}

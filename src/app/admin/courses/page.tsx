@@ -106,6 +106,7 @@ export default function AdminCoursesPage() {
             <thead>
               <tr>
                 <th>Course</th>
+                <th>Batches</th>
                 <th>Semesters</th>
                 <th>Updated</th>
                 <th>Status</th>
@@ -141,6 +142,9 @@ export default function AdminCoursesPage() {
                     <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {c.title}
                     </div>
+                  </td>
+                  <td className="muted" style={{ whiteSpace: "nowrap" }}>
+                    {c.batchCount ?? "—"} {(c.batchCount ?? 0) === 1 ? "batch" : "batches"}
                   </td>
                   <td className="muted" style={{ whiteSpace: "nowrap" }}>
                     {c.semesterCount} {c.semesterCount === 1 ? "semester" : "semesters"}

@@ -14,7 +14,6 @@ import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import type { CourseSummary } from "@/application/hooks/useCourses";
 import { CourseStructureEditor } from "@/components/course/CourseStructureEditor";
 import { BatchesSection } from "@/components/course/BatchesSection";
-import { SemesterScheduleSection } from "@/components/course/SemesterScheduleSection";
 
 function stateBadge(state: string) {
   if (state === "published") return <Badge tone="success">Published</Badge>;
@@ -249,10 +248,6 @@ export default function EditCoursePage() {
         initialSemesters={course.semesters ?? []}
       />
 
-      {/* V2: per-semester open/close dates — UI overlay only, backend pending */}
-      <SemesterScheduleSection
-        semesters={(course.semesters ?? []).map((s) => ({ id: s.id, title: s.title, order: s.order }))}
-      />
 
     </div>
   );

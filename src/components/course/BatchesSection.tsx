@@ -25,7 +25,7 @@ function batchBadge(state: Batch["state"]) {
 }
 
 export function BatchesSection({ courseId }: Props) {
-  const { batches, loading, busy, createBatch, openBatch, closeBatch } = useBatches(courseId);
+  const { batches, loading, fetchError, busy, createBatch, openBatch, closeBatch } = useBatches(courseId);
 
   const [showForm, setShowForm] = useState(false);
   const [name,        setName]        = useState("");
@@ -100,6 +100,10 @@ export function BatchesSection({ courseId }: Props) {
       {loading ? (
         <div style={{ textAlign: "center", padding: 24, color: "var(--color-muted)" }}>
           <Icon name="loader" size={20} />
+        </div>
+      ) : fetchError ? (
+        <div style={{ padding: 16, border: "1px solid rgba(220,38,38,0.2)", borderRadius: 12, background: "var(--color-error-bg)", fontFamily: "var(--font-body)", fontSize: 13, color: "#DC2626" }}>
+          ⚠ Could not load batches — backend error: <b>{fetchError}</b>. Batches you created this session are still saved on the server.
         </div>
       ) : batches.length === 0 ? (
         <div style={{ padding: 24, border: "1px dashed var(--color-stroke)", borderRadius: 12, textAlign: "center", color: "var(--color-muted)", fontFamily: "var(--font-body)", fontSize: 14 }}>

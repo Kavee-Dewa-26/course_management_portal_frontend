@@ -160,7 +160,7 @@ export default function StudentCourseViewerPage() {
                 subjectId: sub.id,
                 subjectTitle: sub.title,
                 semesterId: sem.id,
-                semesterTitle: sem.title,
+                semesterTitle: sem.title ?? sem.name ?? "",
                 semesterIndex: semIndex,
                 subjectIndex: subIndex,
                 lessonIndex,
