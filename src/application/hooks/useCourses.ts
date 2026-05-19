@@ -11,8 +11,11 @@ const MAX_PAGES = 20;
 export interface CourseSummary {
   id: string;
   title: string;
+  name?: string;          // V2 backend may return "name" instead of "title"
   state: "draft" | "published" | "archived";
+  status?: string;        // V2 alias for state
   semesterCount: number;
+  batchCount?: number;    // V2 new field
   createdBy?: string;
   publishedAt: string | null;
   deletedAt?: string | null;
@@ -197,6 +200,24 @@ export function useCourses({
     [dispatch, fetchAll],
   );
 
+  /** POST /courses/:id/restore — restore archived course back to draft (V2 NEW) */
+  const restore = useCallback(
+    async (id: string) => {
+      try {
+        await apiRequest(`/courses/${id}/restore`, { method: "POST" });
+        await fetchAll();
+        dispatch(pushToast({ tone: "success", title: "Course restored", message: "Back to Draft — re-publish to make it visible." }));
+      } catch (err) {
+        if (err instanceof ApiRequestError && err.status === 409) {
+          dispatch(pushToast({ tone: "warning", title: "Can't restore", message: "Only archived courses can be restored." }));
+        } else {
+          dispatch(pushToast({ tone: "warning", title: "Restore failed" }));
+        }
+      }
+    },
+    [dispatch, fetchAll],
+  );
+
   /** DELETE /courses/:id (soft delete, recoverable 30d) */
   const remove = useCallback(
     async (id: string) => {
@@ -232,6 +253,7 @@ export function useCourses({
     publish,
     unpublish,
     archive,
+    restore,
     remove,
   };
 }
