@@ -1,14 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { ModuleTiles } from "@/components/member/ModuleTiles";
 import { ModuleTile } from "@/components/member/ModuleTile";
 import { RoleBanner } from "@/components/member/RoleBanner";
 import { PendingCallout } from "@/components/member/PendingCallout";
 import { RoleBadgeStack } from "@/components/user/RoleBadgeStack";
-import { getRoleRequestsForApplicant } from "@/lib/mock/roleRequests";
+import { useRoleRequests } from "@/application/hooks/useRoleRequests";
 
 export default function MemberHomePage() {
   const router = useRouter();
@@ -18,11 +17,9 @@ export default function MemberHomePage() {
   const isG12 = user?.roles?.includes("g12") ?? false;
   const hasLeader = (user?.roles?.includes("leader") || isG12) ?? false;
 
-  const pendingStudentRequest = useMemo(() => {
-    if (!user || hasStudent) return null;
-    const mine = getRoleRequestsForApplicant(user.uid);
-    return mine.find((r) => r.requestedRole === "student" && r.status === "pending") ?? null;
-  }, [user, hasStudent]);
+  // Real API — pending student role request
+  const { hasPendingStudent, latestStudent } = useRoleRequests();
+  const pendingStudentRequest = !hasStudent && hasPendingStudent ? latestStudent : null;
 
   const firstName = user?.firstName ?? "there";
 
