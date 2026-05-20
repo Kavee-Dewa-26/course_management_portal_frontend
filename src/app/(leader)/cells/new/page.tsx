@@ -92,7 +92,7 @@ export default function NewCellPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 8 }}>
           <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)" }}>
             <Icon name="info" size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
-            After creating, you'll be taken to add members.
+            After creating, you&apos;ll be taken to add members.
           </span>
           <Button type="submit" size="lg" iconAfter="arrow-right" disabled={submitting || !name.trim()}>
             {submitting ? "Creating…" : "Create cell"}
