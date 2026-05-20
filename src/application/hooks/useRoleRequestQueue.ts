@@ -10,6 +10,8 @@ export interface RoleRequestQueueItem {
   requesterUid: string;
   requesterName?: string;
   requesterEmail?: string;
+  requesterRoles?: string[];   // current roles from GET /users/:uid
+  requesterPhone?: string;     // if backend provides it
   requestedRole: string;
   status: "pending" | "approved" | "rejected";
   createdAt: string;
@@ -45,8 +47,15 @@ export function useRoleRequestQueue() {
 
   const fetchQueue = useCallback(
     async (overrides?: Partial<Pick<QueueState, "status" | "search">>) => {
-      const { status, search } = { ...state, ...overrides };
-      setState((s) => ({ ...s, loading: true, ...(overrides ?? {}) }));
+      // Read status/search from functional update to avoid stale closure.
+      setState((s) => {
+        const next = { ...s, loading: true, ...(overrides ?? {}) };
+        return next;
+      });
+      // Get current values for the API call.
+      const { status, search } = overrides
+        ? { status: overrides.status ?? state.status, search: overrides.search ?? state.search }
+        : { status: state.status, search: state.search };
       try {
         const params = new URLSearchParams({ status, limit: "20" });
         if (search) params.set("search", search);
@@ -55,9 +64,30 @@ export function useRoleRequestQueue() {
           total: number;
           nextCursor: string | null;
         }>(`/role-requests?${params}`);
+
+        // Enrich each request with the requester's current roles + phone
+        // via GET /users/:uid. Failures are silently ignored per item.
+        const enriched = await Promise.all(
+          (res.items ?? []).map(async (item) => {
+            try {
+              const user = await apiRequest<{
+                roles?: string[];
+                phone?: string;
+              }>(`/users/${item.requesterUid}`);
+              return {
+                ...item,
+                requesterRoles: user.roles ?? [],
+                requesterPhone: user.phone ?? undefined,
+              };
+            } catch {
+              return item;
+            }
+          }),
+        );
+
         setState((s) => ({
           ...s,
-          items: res.items ?? [],
+          items: enriched,
           total: res.total ?? 0,
           nextCursor: res.nextCursor ?? null,
           loading: false,

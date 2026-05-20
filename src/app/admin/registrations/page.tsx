@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { useRoleRequestQueue } from "@/application/hooks/useRoleRequestQueue";
+import { RoleBadgeStack } from "@/components/user/RoleBadgeStack";
 
 function relativeTime(iso: string): string {
   const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -112,7 +113,8 @@ export default function RoleRequestsPage() {
               }}
             >
               <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+                {/* Name + status + requested role */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
                   <span style={{ fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: 15, color: "var(--color-primary)" }}>
                     {item.requesterName ?? "—"}
                   </span>
@@ -123,12 +125,30 @@ export default function RoleRequestsPage() {
                     → {ROLE_LABEL[item.requestedRole] ?? item.requestedRole}
                   </span>
                 </div>
-                <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)" }}>
-                  {item.requesterEmail ?? "—"} · Submitted {relativeTime(item.createdAt)}
+
+                {/* Current roles */}
+                {item.requesterRoles && item.requesterRoles.length > 0 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--color-muted)" }}>Current roles:</span>
+                    <RoleBadgeStack roles={item.requesterRoles} />
+                  </div>
+                )}
+
+                {/* Email + phone + date */}
+                <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)", display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <span>{item.requesterEmail ?? "—"}</span>
+                  {item.requesterPhone && (
+                    <span>
+                      <Icon name="phone" size={12} style={{ marginRight: 4, verticalAlign: "middle" }} />
+                      {item.requesterPhone}
+                    </span>
+                  )}
+                  <span style={{ color: "var(--color-muted)" }}>Submitted {relativeTime(item.createdAt)}</span>
                 </div>
+
                 {item.decisionNote && (
                   <div style={{ marginTop: 6, fontFamily: "var(--font-body)", fontSize: 12, color: "var(--color-muted)", fontStyle: "italic" }}>
-                    Note: "{item.decisionNote}"
+                    Note: &ldquo;{item.decisionNote}&rdquo;
                   </div>
                 )}
               </div>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
+import { apiRequest } from "@/infrastructure/api/request";
 
 /**
  * UI-only overlay for editing each semester's open/close date.
@@ -60,14 +61,22 @@ export function SemesterScheduleSection({ semesters }: Props) {
     setDirty((prev) => new Set(prev).add(id));
   };
 
-  const save = (id: string, title: string) => {
-    // No backend yet — surface the intent and clear the dirty flag.
-    setDirty((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    dispatch(pushToast({ tone: "success", title: "Schedule saved", message: `${title} dates updated (UI only — backend pending).` }));
+  const save = async (id: string, title: string) => {
+    const d = draft[id];
+    if (!d) return;
+    try {
+      await apiRequest(`/semesters/${id}`, {
+        method: "PATCH",
+        body: {
+          ...(d.openDate ? { openDate: d.openDate } : {}),
+          ...(d.endDate  ? { endDate:  d.endDate  } : {}),
+        },
+      });
+      setDirty((prev) => { const next = new Set(prev); next.delete(id); return next; });
+      dispatch(pushToast({ tone: "success", title: "Schedule saved", message: `${title} dates updated.` }));
+    } catch {
+      dispatch(pushToast({ tone: "warning", title: "Couldn't save dates", message: "Please try again." }));
+    }
   };
 
   if (semesters.length === 0) {

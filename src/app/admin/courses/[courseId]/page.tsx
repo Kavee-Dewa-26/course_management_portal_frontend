@@ -14,7 +14,6 @@ import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import type { CourseSummary } from "@/application/hooks/useCourses";
 import { CourseStructureEditor } from "@/components/course/CourseStructureEditor";
 import { BatchesSection } from "@/components/course/BatchesSection";
-import { SemesterScheduleSection } from "@/components/course/SemesterScheduleSection";
 
 function stateBadge(state: string) {
   if (state === "published") return <Badge tone="success">Published</Badge>;
@@ -141,6 +140,22 @@ export default function EditCoursePage() {
     }
   };
 
+  const handleRestore = async () => {
+    setLifecycleBusy(true);
+    try {
+      await apiRequest(`/courses/${course.id}/restore`, { method: "POST" });
+      dispatch(pushToast({ tone: "success", title: "Course restored", message: "Back to Draft — re-publish to make it visible." }));
+      router.replace(`${base}/courses/${course.id}`);
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        const msg = err.status === 409 ? "Only an archived course can be restored." : err.message;
+        dispatch(pushToast({ tone: "warning", title: "Cannot restore", message: msg }));
+      }
+    } finally {
+      setLifecycleBusy(false);
+    }
+  };
+
   return (
     <div className="page">
       <div className="page-header">
@@ -170,22 +185,23 @@ export default function EditCoursePage() {
         </div>
       </div>
 
-      {/* Info banner — only for archived courses */}
+      {/* Info banner + Restore button — only for archived courses */}
       {course.state === "archived" && (
         <div style={{
           padding: "12px 16px",
           background: "var(--color-light-gray)",
           borderRadius: 12,
           border: "1px solid var(--color-stroke)",
-          display: "flex", gap: 10, alignItems: "flex-start",
+          display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap",
           fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)",
         }}>
-          <Icon name="archive" size={16} style={{ flexShrink: 0, marginTop: 1 }} />
-          <span>
-            This course is <b>archived</b>. Archived courses can only be deleted —
-            the API does not support unarchiving. Enrolled students retain
-            read-only access to the content for 30 days.
+          <Icon name="archive" size={16} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>
+            This course is <b>archived</b>. Restore it to Draft to re-publish.
           </span>
+          <Button size="sm" variant="secondary" icon="refresh-cw" disabled={lifecycleBusy} onClick={handleRestore}>
+            {lifecycleBusy ? "Restoring…" : "Restore to Draft"}
+          </Button>
         </div>
       )}
 
@@ -232,10 +248,6 @@ export default function EditCoursePage() {
         initialSemesters={course.semesters ?? []}
       />
 
-      {/* V2: per-semester open/close dates — UI overlay only, backend pending */}
-      <SemesterScheduleSection
-        semesters={(course.semesters ?? []).map((s) => ({ id: s.id, title: s.title, order: s.order }))}
-      />
 
     </div>
   );

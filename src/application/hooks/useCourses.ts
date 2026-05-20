@@ -11,8 +11,11 @@ const MAX_PAGES = 20;
 export interface CourseSummary {
   id: string;
   title: string;
+  name?: string;          // V2 backend may return "name" instead of "title"
   state: "draft" | "published" | "archived";
+  status?: string;        // V2 alias for state
   semesterCount: number;
+  batchCount?: number;    // V2 new field
   createdBy?: string;
   publishedAt: string | null;
   deletedAt?: string | null;
@@ -32,8 +35,13 @@ export interface Subject {
 /** SemesterView returned inside the GET /courses/:id tree. */
 export interface Semester {
   id: string;
-  title: string;
-  order: number;
+  title?: string;  // V1 field
+  name?: string;   // V2 field
+  order?: number;
+  number?: number; // V2 field
+  openDate?: string | null;
+  endDate?: string | null;
+  status?: string;
   subjectCount: number;
   subjects?: Subject[];
   createdAt?: string;
@@ -197,6 +205,24 @@ export function useCourses({
     [dispatch, fetchAll],
   );
 
+  /** POST /courses/:id/restore — restore archived course back to draft (V2 NEW) */
+  const restore = useCallback(
+    async (id: string) => {
+      try {
+        await apiRequest(`/courses/${id}/restore`, { method: "POST" });
+        await fetchAll();
+        dispatch(pushToast({ tone: "success", title: "Course restored", message: "Back to Draft — re-publish to make it visible." }));
+      } catch (err) {
+        if (err instanceof ApiRequestError && err.status === 409) {
+          dispatch(pushToast({ tone: "warning", title: "Can't restore", message: "Only archived courses can be restored." }));
+        } else {
+          dispatch(pushToast({ tone: "warning", title: "Restore failed" }));
+        }
+      }
+    },
+    [dispatch, fetchAll],
+  );
+
   /** DELETE /courses/:id (soft delete, recoverable 30d) */
   const remove = useCallback(
     async (id: string) => {
@@ -232,6 +258,7 @@ export function useCourses({
     publish,
     unpublish,
     archive,
+    restore,
     remove,
   };
 }
@@ -248,23 +275,29 @@ async function fetchCourseWithStructure(
   // Step 1 — get the course (always works)
   const course = await apiRequest<CourseDetail>(`/courses/${courseId}`, { auth: authenticated });
 
-  // Step 2 — if backend already gave us a populated tree, done.
-  if (course.semesters && course.semesters.length > 0) return course;
-
-  // Step 3 — fallback: list semesters separately, then their subjects in parallel.
+  // Step 2 — always fetch GET /courses/:id/semesters separately because the
+  // embedded semesters in GET /courses/:id are V1 format and omit openDate/endDate.
+  // The standalone endpoint returns the full V2 shape with dates.
   try {
-    const semesters = await apiRequest<Semester[]>(
+    const semRes = await apiRequest<Semester[] | { items: Semester[] }>(
       `/courses/${courseId}/semesters`,
       { auth: authenticated },
     );
+    const semesters: Semester[] = Array.isArray(semRes)
+      ? semRes
+      : ((semRes as { items?: Semester[] }).items ?? []);
+
     const enriched = await Promise.all(
-      (semesters ?? []).map(async (sem) => {
+      semesters.map(async (sem) => {
         try {
-          const subjects = await apiRequest<Subject[]>(
+          const subRes = await apiRequest<Subject[] | { items: Subject[] }>(
             `/semesters/${sem.id}/subjects`,
             { auth: authenticated },
           );
-          return { ...sem, subjects: subjects ?? [] };
+          const subjects: Subject[] = Array.isArray(subRes)
+            ? subRes
+            : ((subRes as { items?: Subject[] }).items ?? []);
+          return { ...sem, subjects };
         } catch {
           return { ...sem, subjects: [] };
         }

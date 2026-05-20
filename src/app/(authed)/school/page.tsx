@@ -3,29 +3,33 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
+import { useRoleRequests } from "@/application/hooks/useRoleRequests";
 import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * Tiny router page hit by the "Bible School" link in every role's sidebar.
  *
- * - User has `student` → /browse-courses (the catalogue — what "Bible School"
- *   means conceptually, matching tccr-screens-member.jsx and the prototype's
- *   STUDENT_NAV_V2 "school" → Browse Courses mapping)
- * - Otherwise → /apply/student (request Student access first)
+ * - Has `student` role           → /browse-courses
+ * - Has PENDING student request  → /apply/student/pending  (show waiting UI)
+ * - Otherwise                    → /apply/student  (apply form)
  */
 export default function SchoolRouterPage() {
   const router = useRouter();
   const user = useAppSelector((s) => s.session.user);
+  const { hasPendingStudent, latestStudent, loading } = useRoleRequests();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || loading) return;
+
     const hasStudent = user.roles?.includes("student");
     if (hasStudent) {
       router.replace("/browse-courses");
+    } else if (hasPendingStudent && latestStudent) {
+      router.replace(`/apply/student/pending?req=${latestStudent.id}`);
     } else {
       router.replace("/apply/student");
     }
-  }, [user, router]);
+  }, [user, loading, hasPendingStudent, latestStudent, router]);
 
   return (
     <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>

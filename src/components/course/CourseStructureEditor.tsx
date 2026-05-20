@@ -169,6 +169,13 @@ export function CourseStructureEditor({ courseId, initialSemesters, onStructureC
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonsLoading, setLessonsLoading] = useState(false);
 
+  // Semester form (inline — shown when "Add semester" is clicked)
+  const [showSemForm, setShowSemForm] = useState(false);
+  const [semTitle, setSemTitle] = useState("");
+  const [semOpenDate, setSemOpenDate] = useState("");
+  const [semEndDate, setSemEndDate] = useState("");
+  const [semSaving, setSemSaving] = useState(false);
+
   // Lesson form
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
@@ -210,14 +217,32 @@ export function CourseStructureEditor({ courseId, initialSemesters, onStructureC
 
   /* ── Semesters ─────────────────────────────────────────── */
 
-  const addSemester = async () => {
+  const submitAddSemester = async () => {
+    if (!semTitle.trim() || !semOpenDate) return;
+    setSemSaving(true);
     try {
+      // V2 POST /courses/:id/semesters requires: name, number, openDate.
+      // Also send title for V1 backend compat.
+      const body: Record<string, unknown> = {
+        name:     semTitle.trim(),
+        title:    semTitle.trim(),
+        number:   semesters.length + 1,
+        openDate: semOpenDate,
+      };
+      if (semEndDate) body.endDate = semEndDate;
       const sem = await apiRequest<Semester>(`/courses/${courseId}/semesters`, {
-        method: "POST", body: { title: `Semester ${semesters.length + 1}` },
+        method: "POST",
+        body,
       });
-      setSemesters((p) => [...p, { ...sem, subjects: [] }]);
+      const newSem = { ...sem, name: sem.name ?? semTitle.trim(), title: sem.title ?? semTitle.trim(), openDate: sem.openDate ?? semOpenDate, endDate: (sem.endDate ?? (semEndDate || null)), subjects: [] as typeof sem.subjects };
+      setSemesters((p) => [...p, newSem]);
+      setSemTitle(""); setSemOpenDate(""); setSemEndDate(""); setShowSemForm(false);
       onStructureChange?.();
-    } catch { dispatch(pushToast({ tone: "warning", title: "Failed to add semester" })); }
+    } catch {
+      dispatch(pushToast({ tone: "warning", title: "Failed to add semester" }));
+    } finally {
+      setSemSaving(false);
+    }
   };
 
   const editSemesterTitle = async (semId: string, title: string) => {
@@ -458,8 +483,29 @@ export function CourseStructureEditor({ courseId, initialSemesters, onStructureC
               Semesters → Subjects → Lessons. Click a subject to manage its lessons.
             </p>
           </div>
-          <Button size="sm" icon="plus" onClick={addSemester}>Add semester</Button>
+          <Button size="sm" icon={showSemForm ? "x" : "plus"} onClick={() => setShowSemForm((v) => !v)}>
+            {showSemForm ? "Cancel" : "Add semester"}
+          </Button>
         </div>
+
+        {/* Inline add-semester form */}
+        {showSemForm && (
+          <div style={{ background: "var(--color-stroke-2)", border: "1px solid var(--color-stroke)", borderRadius: 12, padding: 16, marginBottom: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <Input label="Semester title" placeholder={`Semester ${semesters.length + 1}`}
+                value={semTitle} onChange={(e) => setSemTitle(e.target.value)} />
+              <Input label="Start date (required)" type="date"
+                value={semOpenDate} onChange={(e) => setSemOpenDate(e.target.value)} />
+              <Input label="End date" type="date"
+                value={semEndDate} onChange={(e) => setSemEndDate(e.target.value)} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 12 }}>
+              <Button type="button" size="sm" icon="check" disabled={!semTitle.trim() || !semOpenDate || semSaving} onClick={submitAddSemester}>
+                {semSaving ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {semesters.length === 0 ? (
           <div style={{ textAlign: "center", padding: "32px 0", color: "var(--color-muted)", fontFamily: "var(--font-body)", fontSize: 14 }}>
@@ -476,13 +522,18 @@ export function CourseStructureEditor({ courseId, initialSemesters, onStructureC
                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--color-light-gray)" }}>
                     <span style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(188,233,85,0.15)", border: "1px solid rgba(188,233,85,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#BCE955", flexShrink: 0 }}>{si + 1}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <InlineEdit value={sem.title} onSave={(v) => editSemesterTitle(sem.id, v)} />
+                      <InlineEdit value={sem.name ?? sem.title ?? ""} onSave={(v) => editSemesterTitle(sem.id, v)} />
+                      {(sem.openDate || sem.endDate) && (
+                        <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>
+                          {sem.openDate ?? "—"} → {sem.endDate ?? "—"}
+                        </div>
+                      )}
                     </div>
                     <button type="button" onClick={() => addSubject(sem.id)} title="Add subject"
                       style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", padding: 2 }}>
                       <Icon name="plus" size={14} />
                     </button>
-                    <button type="button" onClick={() => setToDelete({ kind: "semester", id: sem.id, label: sem.title })}
+                    <button type="button" onClick={() => setToDelete({ kind: "semester", id: sem.id, label: sem.title ?? sem.name ?? "" })}
                       style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", padding: 2 }}>
                       <Icon name="trash-2" size={13} />
                     </button>

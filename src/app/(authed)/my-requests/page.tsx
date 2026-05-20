@@ -82,6 +82,8 @@ export default function MyRequestsPage() {
 
 /* ─── Role-request list (pure Member) ────────────────────────────── */
 function RoleRequestsList({ items, loading }: { items: RoleRequest[]; loading: boolean }) {
+  const hasPending = items.some((r) => r.status === "pending");
+
   if (loading) {
     return (
       <div style={{ textAlign: "center", padding: 48, color: "var(--color-muted)" }}>
@@ -95,6 +97,7 @@ function RoleRequestsList({ items, loading }: { items: RoleRequest[]; loading: b
       <>
         <EmptyState icon="file-text" title="No requests yet"
           message="Apply to become a Student to access the Bible School module." />
+        {/* Only show Apply button when there are no requests at all */}
         <div style={{ textAlign: "center", marginTop: 16 }}>
           <Link href="/apply/student" className="btn btn--primary">
             <Icon name="arrow-right" size={16} /> Apply now
@@ -133,7 +136,7 @@ function RoleRequestsList({ items, loading }: { items: RoleRequest[]; loading: b
                   Decided {relativeTime(r.decidedAt)} by {r.decisionByName}
                 </span>
               )}
-              {r.status === "rejected" && (
+              {r.status === "rejected" && !hasPending && (
                 <Link href="/apply/student" style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}>
                   Apply again →
                 </Link>
