@@ -15,6 +15,7 @@ jobs:
 
       - name: Deploy the containers
         run: |
+          cd /home/node3/course-portal/frontend/course_management_portal_frontend
           docker-compose stop course-frontend || true
           docker system prune -af || true
           docker-compose up -d course-frontend
