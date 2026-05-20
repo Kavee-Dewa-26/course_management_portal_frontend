@@ -6,11 +6,13 @@ import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 
 export interface RoleRequest {
   id: string;
+  requesterUid?: string;
   requestedRole: string;
   status: "pending" | "approved" | "rejected";
   createdAt: string;
   decidedAt: string | null;
-  decisionByName: string | null;
+  decidedByUid?: string | null;   // actual backend field
+  decisionByName?: string | null; // embedded by some backends
   decisionNote: string | null;
 }
 
@@ -36,10 +38,14 @@ export function useRoleRequests(): UseRoleRequestsResult {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await apiRequest<{ items: RoleRequest[]; total: number }>(
+      // Backend may return { items: [...] } (V2 spec) or [...] (plain array).
+      const res = await apiRequest<{ items?: RoleRequest[] } | RoleRequest[]>(
         "/role-requests/mine",
       );
-      setItems(res.items ?? []);
+      const list = Array.isArray(res)
+        ? res
+        : ((res as { items?: RoleRequest[] }).items ?? []);
+      setItems(list);
     } catch {
       setItems([]);
     } finally {

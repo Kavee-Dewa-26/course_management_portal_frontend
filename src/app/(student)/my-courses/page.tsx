@@ -41,14 +41,18 @@ export default function MyCoursesPage() {
   }, [C.items]);
 
   // Filter + group.
+  // normalise V1 `state` and V2 `status` to one field
+  const eState = (e: Enrollment) => e.status ?? e.state ?? "pending";
+
   const visible = useMemo(() => {
-    return E.items.filter((e) => showWithdrawn || e.state !== "withdrawn");
+    return E.items.filter((e) => showWithdrawn || eState(e) !== "withdrawn");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [E.items, showWithdrawn]);
 
-  const approved = visible.filter((e) => e.state === "approved");
-  const pending  = visible.filter((e) => e.state === "pending");
-  const rejected = visible.filter((e) => e.state === "rejected");
-  const withdrawn = visible.filter((e) => e.state === "withdrawn");
+  const approved  = visible.filter((e) => eState(e) === "approved");
+  const pending   = visible.filter((e) => eState(e) === "pending");
+  const rejected  = visible.filter((e) => eState(e) === "rejected");
+  const withdrawn = visible.filter((e) => eState(e) === "withdrawn");
 
   // Fetch progress for every approved enrollment in PARALLEL.
   const [progressById, setProgressById] = useState<Record<string, CourseProgress | null>>({});

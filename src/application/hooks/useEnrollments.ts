@@ -11,13 +11,20 @@ export type EnrollmentState = "pending" | "approved" | "rejected" | "withdrawn";
 
 export interface Enrollment {
   id: string;
-  studentUid: string;
+  userUid?: string;      // V2 field
+  studentUid?: string;   // V1 field (kept for compat)
   courseId: string;
-  state: EnrollmentState;
-  reason: string | null;
-  approvedAt: string | null;
-  rejectedAt: string | null;
-  withdrawnAt: string | null;
+  batchId?: string;      // V2 new
+  courseName?: string;   // V2 embeds course name
+  batchName?: string;    // V2 embeds batch name
+  status?: EnrollmentState;  // V2 field
+  state?: EnrollmentState;   // V1 field (kept for compat)
+  reason?: string | null;
+  decisionNote?: string | null;  // V2 field
+  approvedAt?: string | null;
+  enrolledAt?: string | null;    // V2 field
+  rejectedAt?: string | null;
+  withdrawnAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -55,7 +62,7 @@ export function useEnrollments() {
       do {
         const params = new URLSearchParams({ limit: String(FETCH_PAGE_SIZE) });
         if (cursor) params.append("cursor", cursor);
-        const data: PagedResponse = await apiRequest<PagedResponse>(`/me/enrollments?${params}`);
+        const data: PagedResponse = await apiRequest<PagedResponse>(`/enrollments/mine?${params}`);
         collected.push(...(data.items ?? []));
         cursor = data.nextCursor ?? undefined;
         pageNo += 1;
@@ -73,23 +80,24 @@ export function useEnrollments() {
     fetchAll();
   }, [user, fetchAll]);
 
+  /** Normalise V1 state / V2 status to a single field. */
+  const effectiveState = (e: Enrollment): EnrollmentState =>
+    (e.status ?? e.state ?? "pending") as EnrollmentState;
+
   /** Read-only lookup used by browse pages to decide button state. */
   const byCourseId = useMemo(() => {
     const map = new Map<string, Enrollment>();
     for (const e of items) {
       const existing = map.get(e.courseId);
-      // Prefer most recent active state (pending/approved over withdrawn/rejected).
-      if (!existing) {
-        map.set(e.courseId, e);
-        continue;
-      }
+      if (!existing) { map.set(e.courseId, e); continue; }
       const priority = (s: EnrollmentState) =>
         s === "approved" ? 4 : s === "pending" ? 3 : s === "rejected" ? 2 : 1;
-      if (priority(e.state) > priority(existing.state)) {
+      if (priority(effectiveState(e)) > priority(effectiveState(existing))) {
         map.set(e.courseId, e);
       }
     }
     return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
   const getEnrollmentForCourse = useCallback(
@@ -102,17 +110,20 @@ export function useEnrollments() {
     (courseId: string): EnrollmentState | "available" => {
       const e = byCourseId.get(courseId);
       if (!e) return "available";
-      if (e.state === "withdrawn" || e.state === "rejected") return "available";
-      return e.state;
+      const s = effectiveState(e);
+      if (s === "withdrawn" || s === "rejected") return "available";
+      return s;
     },
     [byCourseId],
   );
 
   const enroll = useCallback(
-    async (courseId: string): Promise<Enrollment | null> => {
+    async (courseId: string, batchId?: string): Promise<Enrollment | null> => {
       try {
-        const enrollment = await apiRequest<Enrollment>(`/courses/${courseId}/enroll`, {
+        // V2: POST /enrollments with { courseId, batchId }
+        const enrollment = await apiRequest<Enrollment>(`/enrollments`, {
           method: "POST",
+          body: { courseId, ...(batchId ? { batchId } : {}) },
         });
         setItems((prev) => {
           // Replace any existing enrollment for this course with the new one.

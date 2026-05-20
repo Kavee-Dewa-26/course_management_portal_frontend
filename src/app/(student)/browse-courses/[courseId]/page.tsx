@@ -22,9 +22,9 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { useCourse } from "@/application/hooks/useCourses";
 import { useEnrollments } from "@/application/hooks/useEnrollments";
+import { useBatches } from "@/application/hooks/useBatches";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { apiRequest } from "@/infrastructure/api/request";
-import { listBatchesForCourse } from "@/lib/mock/batches";
 
 interface LessonTitle { id: string; title: string }
 
@@ -40,25 +40,6 @@ function fmtDate(iso: string) {
  *   idx 2 → future  (3–5 months from now)
  * Returns { start, end, state }.
  */
-function getDummySemesterDates(idx: number) {
-  const now = new Date();
-  const offset = (months: number) => {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() + months);
-    return d.toISOString().slice(0, 10);
-  };
-  if (idx === 0) return { start: offset(-5), end: offset(-3), state: "past" as const };
-  if (idx === 1) return { start: offset(-1), end: offset(2), state: "current" as const };
-  return { start: offset(3 + (idx - 2) * 2), end: offset(5 + (idx - 2) * 2), state: "future" as const };
-}
-
-/** Dummy lesson names shown when the API returns no lessons yet. */
-function getDummyLessons(subjectTitle: string, count = 3): LessonTitle[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `dummy-${subjectTitle}-${i}`,
-    title: i === 0 ? subjectTitle.split(" ")[0] + " Basics" : `${subjectTitle} · Part ${i + 1}`,
-  }));
-}
 
 export default function BrowseCourseDetailPage() {
   const router = useRouter();
@@ -68,6 +49,7 @@ export default function BrowseCourseDetailPage() {
   const sessionUser = useAppSelector((s) => s.session.user);
 
   const { course, loading, error } = useCourse(sessionUser ? params.courseId : undefined);
+  const { batches: realBatches } = useBatches(sessionUser ? params.courseId : undefined);
   const [lessonsBySubject, setLessonsBySubject] = useState<Record<string, LessonTitle[]>>({});
 
   useEffect(() => {
@@ -114,22 +96,20 @@ export default function BrowseCourseDetailPage() {
     .slice()
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-  // Each semester gets dummy dates so we can show Past / Current / Future.
-  const semesterMeta = sortedSemesters.map((_, idx) => getDummySemesterDates(idx));
+  // Use real semester dates from API (openDate/endDate); no mock fallback.
+  // Semester state derived from real dates: past if endDate < today, future if openDate > today.
+  const semesterMeta = sortedSemesters.map((sem) => {
+    const now = new Date();
+    const start = sem.openDate ? new Date(sem.openDate) : null;
+    const end   = sem.endDate  ? new Date(sem.endDate)  : null;
+    if (end && end < now)   return { start: sem.openDate ?? null, end: sem.endDate ?? null, state: "past"    as const };
+    if (start && start > now) return { start: sem.openDate ?? null, end: sem.endDate ?? null, state: "future"  as const };
+    if (start || end)         return { start: sem.openDate ?? null, end: sem.endDate ?? null, state: "current" as const };
+    return { start: null, end: null, state: null };
+  });
 
-  // Intake batch — use real mock data or fall back to a sensible dummy.
-  const batches = listBatchesForCourse(course.id);
-  const openBatch = batches.find((b) => b.state === "open") ??
-    batches[0] ?? {
-      id: "fallback",
-      courseId: course.id,
-      name: "Intake A · Q2 2026",
-      intakeStart: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString().slice(0, 10),
-      intakeEnd: new Date(Date.now() + 1000 * 60 * 60 * 24 * 50).toISOString().slice(0, 10),
-      state: "open" as const,
-      capacity: 60,
-      enrolled: 12,
-    };
+  // All batches from real API — open batch selected for enrolment by default.
+  const openBatch = realBatches.find((b) => b.state === "open") ?? null;
 
   // Count lessons — fall back to 3 per subject when API hasn't loaded yet.
   const totalLessons = sortedSemesters.reduce((sum, sem) => {
@@ -141,7 +121,8 @@ export default function BrowseCourseDetailPage() {
 
   const handleRequest = async () => {
     setEnrolling(true);
-    await enroll(course.id);
+    // V2: POST /enrollments requires { courseId, batchId }
+    await enroll(course.id, openBatch?.id);
     setEnrolling(false);
   };
 
@@ -194,14 +175,16 @@ export default function BrowseCourseDetailPage() {
         ) : (
           sortedSemesters.map((sem, semIdx) => {
             const { start, end, state } = semesterMeta[semIdx];
-            const isPast = state === "past";
-            const isFuture = state === "future";
-            const isCurrent = state === "current";
-            const isLocked = isPast || isFuture;
+            // Only show state labels/lock if we have real dates from the API.
+            const hasRealDates = !!(start || end);
+            const isPast    = hasRealDates && state === "past";
+            const isFuture  = hasRealDates && state === "future";
+            const isCurrent = hasRealDates && state === "current";
+            const isLocked  = isPast || isFuture;
 
-            const stateLabel = isPast ? "Past" : isFuture ? "Future" : "Current";
-            const dateColor = isPast ? "var(--color-error-deep)" : isFuture ? "var(--color-muted)" : "var(--color-success-deep)";
-            const closedSuffix = isPast ? " · closed" : isFuture ? " · closed" : "";
+            const stateLabel  = isPast ? "Past" : isFuture ? "Future" : isCurrent ? "Current" : null;
+            const dateColor   = isPast ? "var(--color-error-deep)" : isFuture ? "var(--color-muted)" : "var(--color-success-deep)";
+            const closedSuffix = isPast ? " · closed" : "";
 
             return (
               <div className="semester" key={sem.id} style={{ opacity: isLocked ? 0.7 : 1 }}>
@@ -211,20 +194,24 @@ export default function BrowseCourseDetailPage() {
                   style={{ fontWeight: isCurrent ? 700 : 600, color: isLocked ? "var(--color-muted)" : "var(--color-primary)" }}
                 >
                   <span>
-                    {sem.title}
-                    <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 6, color: "var(--color-muted)" }}>
-                      · {stateLabel}
-                    </span>
+                    {sem.title ?? sem.name}
+                    {stateLabel && (
+                      <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 6, color: "var(--color-muted)" }}>
+                        · {stateLabel}
+                      </span>
+                    )}
                   </span>
                   {isLocked
                     ? <Icon name="lock" size={13} style={{ color: "var(--color-muted)" }} />
                     : <Icon name="chevron-down" size={14} />}
                 </div>
 
-                {/* Date range row */}
-                <div style={{ padding: "0 24px 8px", fontFamily: "var(--font-mono)", fontSize: 11, color: dateColor }}>
-                  {fmtDate(start)} → {fmtDate(end)}{closedSuffix}
-                </div>
+                {/* Date range row — only shown when real dates exist */}
+                {hasRealDates && (start || end) && (
+                  <div style={{ padding: "0 24px 8px", fontFamily: "var(--font-mono)", fontSize: 11, color: dateColor }}>
+                    {fmtDate(start ?? "")} → {fmtDate(end ?? "")}{closedSuffix}
+                  </div>
+                )}
 
                 {/* Locked semesters: hint + one placeholder lesson */}
                 {isLocked && (
@@ -244,9 +231,7 @@ export default function BrowseCourseDetailPage() {
                 {isCurrent && (
                   <>
                     {(sem.subjects ?? []).map((sub) => {
-                      // Use real lessons from API; fall back to dummy names if none yet.
-                      const apiLessons = lessonsBySubject[sub.id] ?? [];
-                      const lessons = apiLessons.length > 0 ? apiLessons : getDummyLessons(sub.title);
+                      const lessons = lessonsBySubject[sub.id] ?? [];
                       return (
                         <div key={sub.id}>
                           <div className="subject notstarted" style={{ cursor: "default" }}>
@@ -341,18 +326,36 @@ export default function BrowseCourseDetailPage() {
                 Submit a request — an admin will approve it within 24 hours. Once approved you&apos;ll get
                 instant access to the first semester&apos;s content.
               </p>
-              {openBatch && (
-                <div className="batch-row" style={{ marginBottom: 20 }}>
-                  <div className="ico"><Icon name="calendar-clock" size={18} /></div>
-                  <div className="b-body">
-                    <div className="name">{openBatch.name}</div>
-                    <div className="window">
-                      <span><Icon name="calendar" size={12} /> {fmtDate(openBatch.intakeStart)} → {fmtDate(openBatch.intakeEnd)}</span>
-                      <span className="sep">·</span>
-                      <span><Icon name="users" size={12} /> {openBatch.enrolled} / {openBatch.capacity} enrolled</span>
-                    </div>
-                  </div>
-                  <Badge tone="success">Open</Badge>
+              {/* All batches — open ones selectable, closed/draft dimmed */}
+              {realBatches.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+                  {realBatches.map((b) => {
+                    const isOpen = b.state === "open";
+                    const isSelected = openBatch?.id === b.id;
+                    return (
+                      <div
+                        key={b.id}
+                        className="batch-row"
+                        style={{
+                          opacity: isOpen ? 1 : 0.4,
+                          cursor: isOpen ? "default" : "not-allowed",
+                          border: isSelected ? "1.5px solid var(--color-accent)" : undefined,
+                        }}
+                      >
+                        <div className="ico"><Icon name="calendar-clock" size={18} /></div>
+                        <div className="b-body">
+                          <div className="name">{b.name}</div>
+                          <div className="window">
+                            <span><Icon name="calendar" size={12} /> {fmtDate(b.intakeStart)} → {fmtDate(b.intakeEnd)}</span>
+                            {b.capacity && <><span className="sep">·</span><span><Icon name="users" size={12} /> Cap: {b.capacity}</span></>}
+                          </div>
+                        </div>
+                        <Badge tone={isOpen ? "success" : b.state === "closed" ? "archive" : "warning"}>
+                          {b.state}
+                        </Badge>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               <Button size="lg" icon="clipboard-list" onClick={handleRequest} disabled={enrolling}>

@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { useCourse } from "@/application/hooks/useCourses";
 import { useCourseProgress } from "@/application/hooks/useProgress";
+import { useEnrollments } from "@/application/hooks/useEnrollments";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { pushToast } from "@/application/slices/uiSlice";
 import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import { cn } from "@/lib/cn";
 import { YouTubePlayer } from "@/components/course/YouTubePlayer";
-import { listBatchesForCourse } from "@/lib/mock/batches";
+import { useBatches } from "@/application/hooks/useBatches";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -74,6 +75,13 @@ export default function StudentCourseViewerPage() {
   const sessionUser = useAppSelector((s) => s.session.user);
 
   const { course, loading } = useCourse(sessionUser ? params.courseId : undefined);
+  const { batches: realBatches } = useBatches(sessionUser ? params.courseId : undefined);
+
+  // Get batchId from the student's approved enrollment so progress is linked
+  // to the correct intake — required by V2 POST /progress/subjects/:id/complete.
+  const { getEnrollmentForCourse } = useEnrollments();
+  const enrollment = params.courseId ? getEnrollmentForCourse(params.courseId) : undefined;
+  const enrollmentBatchId = enrollment?.batchId ?? realBatches[0]?.id ?? undefined;
 
   // Real subject-level progress from the API.
   const {
@@ -81,7 +89,7 @@ export default function StudentCourseViewerPage() {
     completedSet: completedSubjectsApi,
     markComplete: markSubjectCompleteApi,
     trackAccess,
-  } = useCourseProgress(sessionUser ? params.courseId : undefined);
+  } = useCourseProgress(sessionUser ? params.courseId : undefined, enrollmentBatchId);
 
   // Lesson-level state (UI tracks per-lesson; backend only tracks per-subject).
   const [lessonsBySubject, setLessonsBySubject] = useState<Record<string, Lesson[]>>({});
@@ -99,6 +107,13 @@ export default function StudentCourseViewerPage() {
     ? `edupath.lessons.${sessionUser.uid}.${params.courseId}`
     : null;
 
+  // Guard: prevent the save effect from overwriting localStorage before the
+  // restore effect has flushed its state update. Without this, both effects
+  // fire when progressKey first becomes available (sessionUser loads from
+  // redux-persist) and save runs with the still-empty completedLessons set,
+  // erasing the previously saved progress.
+  const [restoredFromStorage, setRestoredFromStorage] = useState(false);
+
   /* ── Restore + persist lesson-level completion in localStorage ───── */
 
   useEffect(() => {
@@ -107,14 +122,16 @@ export default function StudentCourseViewerPage() {
       const raw = localStorage.getItem(progressKey);
       if (raw) setCompletedLessons(new Set(JSON.parse(raw) as string[]));
     } catch { /* ignore */ }
+    setRestoredFromStorage(true);
   }, [progressKey]);
 
   useEffect(() => {
-    if (!progressKey) return;
+    // Only save after we've finished restoring so we don't overwrite saved data.
+    if (!progressKey || !restoredFromStorage) return;
     try {
       localStorage.setItem(progressKey, JSON.stringify([...completedLessons]));
     } catch { /* ignore */ }
-  }, [progressKey, completedLessons]);
+  }, [progressKey, completedLessons, restoredFromStorage]);
 
   /* ── Fetch lessons for every subject in parallel (one call per subject) ── */
 
@@ -323,20 +340,8 @@ export default function StudentCourseViewerPage() {
   });
   if (currentSemIdx === -1) currentSemIdx = sortedSemesters.length - 1; // all done → last is "current"
 
-  // Batch badge — use mock data; fall back to a sensible dummy so the badge
-  // always appears even for courses not yet in the mock store.
-  const batches = listBatchesForCourse(course.id);
-  const activeBatch = batches.find((b) => b.state === "open") ??
-    batches[0] ?? {
-      id: "fallback",
-      courseId: course.id,
-      name: "Intake B · Q2 2026",
-      intakeStart: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString().slice(0, 10),
-      intakeEnd: new Date(Date.now() + 1000 * 60 * 60 * 24 * 50).toISOString().slice(0, 10),
-      state: "open" as const,
-      capacity: 60,
-      enrolled: 23,
-    };
+  // Batch badge — real API data only; no fallback mock.
+  const activeBatch = realBatches.find((b) => b.state === "open") ?? realBatches[0] ?? null;
 
   function formatBatchDate(iso: string) {
     if (!iso) return "—";
@@ -366,29 +371,11 @@ export default function StudentCourseViewerPage() {
     return "future";
   }
 
-  /**
-   * Dummy date windows per position. Dates are illustrative — real values
-   * come from the backend once the V2 semesters API ships them.
-   *
-   *   idx 0 → Past     5–3 months ago
-   *   idx 1 → Current  last month → +2 months
-   *   idx 2 → Disabled 3–4 months ago (closed, not completed)
-   *   idx 3+ → Future  3+ months ahead
-   */
-  function getDummySemesterDates(idx: number) {
-    const offset = (months: number) => {
-      const d = new Date();
-      d.setMonth(d.getMonth() + months);
-      return d.toISOString().slice(0, 10);
-    };
-    if (idx === 0) return { start: offset(-5), end: offset(-3) };
-    if (idx === 1) return { start: offset(-1), end: offset(2) };
-    if (idx === 2) return { start: offset(-4), end: offset(-1) }; // ended → disabled
-    return { start: offset(3 + (idx - 3) * 2), end: offset(5 + (idx - 3) * 2) };
-  }
-
-  /** Pre-compute date ranges for every semester. */
-  const semesterDates = sortedSemesters.map((_, i) => getDummySemesterDates(i));
+  // Real semester dates from API (openDate/endDate). No mock fallback.
+  const semesterDates = sortedSemesters.map((sem) => ({
+    start: sem.openDate ?? null,
+    end:   sem.endDate  ?? null,
+  }));
 
   return (
     <div className="viewer">
@@ -396,26 +383,15 @@ export default function StudentCourseViewerPage() {
         <div className="head">
           <h2>{course.title}</h2>
 
-          {/* V2 intake badge */}
-          {activeBatch && (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "6px 12px",
-                background: "rgba(188,233,85,0.18)",
-                borderRadius: 9999,
-                fontFamily: "var(--font-body)",
-                fontWeight: 600,
-                fontSize: 12,
-                color: "var(--color-primary)",
-                marginBottom: 10,
-                flexWrap: "wrap",
-              }}
-            >
+          {/* V2 intake badge — real data only */}
+          {activeBatch ? (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "rgba(188,233,85,0.18)", borderRadius: 9999, fontFamily: "var(--font-body)", fontWeight: 600, fontSize: 12, color: "var(--color-primary)", marginBottom: 10, flexWrap: "wrap" }}>
               <Icon name="calendar-clock" size={13} />
               {activeBatch.name} · {formatBatchDate(activeBatch.intakeStart)} → {formatBatchDate(activeBatch.intakeEnd)}
+            </div>
+          ) : realBatches.length === 0 && (
+            <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--color-muted)", marginBottom: 10 }}>
+              No batches
             </div>
           )}
 
@@ -487,16 +463,18 @@ export default function StudentCourseViewerPage() {
                     : <Icon name="chevron-down" size={14} />}
                 </div>
 
-                {/* Date range row — shown for every semester */}
-                <div style={{
-                  padding: "0 24px 8px",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  color: dateColor,
-                }}>
-                  {formatBatchDate(start)} → {formatBatchDate(end)}
-                  {(isLocked || isDisabled) ? " · closed" : ""}
-                </div>
+                {/* Date range row — only shown when real dates exist from API */}
+                {(start || end) && (
+                  <div style={{
+                    padding: "0 24px 8px",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11,
+                    color: dateColor,
+                  }}>
+                    {formatBatchDate(start ?? "")} → {formatBatchDate(end ?? "")}
+                    {(isLocked || isDisabled) ? " · closed" : ""}
+                  </div>
+                )}
 
                 {/* Disabled state — semester expired without completion */}
                 {isDisabled && (

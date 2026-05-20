@@ -74,7 +74,7 @@ export function useAdminEnrollmentQueue(courseIdFilter?: string) {
         const params = new URLSearchParams({ limit: String(FETCH_PAGE_SIZE) });
         if (cursor) params.append("cursor", cursor);
         if (courseIdFilter) params.append("courseId", courseIdFilter);
-        const data: PagedResponse = await apiRequest<PagedResponse>(`/admin/enrollments?${params}`);
+        const data: PagedResponse = await apiRequest<PagedResponse>(`/enrollments?${params}`);
         collected.push(...(data.items ?? []));
         cursor = data.nextCursor ?? undefined;
         pageNo += 1;
@@ -189,7 +189,7 @@ export function useAdminEnrollmentQueue(courseIdFilter?: string) {
 
   const approve = async (id: string) => {
     try {
-      await apiRequest(`/admin/enrollments/${id}/approve`, { method: "POST" });
+      await apiRequest(`/enrollments/${id}/approve`, { method: "POST" });
       updateState(id, "approved");
       dispatch(pushToast({ tone: "success", title: "Enrollment approved", message: "The student has been notified." }));
       dispatch(setPendingEnrollments(Math.max(0, total - 1)));
@@ -205,9 +205,9 @@ export function useAdminEnrollmentQueue(courseIdFilter?: string) {
 
   const reject = async (id: string, reason?: string) => {
     try {
-      await apiRequest(`/admin/enrollments/${id}/reject`, {
+      await apiRequest(`/enrollments/${id}/reject`, {
         method: "POST",
-        body: reason ? { reason } : undefined,
+        body: reason ? { note: reason } : undefined,
       });
       updateState(id, "rejected");
       dispatch(pushToast({ tone: "warning", title: "Enrollment rejected", message: "The student has been notified." }));

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Icon } from "@/components/ui/Icon";
+import { useSavedBadge, SavedBadge } from "@/components/ui/SavedBadge";
 import { Input } from "@/components/ui/Input";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
@@ -185,6 +186,13 @@ export function CourseStructureEditor({ courseId, initialSemesters, onStructureC
   const [lessonSaving, setLessonSaving] = useState(false);
   const [lessonErrors, setLessonErrors] = useState<Record<string, string>>({});
 
+  const { saved: semSaved,     triggerSaved: triggerSemSaved }     = useSavedBadge();
+  const { saved: lessonSaved,  triggerSaved: triggerLessonSaved }  = useSavedBadge();
+
+  // Subject image upload
+  const subjectImageInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingSubjectImage, setUploadingSubjectImage] = useState(false);
+
   // Attachments — tracked per open lesson form
   const [formAttachments, setFormAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -237,6 +245,7 @@ export function CourseStructureEditor({ courseId, initialSemesters, onStructureC
       const newSem = { ...sem, name: sem.name ?? semTitle.trim(), title: sem.title ?? semTitle.trim(), openDate: sem.openDate ?? semOpenDate, endDate: (sem.endDate ?? (semEndDate || null)), subjects: [] as typeof sem.subjects };
       setSemesters((p) => [...p, newSem]);
       setSemTitle(""); setSemOpenDate(""); setSemEndDate(""); setShowSemForm(false);
+      triggerSemSaved();
       onStructureChange?.();
     } catch {
       dispatch(pushToast({ tone: "warning", title: "Failed to add semester" }));
@@ -262,6 +271,55 @@ export function CourseStructureEditor({ courseId, initialSemesters, onStructureC
       setSemesters((p) => p.filter((s) => s.id !== semId));
       onStructureChange?.();
     } catch { dispatch(pushToast({ tone: "warning", title: "Failed to delete semester" })); }
+  };
+
+  /* ── Subject image upload (V2 new) ─────────────────────── */
+
+  const uploadSubjectImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedSubjectId) return;
+    if (!file.type.match(/^image\/(jpeg|png)$/)) {
+      dispatch(pushToast({ tone: "warning", title: "Invalid file", message: "Only JPG and PNG are accepted." }));
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      dispatch(pushToast({ tone: "warning", title: "File too large", message: "Max 10 MB per image." }));
+      return;
+    }
+    setUploadingSubjectImage(true);
+    try {
+      const { tokenService } = await import("@/infrastructure/firebase/tokenService");
+      const token = await tokenService.get();
+      const API_PREFIX = process.env.NEXT_PUBLIC_API_PREFIX ?? "/api/v1";
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`${API_PREFIX}/subjects/${selectedSubjectId}/images`, {
+        method: "POST",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Accept-Language": localStorage.getItem("edupath.locale") ?? "en",
+        },
+        body: form,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json() as { url: string };
+      setSemesters((prev) =>
+        prev.map((sem) => ({
+          ...sem,
+          subjects: sem.subjects?.map((sub) =>
+            sub.id === selectedSubjectId
+              ? { ...sub, imageUrls: [...(sub.imageUrls ?? []), url] }
+              : sub,
+          ),
+        })),
+      );
+      dispatch(pushToast({ tone: "success", title: "Image uploaded" }));
+    } catch {
+      dispatch(pushToast({ tone: "warning", title: "Image upload failed" }));
+    } finally {
+      setUploadingSubjectImage(false);
+      if (subjectImageInputRef.current) subjectImageInputRef.current.value = "";
+    }
   };
 
   /* ── Subjects ──────────────────────────────────────────── */
@@ -354,13 +412,13 @@ export function CourseStructureEditor({ courseId, initialSemesters, onStructureC
         console.log(`[lesson PATCH] /lessons/${editingLesson.id}`, body);
         const updated = await apiRequest<Lesson>(`/lessons/${editingLesson.id}`, { method: "PATCH", body });
         setLessons((p) => p.map((l) => l.id === editingLesson.id ? updated : l));
-        dispatch(pushToast({ tone: "success", title: "Lesson updated" }));
+        triggerLessonSaved();
       } else {
         // eslint-disable-next-line no-console
         console.log(`[lesson POST] /subjects/${selectedSubjectId}/lessons`, body);
         const created = await apiRequest<Lesson>(`/subjects/${selectedSubjectId}/lessons`, { method: "POST", body });
         setLessons((p) => [...p, created]);
-        dispatch(pushToast({ tone: "success", title: "Lesson added" }));
+        triggerLessonSaved();
       }
       setShowLessonForm(false);
       setFormAttachments([]);
@@ -483,9 +541,12 @@ export function CourseStructureEditor({ courseId, initialSemesters, onStructureC
               Semesters → Subjects → Lessons. Click a subject to manage its lessons.
             </p>
           </div>
-          <Button size="sm" icon={showSemForm ? "x" : "plus"} onClick={() => setShowSemForm((v) => !v)}>
-            {showSemForm ? "Cancel" : "Add semester"}
-          </Button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <SavedBadge visible={semSaved} />
+            <Button size="sm" icon={showSemForm ? "x" : "plus"} onClick={() => setShowSemForm((v) => !v)}>
+              {showSemForm ? "Cancel" : "Add semester"}
+            </Button>
+          </div>
         </div>
 
         {/* Inline add-semester form */}
@@ -572,7 +633,14 @@ export function CourseStructureEditor({ courseId, initialSemesters, onStructureC
                     <div style={{ fontWeight: 600, fontFamily: "var(--font-body)" }}>{selectedSubject?.title}</div>
                     <div style={{ fontSize: 12, color: "var(--color-muted)", fontFamily: "var(--font-body)" }}>{lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}</div>
                   </div>
-                  {!showLessonForm && <Button size="sm" icon="plus" onClick={openAddLesson}>Add lesson</Button>}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input ref={subjectImageInputRef} type="file" accept="image/jpeg,image/png" style={{ display: "none" }} onChange={uploadSubjectImage} />
+                    <Button size="sm" variant="secondary" icon="image" disabled={uploadingSubjectImage} onClick={() => subjectImageInputRef.current?.click()}>
+                      {uploadingSubjectImage ? "…" : "Image"}
+                    </Button>
+                    <SavedBadge visible={lessonSaved} />
+                    {!showLessonForm && <Button size="sm" icon="plus" onClick={openAddLesson}>Add lesson</Button>}
+                  </div>
                 </div>
 
                 {/* Add / Edit lesson form */}

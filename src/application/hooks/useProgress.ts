@@ -48,7 +48,7 @@ interface AdminProgressResponse {
  * Use `markComplete(subjectId, semesterId)` to mark a subject completed.
  * Use `trackAccess(subjectId, semesterId)` to record the last accessed subject.
  */
-export function useCourseProgress(courseId: string | undefined) {
+export function useCourseProgress(courseId: string | undefined, batchId?: string | null) {
   const dispatch = useAppDispatch();
   const [progress, setProgress] = useState<CourseProgress | null>(null);
   const [loading, setLoading] = useState(false);
@@ -82,7 +82,11 @@ export function useCourseProgress(courseId: string | undefined) {
       try {
         await apiRequest(`/progress/subjects/${subjectId}/complete`, {
           method: "POST",
-          body: { courseId, semesterId },
+          body: {
+            courseId,
+            ...(semesterId ? { semesterId } : {}),
+            ...(batchId    ? { batchId }    : {}),
+          },
         });
         // Refetch course progress so % and completedSubjectIds update.
         await fetchProgress();
@@ -105,7 +109,11 @@ export function useCourseProgress(courseId: string | undefined) {
       try {
         await apiRequest(`/progress/subjects/${subjectId}/access`, {
           method: "POST",
-          body: { courseId, semesterId },
+          body: {
+            courseId,
+            ...(semesterId ? { semesterId } : {}),
+            ...(batchId    ? { batchId }    : {}),
+          },
         });
       } catch {
         // Silent — access tracking is a background hint, not a critical action.
@@ -114,6 +122,8 @@ export function useCourseProgress(courseId: string | undefined) {
     [courseId],
   );
 
+  // V2 API returns completedSubjectIds if available; fall back to empty set.
+  // Lesson-level tracking in the page supplements this for the current session.
   const completedSet = new Set(progress?.completedSubjectIds ?? []);
 
   return {
@@ -125,6 +135,35 @@ export function useCourseProgress(courseId: string | undefined) {
     trackAccess,
     refresh: fetchProgress,
   };
+}
+
+/* ─── Per-subject progress hook (V2 new) ─────────────────────────────── */
+
+/**
+ * Fetches GET /me/progress/subjects/:subjectId.
+ * Used on the subject/lesson page to show progress chip without a full
+ * course-level refetch.
+ */
+export function useSubjectProgress(subjectId: string | undefined) {
+  const [progress, setProgress] = useState<SubjectProgress | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetch = useCallback(async () => {
+    if (!subjectId) return;
+    setLoading(true);
+    try {
+      const data = await apiRequest<SubjectProgress>(`/me/progress/subjects/${subjectId}`);
+      setProgress(data);
+    } catch {
+      // Not found = not started — not an error
+    } finally {
+      setLoading(false);
+    }
+  }, [subjectId]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  return { progress, loading, refresh: fetch };
 }
 
 /* ─── Admin progress hook ─────────────────────────────────────────────── */
