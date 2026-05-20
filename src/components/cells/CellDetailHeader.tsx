@@ -2,7 +2,7 @@
 
 import { Icon } from "@/components/ui/Icon";
 import { CellTypeBadge } from "./CellTypeBadge";
-import type { Cell } from "@/lib/mock/cells";
+import type { Cell } from "@/application/hooks/useCells";
 
 interface Props {
   cell: Cell;
@@ -29,7 +29,7 @@ export function CellDetailHeader({ cell, actions }: Props) {
           </span>
         )}
         <span>
-          <Icon name="users" size={14} /> {cell.members.length} members
+          <Icon name="users" size={14} /> {cell.memberCount} members
         </span>
         <span>
           <Icon name="file-text" size={14} /> {cell.reportCount} reports filed

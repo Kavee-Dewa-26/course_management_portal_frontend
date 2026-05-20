@@ -4,13 +4,18 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
+import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { useRoleRequests } from "@/application/hooks/useRoleRequests";
+import { setUser, type SessionUser } from "@/application/slices/sessionSlice";
+import { apiRequest } from "@/infrastructure/api/request";
+import { auth } from "@/infrastructure/firebase/auth";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 
 export default function ApplyStudentPendingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.session.user);
   const requestId = searchParams?.get("req") ?? null;
 
@@ -30,12 +35,25 @@ export default function ApplyStudentPendingPage() {
     return () => window.removeEventListener("focus", onFocus);
   }, [refetch]);
 
-  // If approved → redirect to student workspace.
+  // If approved → force-refresh Firebase token so new student claim is picked
+  // up, re-fetch /me to update Redux roles, then navigate to student dashboard.
   useEffect(() => {
-    if (latestStudent?.status === "approved") {
-      router.replace("/browse-courses");
-    }
-  }, [latestStudent?.status, router]);
+    if (latestStudent?.status !== "approved") return;
+    (async () => {
+      try {
+        // Force token refresh so Firebase custom claims include `student`.
+        await auth.currentUser?.getIdToken(/* forceRefresh */ true);
+        // Re-fetch user profile with updated roles.
+        const me = await apiRequest<SessionUser>("/me");
+        dispatch(setUser(me));
+      } catch {
+        // Best-effort — proceed to redirect even if refresh fails.
+      }
+      // Route to student dashboard (/dashboard) — the student's home.
+      // Use replace so back-button doesn't loop to the pending page.
+      router.replace("/dashboard");
+    })();
+  }, [latestStudent?.status, dispatch, router]);
 
   const firstName = user?.firstName ?? "there";
   const email = user?.email ?? "";

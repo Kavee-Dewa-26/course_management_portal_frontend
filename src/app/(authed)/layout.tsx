@@ -46,11 +46,10 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
   const roles = useAppSelector((s) => s.session.user?.roles ?? []);
 
   // /my-requests and /profile keep the user's active role sidebar context
-  // so clicking "Profile" or "My Requests" from any role's nav doesn't
-  // snap the sidebar back to MEMBER_NAV unexpectedly.
-  const keepRoleNav =
-    pathname.startsWith("/my-requests") ||
-    pathname.startsWith("/profile");
+  // /profile keeps the user's active role sidebar so "Profile" stays
+  // highlighted in their role's nav. /my-requests is a member-section page
+  // and always shows MEMBER_NAV regardless of additional roles.
+  const keepRoleNav = pathname.startsWith("/profile");
 
   let navItems: NavItem[] = MEMBER_NAV;
   let roleLabel = "Member";
