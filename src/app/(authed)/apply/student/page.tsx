@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 import { pushToast } from "@/application/slices/uiSlice";
@@ -25,6 +25,14 @@ export default function ApplyStudentPage() {
   const { hasPendingStudent, latestStudent, loading } = useRoleRequests();
   const [submitting, setSubmitting] = useState(false);
   const [inlineError, setInlineError] = useState("");
+
+  // If already approved (roles just not refreshed in Redux yet), send to
+  // pending page — it handles token refresh + setUser + redirect to student UI.
+  useEffect(() => {
+    if (!loading && latestStudent?.status === "approved") {
+      router.replace(`/apply/student/pending?req=${latestStudent.id}`);
+    }
+  }, [loading, latestStudent, router]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

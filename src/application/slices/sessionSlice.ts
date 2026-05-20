@@ -12,13 +12,15 @@ export type Role =
  *  return during migration — treated client-side as a plain Member. */
 export type UserStatus = "approved" | "suspended" | "pending_approval" | "rejected";
 
-/** Where each role lands after login. Picked by the user's activeRole. */
+/** Where each role lands after login. Picked by the user's activeRole.
+ *  member/student always start at /home — the member hub. From there they
+ *  navigate to Bible School, cells, etc. Admin roles go to their dashboards. */
 export const DASHBOARD_BY_ROLE: Record<Role, string> = {
-  member: "/home",
-  leader: "/leader/dashboard",
-  g12: "/g12/dashboard",
-  student: "/dashboard",
-  admin: "/admin/dashboard",
+  member:      "/home",
+  student:     "/home",
+  leader:      "/home",
+  g12:         "/home",
+  admin:       "/admin/dashboard",
   super_admin: "/super-admin/dashboard",
 };
 
@@ -102,22 +104,10 @@ const sessionSlice = createSlice({
       if (action.payload) {
         const u = action.payload;
 
-        // V2 role normalisation.
-        //
-        // The V2 backend assigns roles: ["member"] + status: "approved" on
-        // registration immediately. While the backend is still being migrated,
-        // it may return the old V1 shape (role: "student", status:
-        // "pending_approval"). In that case, ignore the assigned roles and
-        // treat the user as a plain Member until the backend sends "approved".
-        //
-        // Once the backend is fully V2, `status` will always be "approved" and
-        // this branch will never fire.
-        let raw: string[];
-        if (u.status === "pending_approval") {
-          raw = ["member"];
-        } else {
-          raw = u.roles?.length ? u.roles : (u.role ? [u.role] : []);
-        }
+        // Trust roles[] from the backend as the source of truth.
+        // "pending_approval" status is a V1 legacy artifact that the backend
+        // never updates — roles[] is what actually reflects granted permissions.
+        const raw = u.roles?.length ? u.roles : (u.role ? [u.role] : []);
         const effectiveRoles = raw.includes("member") ? raw : ["member", ...raw];
 
         state.user = {

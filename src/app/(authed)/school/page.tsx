@@ -23,7 +23,12 @@ export default function SchoolRouterPage() {
 
     const hasStudent = user.roles?.includes("student");
     if (hasStudent) {
-      router.replace("/browse-courses");
+      // Student clicks Bible School → land on their dashboard (enrolled courses + progress)
+      router.replace("/dashboard");
+    } else if (latestStudent?.status === "approved") {
+      // Approved but Redux roles not refreshed yet — send to pending page
+      // which handles token refresh + setUser + redirect to browse-courses.
+      router.replace(`/apply/student/pending?req=${latestStudent.id}`);
     } else if (hasPendingStudent && latestStudent) {
       router.replace(`/apply/student/pending?req=${latestStudent.id}`);
     } else {
