@@ -74,38 +74,6 @@ export function TopNav({
       <div className="right">
         {rightExtras}
 
-        {/* Dual-role quick switcher — shown only when user has multiple roles */}
-        {roles && roles.length > 1 && onSwitchRole && activeRole && (() => {
-          const otherRole = (roles.find((r) => r !== activeRole) as Role | undefined);
-          if (!otherRole) return null;
-          const label = otherRole === "super_admin" ? "Super admin"
-            : otherRole === "admin" ? "Admin"
-            : "Student";
-          return (
-            <button
-              onClick={() => onSwitchRole(otherRole)}
-              title={`Switch to ${label} view`}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "6px 12px",
-                borderRadius: 9999,
-                border: "1px solid var(--color-accent, #BCE955)",
-                background: "rgba(188,233,85,0.10)",
-                color: "var(--color-primary)",
-                fontFamily: "var(--font-body)",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <Icon name="arrow-up-circle" size={13} />
-              Switch to {label}
-            </button>
-          );
-        })()}
 
         <LanguageSwitcher />
 
