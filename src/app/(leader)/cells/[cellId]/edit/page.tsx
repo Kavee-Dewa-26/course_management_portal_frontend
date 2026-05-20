@@ -1,14 +1,15 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useAppDispatch } from "@/application/hooks/useAppDispatch";
 import { pushToast } from "@/application/slices/uiSlice";
-import { getCellById, type CellType } from "@/lib/mock/cells";
+import { useCell } from "@/application/hooks/useCell";
+import { useCellMutations, type CellType } from "@/application/hooks/useCells";
 
 const TYPES: CellType[] = ["care", "outreach", "children", "g12"];
 
@@ -17,24 +18,27 @@ export default function EditCellPage() {
   const params = useParams();
   const dispatch = useAppDispatch();
   const cellId = (params?.cellId as string) ?? "";
-  const cell = useMemo(() => getCellById(cellId), [cellId]);
+  const { cell, loading } = useCell(cellId || undefined);
+  const { updateCell } = useCellMutations();
 
-  const [name, setName] = useState(cell?.name ?? "");
-  const [area, setArea] = useState(cell?.area ?? "");
-  const [type, setType] = useState<CellType>(cell?.type ?? "care");
+  const [name, setName] = useState("");
+  const [area, setArea] = useState("");
+  const [type, setType] = useState<CellType>("care");
+  const [saving, setSaving] = useState(false);
 
-  if (!cell) {
-    return (
-      <div className="page">
-        <EmptyState icon="alert-circle" title="Cell not found" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (cell) { setName(cell.name); setArea(cell.area); setType(cell.type); }
+  }, [cell]);
 
-  const onSave = (e: React.FormEvent) => {
+  if (loading) return <div className="page" style={{ textAlign: "center", padding: 48 }}><EmptyState icon="loader" title="Loading…" /></div>;
+  if (!cell) return <div className="page"><EmptyState icon="alert-circle" title="Cell not found" /></div>;
+
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(pushToast({ tone: "success", title: "Cell updated", message: `${name} saved.` }));
-    setTimeout(() => router.push(`/cells/${cell.id}`), 500);
+    setSaving(true);
+    const updated = await updateCell(cell.id, { name, area, type });
+    setSaving(false);
+    if (updated) router.push(`/cells/${cell.id}`);
   };
 
   return (
@@ -84,7 +88,7 @@ export default function EditCellPage() {
           <Button type="button" variant="ghost" onClick={() => router.push(`/cells/${cell.id}`)}>
             Cancel
           </Button>
-          <Button type="submit" size="lg" icon="save">Save changes</Button>
+          <Button type="submit" size="lg" icon="save" disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>
         </div>
       </form>
 

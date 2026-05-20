@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getCellById, type CellMember } from "@/lib/mock/cells";
+import { useCell } from "@/application/hooks/useCell";
 import { listCellReports, type CellReport } from "@/lib/mock/cellReports";
 
 const TYPE_LABEL: Record<"g12" | "care" | "children" | "outreach", string> = {
@@ -25,7 +25,8 @@ export default function MyCellDetailPage() {
   const router = useRouter();
   const params = useParams();
   const cellId = (params?.cellId as string) ?? "";
-  const cell = useMemo(() => getCellById(cellId), [cellId]);
+  const { cell, loading } = useCell(cellId || undefined);
+  // Cell reports wired in Sprint 07 — keep mock for now
   const reports = useMemo<CellReport[]>(
     () =>
       listCellReports({ cellId, voided: false })
@@ -33,6 +34,8 @@ export default function MyCellDetailPage() {
         .slice(0, 10),
     [cellId],
   );
+
+  if (loading) return <div className="page" style={{ textAlign: "center", padding: 48 }}><Icon name="loader" size={24} style={{ color: "var(--color-muted)" }} /></div>;
 
   if (!cell) {
     return (
@@ -71,7 +74,7 @@ export default function MyCellDetailPage() {
             </span>
           )}
           <span>
-            <Icon name="users" size={14} /> {cell.members.length} members
+            <Icon name="users" size={14} /> {cell.memberCount} members
           </span>
         </div>
       </div>
@@ -91,8 +94,8 @@ export default function MyCellDetailPage() {
             gap: 4,
           }}
         >
-          {cell.members.map((m) => (
-            <MemberRow key={m.id} member={m} leaderId={cell.leaderId} />
+          {(cell.members ?? []).map((m) => (
+            <MemberRow key={m.uid ?? String(m)} uid={m.uid ?? String(m)} displayName={m.displayName ?? String(m)} isLeader={(m.uid ?? String(m)) === cell.leaderUid} />
           ))}
         </div>
       </section>
@@ -115,35 +118,14 @@ export default function MyCellDetailPage() {
   );
 }
 
-function MemberRow({ member, leaderId }: { member: CellMember; leaderId: string }) {
-  const isLeader = member.id === leaderId;
+function MemberRow({ uid, displayName, isLeader }: { uid: string; displayName: string; isLeader: boolean }) {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "auto 1fr auto",
-        gap: 12,
-        alignItems: "center",
-        padding: "10px 14px",
-        background: "#FAFAFA",
-        borderRadius: 10,
-      }}
-    >
-      <Avatar src={member.avatar} name={member.name} size="sm" />
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 500, color: "var(--color-primary)" }}>
-          {member.name}
-        </div>
-        <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--color-body-green)" }}>
-          Joined {formatDate(member.joinedAt)}
-        </div>
+    <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center", padding: "10px 14px", background: "#FAFAFA", borderRadius: 10 }}>
+      <Avatar name={displayName} size="sm" />
+      <div style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 500, color: "var(--color-primary)" }}>
+        {displayName}
       </div>
       {isLeader && <span className="cell-type g12">Leader</span>}
-      {!isLeader && member.roleInCell && member.roleInCell !== "member" && (
-        <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--color-muted)", textTransform: "capitalize" }}>
-          {member.roleInCell}
-        </span>
-      )}
     </div>
   );
 }

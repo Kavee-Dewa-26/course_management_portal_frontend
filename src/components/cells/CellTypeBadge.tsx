@@ -1,4 +1,4 @@
-import type { CellType } from "@/lib/mock/cells";
+import type { CellType } from "@/application/hooks/useCells";
 
 const LABEL: Record<CellType, string> = {
   g12: "G12",

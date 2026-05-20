@@ -10,15 +10,15 @@ import { CellDetailHeader } from "@/components/cells/CellDetailHeader";
 import { CellTabs } from "@/components/cells/CellTabs";
 import { CellMembersPanel } from "@/components/cells/CellMembersPanel";
 import { CellReportCard } from "@/components/cells/CellReportCard";
-import { getCellById } from "@/lib/mock/cells";
-import { listCellReports } from "@/lib/mock/cellReports";
+import { useCell } from "@/application/hooks/useCell";
+import { listCellReports } from "@/lib/mock/cellReports"; // Sprint 07 — cell reports
 import { useAppSelector } from "@/application/hooks/useAppSelector";
 
 export default function LeaderCellDetailPage() {
   const router = useRouter();
   const params = useParams();
   const cellId = (params?.cellId as string) ?? "";
-  const cell = useMemo(() => getCellById(cellId), [cellId]);
+  const { cell, loading: cellLoading, error: cellError } = useCell(cellId || undefined);
   const reports = useMemo(
     () =>
       listCellReports({ cellId })
@@ -31,10 +31,14 @@ export default function LeaderCellDetailPage() {
 
   const [tab, setTab] = useState<"members" | "reports">("members");
 
-  if (!cell) {
+  if (cellLoading) {
+    return <div className="page" style={{ textAlign: "center", padding: 48, color: "var(--color-muted)" }}><Icon name="loader" size={24} /></div>;
+  }
+
+  if (!cell || (cellError && cellError.status === 404)) {
     return (
       <div className="page">
-        <EmptyState icon="alert-circle" title="Cell not found" message="This cell may have been archived." />
+        <EmptyState icon="alert-circle" title="Cell not found" message="This cell may have been archived or you don't have access." />
         <div style={{ textAlign: "center", marginTop: 16 }}>
           <Link href="/cells" className="btn btn--secondary-light">
             <Icon name="arrow-left" size={14} /> Back to cells
@@ -68,7 +72,7 @@ export default function LeaderCellDetailPage() {
 
       <CellTabs
         tabs={[
-          { id: "members", label: "Members", icon: "users", count: cell.members.length },
+          { id: "members", label: "Members", icon: "users", count: cell.memberCount },
           { id: "reports", label: "Reports", icon: "file-text", count: reports.length },
         ]}
         active={tab}
@@ -76,7 +80,11 @@ export default function LeaderCellDetailPage() {
       />
 
       {tab === "members" && (
-        <CellMembersPanel members={cell.members} leaderId={cell.leaderId} canEdit={canFile} />
+        <CellMembersPanel
+          members={(cell.members ?? []).map((m) => ({ uid: m.uid ?? m, displayName: m.displayName ?? String(m) }))}
+          leaderUid={cell.leaderUid}
+          canEdit={canFile}
+        />
       )}
 
       {tab === "reports" && (
