@@ -43,19 +43,34 @@ export function useRoleRequestQueue() {
     status: "pending",
     search: "",
   });
+  // All enriched items before search filtering — kept so search/clear never
+  // triggers a re-fetch.
+  const [allEnriched, setAllEnriched] = useState<RoleRequestQueueItem[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // Apply client-side search to allEnriched and update visible items.
+  const applySearch = useCallback((items: RoleRequestQueueItem[], q: string) => {
+    const term = q.trim().toLowerCase();
+    const filtered = term
+      ? items.filter((item) => {
+          const name  = (item.requesterName  ?? "").toLowerCase();
+          const email = (item.requesterEmail ?? "").toLowerCase();
+          const role  = (item.requestedRole  ?? "").toLowerCase();
+          return name.includes(term) || email.includes(term) || role.includes(term);
+        })
+      : items;
+    setState((s) => ({ ...s, items: filtered, total: filtered.length, search: q }));
+  }, []);
+
   const fetchQueue = useCallback(
-    async (overrides?: Partial<Pick<QueueState, "status" | "search">>) => {
-      // Read status/search from functional update to avoid stale closure.
+    async (overrides?: Partial<Pick<QueueState, "status">>) => {
+      // Only status changes need a re-fetch; search is client-side only.
       setState((s) => {
         const next = { ...s, loading: true, ...(overrides ?? {}) };
         return next;
       });
-      // Get current values for the API call.
-      const { status, search } = overrides
-        ? { status: overrides.status ?? state.status, search: overrides.search ?? state.search }
-        : { status: state.status, search: state.search };
+      const status = overrides?.status ?? state.status;
+      const search = state.search;
       try {
         const params = new URLSearchParams({ status, limit: "20" });
         if (search) params.set("search", search);
@@ -65,17 +80,23 @@ export function useRoleRequestQueue() {
           nextCursor: string | null;
         }>(`/role-requests?${params}`);
 
-        // Enrich each request with the requester's current roles + phone
-        // via GET /users/:uid. Failures are silently ignored per item.
+        // Enrich each request with name, email, roles, phone from GET /users/:uid
+        // because the backend doesn't embed them in the role-request response.
         const enriched = await Promise.all(
           (res.items ?? []).map(async (item) => {
             try {
               const user = await apiRequest<{
+                firstName?: string;
+                lastName?: string;
+                email?: string;
                 roles?: string[];
                 phone?: string;
               }>(`/users/${item.requesterUid}`);
+              const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ");
               return {
                 ...item,
+                requesterName:  fullName || item.requesterName,
+                requesterEmail: user.email ?? item.requesterEmail,
                 requesterRoles: user.roles ?? [],
                 requesterPhone: user.phone ?? undefined,
               };
@@ -85,10 +106,23 @@ export function useRoleRequestQueue() {
           }),
         );
 
+        // Store all enriched items so search/clear can filter without re-fetch.
+        setAllEnriched(enriched);
+
+        const q = search.trim().toLowerCase();
+        const filtered = q
+          ? enriched.filter((item) => {
+              const name  = (item.requesterName  ?? "").toLowerCase();
+              const email = (item.requesterEmail ?? "").toLowerCase();
+              const role  = (item.requestedRole  ?? "").toLowerCase();
+              return name.includes(q) || email.includes(q) || role.includes(q);
+            })
+          : enriched;
+
         setState((s) => ({
           ...s,
-          items: enriched,
-          total: res.total ?? 0,
+          items: filtered,
+          total: filtered.length,
           nextCursor: res.nextCursor ?? null,
           loading: false,
           status,
@@ -151,8 +185,10 @@ export function useRoleRequestQueue() {
     processingId,
     approve,
     reject,
+    // Status change → re-fetch from API (different data set).
     setStatus: (status: QueueState["status"]) => fetchQueue({ status }),
-    setSearch: (search: string) => fetchQueue({ search }),
+    // Search change → client-side filter only, no re-fetch, no loading spinner.
+    setSearch: (search: string) => applySearch(allEnriched, search),
     refetch: () => fetchQueue(),
   };
 }

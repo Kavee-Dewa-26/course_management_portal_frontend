@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { useBatches, type Batch } from "@/application/hooks/useBatches";
+import { useSavedBadge, SavedBadge } from "@/components/ui/SavedBadge";
 
 interface Props {
   courseId: string;
@@ -26,6 +27,7 @@ function batchBadge(state: Batch["state"]) {
 
 export function BatchesSection({ courseId }: Props) {
   const { batches, loading, fetchError, busy, createBatch, openBatch, closeBatch } = useBatches(courseId);
+  const { saved: batchSaved, triggerSaved: triggerBatchSaved } = useSavedBadge();
 
   const [showForm, setShowForm] = useState(false);
   const [name,        setName]        = useState("");
@@ -53,7 +55,7 @@ export function BatchesSection({ courseId }: Props) {
       intakeEnd,
       capacity: typeof capacity === "number" ? capacity : null,
     });
-    if (ok) resetForm();
+    if (ok) { resetForm(); triggerBatchSaved(); }
   };
 
   return (
@@ -65,13 +67,16 @@ export function BatchesSection({ courseId }: Props) {
             Each batch is a separate intake window. Past batches auto-close so students only see future or open intakes when applying.
           </p>
         </div>
-        <Button
-          variant={showForm ? "ghost" : "primary"}
-          icon={showForm ? "x" : "plus"}
-          onClick={() => showForm ? resetForm() : setShowForm(true)}
-        >
-          {showForm ? "Close" : "New batch"}
-        </Button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <SavedBadge visible={batchSaved} />
+          <Button
+            variant={showForm ? "ghost" : "primary"}
+            icon={showForm ? "x" : "plus"}
+            onClick={() => showForm ? resetForm() : setShowForm(true)}
+          >
+            {showForm ? "Close" : "New batch"}
+          </Button>
+        </div>
       </div>
 
       {showForm && (

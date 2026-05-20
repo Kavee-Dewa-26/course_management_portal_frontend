@@ -7,10 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useRoleRequests, type RoleRequest } from "@/application/hooks/useRoleRequests";
-import {
-  listEnrollmentRequestsFor,
-  type EnrollmentRequestStatus,
-} from "@/lib/mock/enrollmentRequests";
+import { useEnrollments, type Enrollment } from "@/application/hooks/useEnrollments";
 
 /**
  * My Requests — surface adapts to the user's existing roles.
@@ -50,15 +47,14 @@ export default function MyRequestsPage() {
   const user = useAppSelector((s) => s.session.user);
   const hasStudent = user?.roles?.includes("student") ?? false;
 
-  // Role requests from real API (GET /role-requests/mine)
-  const { items: roleRequests, loading } = useRoleRequests();
+  // Role requests — real API (GET /role-requests/mine)
+  const { items: roleRequests, loading: roleLoading } = useRoleRequests();
 
-  // Enrollment requests — Sprint 5 will replace this mock
-  const enrollmentRequests = hasStudent && user
-    ? listEnrollmentRequestsFor(user.uid).sort(
-        (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
-      )
-    : [];
+  // Enrollment requests — real API (GET /enrollments/mine)
+  const { items: allEnrollments, loading: enrollLoading } = useEnrollments();
+  const enrollmentRequests = allEnrollments
+    .filter((e) => (e.status ?? e.state) !== "withdrawn")
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
     <div className="page">
@@ -74,8 +70,8 @@ export default function MyRequestsPage() {
       </header>
 
       {hasStudent
-        ? <EnrollmentRequestsList items={enrollmentRequests} />
-        : <RoleRequestsList items={roleRequests} loading={loading} />}
+        ? <EnrollmentRequestsList items={enrollmentRequests} loading={enrollLoading} />
+        : <RoleRequestsList items={roleRequests} loading={roleLoading} />}
     </div>
   );
 }
@@ -149,8 +145,12 @@ function RoleRequestsList({ items, loading }: { items: RoleRequest[]; loading: b
   );
 }
 
-/* ─── Enrollment-request list (Member + Student) ─────────────────── */
-function EnrollmentRequestsList({ items }: { items: ReturnType<typeof listEnrollmentRequestsFor> }) {
+/* ─── Enrollment-request list (Member + Student) — real API ──────── */
+function EnrollmentRequestsList({ items, loading }: { items: Enrollment[]; loading: boolean }) {
+  if (loading) {
+    return <div style={{ textAlign: "center", padding: 48, color: "var(--color-muted)" }}><Icon name="loader" size={20} /></div>;
+  }
+
   if (items.length === 0) {
     return (
       <>
@@ -168,21 +168,24 @@ function EnrollmentRequestsList({ items }: { items: ReturnType<typeof listEnroll
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {items.map((r) => {
-        const badge = STATUS_BADGE[r.status as string] ?? STATUS_BADGE.pending;
+        const enrollStatus = (r.status ?? r.state ?? "pending") as string;
+        const badge = STATUS_BADGE[enrollStatus] ?? STATUS_BADGE.pending;
         return (
           <div key={r.id} style={{ background: "#fff", border: "1px solid var(--color-stroke)", borderRadius: 14, padding: "18px 20px", display: "grid", gridTemplateColumns: "1fr auto", gap: 16, alignItems: "center" }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
                 <span style={{ fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: 16, color: "var(--color-primary)" }}>
-                  {r.courseTitle}
+                  {r.courseName ?? r.courseId}
                 </span>
                 <Badge tone={badge.tone}>{badge.label}</Badge>
               </div>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)" }}>
-                <Icon name="calendar-clock" size={12} style={{ marginRight: 6, verticalAlign: "middle" }} />
-                {r.batchName}
-              </div>
-              {r.status === "rejected" && r.decisionNote && (
+              {r.batchName && (
+                <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-body-green)" }}>
+                  <Icon name="calendar-clock" size={12} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                  {r.batchName}
+                </div>
+              )}
+              {enrollStatus === "rejected" && r.decisionNote && (
                 <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--color-error-deep)", marginTop: 8, padding: "8px 12px", background: "var(--color-error-bg)", borderRadius: 8 }}>
                   <Icon name="alert-circle" size={12} style={{ marginRight: 6, verticalAlign: "middle" }} />
                   {r.decisionNote}
@@ -191,9 +194,9 @@ function EnrollmentRequestsList({ items }: { items: ReturnType<typeof listEnroll
             </div>
             <div style={{ textAlign: "right", display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
               <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--color-body-green)" }}>
-                Submitted {relativeTime(r.submittedAt)}
+                Submitted {relativeTime(r.createdAt)}
               </span>
-              {r.status === "approved" && (
+              {enrollStatus === "approved" && (
                 <Link href="/my-courses" style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--color-success-deep)", fontWeight: 600, textDecoration: "none" }}>
                   Go to course →
                 </Link>

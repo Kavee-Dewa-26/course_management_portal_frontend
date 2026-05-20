@@ -14,6 +14,7 @@ import { apiRequest, ApiRequestError } from "@/infrastructure/api/request";
 import type { CourseSummary } from "@/application/hooks/useCourses";
 import { CourseStructureEditor } from "@/components/course/CourseStructureEditor";
 import { BatchesSection } from "@/components/course/BatchesSection";
+import { useSavedBadge, SavedBadge } from "@/components/ui/SavedBadge";
 
 function stateBadge(state: string) {
   if (state === "published") return <Badge tone="success">Published</Badge>;
@@ -35,13 +36,19 @@ export default function EditCoursePage() {
   const [titleError, setTitleError] = useState("");
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const { saved: titleSaved, triggerSaved: triggerTitleSaved } = useSavedBadge();
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  // Local state for course lifecycle — updated immediately after API calls so
+  // buttons reflect the new state without waiting for a page re-fetch.
+  const [courseState, setCourseState] = useState<string | null>(null);
+  const effectiveState = courseState ?? course?.state ?? "draft";
 
   // Pre-fill form when course loads.
   useEffect(() => {
     if (course) {
       setTitle(course.title);
       setDirty(false);
+      setCourseState(course.state); // seed local state from API
     }
   }, [course]);
 
@@ -70,7 +77,7 @@ export default function EditCoursePage() {
       });
       setTitle(updated.title);
       setDirty(false);
-      dispatch(pushToast({ tone: "success", title: "Title saved" }));
+      triggerTitleSaved();
     } catch (err) {
       if (err instanceof ApiRequestError) {
         if (err.status === 409) {
@@ -91,11 +98,8 @@ export default function EditCoursePage() {
     setLifecycleBusy(true);
     try {
       await apiRequest(`/courses/${course.id}/publish`, { method: "POST" });
-      dispatch(pushToast({
-        tone: "success",
-        title: course.state === "archived" ? "Course restored & published" : "Course published",
-      }));
-      router.replace(`${base}/courses/${course.id}`);
+      setCourseState("published");
+      dispatch(pushToast({ tone: "success", title: "Course published" }));
     } catch (err) {
       if (err instanceof ApiRequestError) {
         const msg = err.status === 409 ? "Course can't be published from its current state."
@@ -112,8 +116,8 @@ export default function EditCoursePage() {
     setLifecycleBusy(true);
     try {
       await apiRequest(`/courses/${course.id}/unpublish`, { method: "POST" });
+      setCourseState("draft");
       dispatch(pushToast({ tone: "success", title: "Course unpublished" }));
-      router.replace(`${base}/courses/${course.id}`);
     } catch (err) {
       if (err instanceof ApiRequestError) {
         const msg = err.status === 409 ? "Only a PUBLISHED course can be unpublished." : err.message;
@@ -128,8 +132,8 @@ export default function EditCoursePage() {
     setLifecycleBusy(true);
     try {
       await apiRequest(`/courses/${course.id}/archive`, { method: "POST" });
+      setCourseState("archived");
       dispatch(pushToast({ tone: "success", title: "Course archived" }));
-      router.replace(`${base}/courses/${course.id}`);
     } catch (err) {
       if (err instanceof ApiRequestError) {
         const msg = err.status === 409 ? "Only a PUBLISHED course can be archived." : err.message;
@@ -144,8 +148,8 @@ export default function EditCoursePage() {
     setLifecycleBusy(true);
     try {
       await apiRequest(`/courses/${course.id}/restore`, { method: "POST" });
+      setCourseState("draft");
       dispatch(pushToast({ tone: "success", title: "Course restored", message: "Back to Draft — re-publish to make it visible." }));
-      router.replace(`${base}/courses/${course.id}`);
     } catch (err) {
       if (err instanceof ApiRequestError) {
         const msg = err.status === 409 ? "Only an archived course can be restored." : err.message;
@@ -161,18 +165,18 @@ export default function EditCoursePage() {
       <div className="page-header">
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h1>{course.title}</h1>
-          {stateBadge(course.state)}
+          {stateBadge(effectiveState)}
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Button variant="ghost" icon="arrow-left" onClick={() => router.push(`${base}/courses`)}>
             Back
           </Button>
-          {course.state === "draft" && (
+          {effectiveState === "draft" && (
             <Button icon="upload-cloud" onClick={handlePublish} disabled={lifecycleBusy}>
               {lifecycleBusy ? "Publishing…" : "Publish"}
             </Button>
           )}
-          {course.state === "published" && (
+          {effectiveState === "published" && (
             <>
               <Button variant="secondary" icon="eye-off" onClick={handleUnpublish} disabled={lifecycleBusy}>
                 {lifecycleBusy ? "Unpublishing…" : "Unpublish"}
@@ -186,7 +190,7 @@ export default function EditCoursePage() {
       </div>
 
       {/* Info banner + Restore button — only for archived courses */}
-      {course.state === "archived" && (
+      {effectiveState === "archived" && (
         <div style={{
           padding: "12px 16px",
           background: "var(--color-light-gray)",
@@ -236,6 +240,7 @@ export default function EditCoursePage() {
             >
               {saving ? "Saving…" : "Save title"}
             </Button>
+            <SavedBadge visible={titleSaved} />
           </div>
         </form>
       </div>

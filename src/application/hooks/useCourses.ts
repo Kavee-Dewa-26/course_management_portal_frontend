@@ -15,7 +15,8 @@ export interface CourseSummary {
   state: "draft" | "published" | "archived";
   status?: string;        // V2 alias for state
   semesterCount: number;
-  batchCount?: number;    // V2 new field
+  batchCount?: number;    // V2 field
+  batches_count?: number; // possible snake_case from backend
   createdBy?: string;
   publishedAt: string | null;
   deletedAt?: string | null;
@@ -27,7 +28,9 @@ export interface CourseSummary {
 export interface Subject {
   id: string;
   title: string;
+  name?: string;        // V2 alias
   order: number;
+  imageUrls?: string[]; // V2 new — PNG/JPG cover images
   createdAt?: string;
   updatedAt?: string;
 }
