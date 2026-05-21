@@ -1,4 +1,4 @@
-name: Course Management Portal Frontend
+name: Course Management Portal Frontend Pipeline
 
 on:
   push:
