@@ -10,32 +10,15 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      #checkout the repo
+     #checkout the repo
       - name: Checkout Repository
         uses: actions/checkout@v3
-        with:
-          token: ${{  secrets.GITHUB_TOKEN }}
 
       - name: Pull the latest code
         run: |
           cd /home/node3/course-portal/frontend/course_management_portal_frontend
           git config --global --add safe.directory /home/node3/course-portal/frontend/course_management_portal_frontend
-          git config user.email "kavindya@futurecx.com"
-          git config user.name "Kavee-Dewa-26"
-
-          # remove old remotes if exists
-          git remote remove source || true
-          git remote remove origin || true
-
-
-          # Add remotes
-          git remote add source https://github.com/SapnaNethmini/course_management_portal_frontend.git
-          git remote add origin https://${{ secrets.MY_KEY }}@github.com/Kavee-Dewa-26/course_management_portal_frontend.git
-
-          git fetch source
-          git reset --hard source/main
-
-          git push origin main
+          git pull origin main
 
       - name: Deploy the containers
         run: |
