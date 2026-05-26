@@ -24,6 +24,8 @@ jobs:
         run: |
           cd /home/node3/course-portal/frontend/course_management_portal_frontend
           docker-compose stop course-frontend || true
+          docker start nync-grafana
           docker system prune -af || true
+          docker stop nync-grafana
           docker-compose up -d course-frontend
           docker ps
